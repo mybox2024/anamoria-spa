@@ -1,0 +1,131 @@
+/* components/BottomNav.module.css
+   Ported from axr_MemoryVaultV2.css bottom-nav styles.
+   Brand Sage SVG icons per BottomNav_BrandSage_Implementation.md
+*/
+
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+  padding-bottom: var(--safe-area-bottom);
+  background: var(--color-bg-white);
+  border-top: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-nav);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+/* ─── Nav button base ─── */
+
+.btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  height: 100%;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  transition: color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.btn:hover {
+  color: var(--color-sage);
+}
+
+/* ─── Primary (Record) button — sage pill ─── */
+
+.btnPrimary {
+  color: var(--color-text-white);
+}
+
+.btnPrimary .icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: var(--color-sage-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(91, 122, 101, 0.35);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  transform: scale(1.0);
+}
+
+.btnPrimary:hover .icon,
+.btnPrimary.active .icon {
+  background: #4a6954;
+  transform: scale(1.08);
+}
+
+.btnPrimary .label {
+  color: var(--color-sage-dark);
+  font-weight: 700;
+}
+
+/* ─── Active state (non-primary) ─── */
+
+.active:not(.btnPrimary) {
+  color: var(--color-sage-dark);
+}
+
+.active:not(.btnPrimary) .label {
+  color: var(--color-sage-dark);
+}
+
+/* ─── Icon container ─── */
+
+.icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 17px;
+  transition: background var(--transition-fast);
+}
+
+.btn:not(.btnPrimary):hover .icon {
+  background: rgba(91, 122, 101, 0.08);
+}
+
+/* ─── SVG sizing and color ─── */
+
+.icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.icon svg path,
+.icon svg circle,
+.icon svg rect,
+.icon svg line {
+  stroke: currentColor;
+  transition: stroke var(--transition-fast);
+}
+
+/* .svgFill elements (mic body, pen nib, etc.) are filled not stroked */
+.svgFill {
+  fill: currentColor;
+  stroke: none !important;
+}
+
+/* ─── Label ─── */
+
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: inherit;
+}

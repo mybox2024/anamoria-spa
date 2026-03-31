@@ -1,0 +1,75 @@
+/* styles/variables.css — Anamoria SPA
+   Brand design tokens.
+   Source of truth: axr_MemoryVaultV2.css v3.2 (lines 1–80, :host block).
+   Converted from LWC :host scoping to :root for global use in React.
+   All consuming files import this via index.html or global.css.
+*/
+
+:root {
+  /* ─── Typography ─── */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* ─── Primary Brand — Sage Green ─── */
+  --color-sage: #7c9885;
+  --color-sage-dark: #5b7a65;
+  --color-sage-light: #e8f0eb;
+  --color-sage-tint: #f0f5f1;
+
+  /* ─── Text ─── */
+  --color-text-primary: #2d3436;
+  --color-text-body: #3d4a3f;
+  --color-text-subtle: #737373;
+  --color-text-white: #ffffff;
+  --color-text-caption: #636e72;
+  --color-text-placeholder: #b2bec3;
+
+  /* ─── Backgrounds ─── */
+  --color-bg: #faf9f7;
+  --color-bg-white: #ffffff;
+  --color-bg-warm: #f5f5f4;
+
+  /* ─── Borders ─── */
+  --color-border: #e0ddd8;
+  --color-border-light: #edebe7;
+
+  /* ─── Semantic ─── */
+  --color-red: #b85450;
+  --color-amber: #d4880f;
+  --color-logo: #708a81;
+
+  /* ─── Dashboard Visualization ─── */
+  --color-dash-memories: #b85450;
+  --color-dash-voice: #2d6a8e;
+  --color-dash-active: #d4880f;
+
+  /* ─── Backward-compatible aliases (used by voice card CSS) ─── */
+  --sage-50: var(--color-sage-tint);
+  --sage-100: var(--color-sage-light);
+  --sage-500: var(--color-sage);
+  --sage-600: var(--color-sage-dark);
+  --cream: var(--color-bg);
+  --butter-yellow: #f8f1df;
+  --soft-blue: #e8f4f8;
+  --warm-gray: var(--color-bg-warm);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-body);
+  --text-muted: var(--color-text-subtle);
+  --border: var(--color-border);
+  --border-light: var(--color-border-light);
+
+  /* ─── Layout ─── */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --bottom-nav-height: 64px;
+
+  /* ─── Motion ─── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* ─── Shadows ─── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-nav: 0 -1px 0 rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.10);
+}

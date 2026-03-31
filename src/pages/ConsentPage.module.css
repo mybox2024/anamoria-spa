@@ -1,0 +1,163 @@
+/* pages/ConsentPage.module.css — Anamoria SPA */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 48px 24px;
+  padding-top: calc(48px + var(--safe-area-top));
+  padding-bottom: calc(48px + var(--safe-area-bottom));
+  background: var(--color-bg);
+}
+
+.content {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ─── Header ─── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brand {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-logo);
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: var(--color-text-subtle);
+  line-height: 1.5;
+}
+
+/* ─── Policy summary card ─── */
+
+.policy {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.policySection {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.policySection:last-child {
+  border-bottom: none;
+}
+
+.policySectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-sage-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.policySectionText {
+  font-size: 14px;
+  color: var(--color-text-body);
+  line-height: 1.6;
+}
+
+/* ─── Age checkbox ─── */
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  accent-color: var(--color-sage-dark);
+  cursor: pointer;
+}
+
+.checkboxText {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-body);
+  line-height: 1.5;
+}
+
+/* ─── Error ─── */
+
+.error {
+  font-size: 13px;
+  color: var(--color-red);
+}
+
+/* ─── Accept button ─── */
+
+.btn {
+  width: 100%;
+  height: 52px;
+  background: var(--color-sage-dark);
+  color: var(--color-text-white);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 26px;
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:hover:not(:disabled) {
+  background: #4a6954;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btnSpinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Footer note ─── */
+
+.footer {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  text-align: center;
+  line-height: 1.5;
+}

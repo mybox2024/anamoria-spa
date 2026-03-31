@@ -1,0 +1,324 @@
+/* pages/RecordPage.module.css
+   Ported from axr_MemoryVaultV2.css v3.2 recording screen styles.
+   3-state circle: idle / recording (breathing) / paused (dimmed)
+*/
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  padding-top: var(--safe-area-top);
+}
+
+/* ─── Header ─── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.backBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  border-radius: 18px;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.backBtn:hover {
+  background: var(--color-bg-warm);
+  color: var(--color-text-primary);
+}
+
+.backBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* ─── Recording content area ─── */
+
+.recordingContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  gap: 32px;
+}
+
+/* ─── 3-State circle ─── */
+
+.circle {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Outer breathing ring */
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--color-sage-light);
+  transition: border-color var(--transition-base), opacity var(--transition-base);
+}
+
+.ringBreathing {
+  border-color: var(--color-sage);
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.ringDimmed {
+  border-color: var(--color-sage-light);
+  opacity: 0.5;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1);   opacity: 0.6; }
+  50%       { transform: scale(1.08); opacity: 1;   }
+}
+
+/* Inner dot */
+.dot {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--color-sage-dark);
+  transition: background var(--transition-base), opacity var(--transition-base);
+  box-shadow: 0 4px 20px rgba(91, 122, 101, 0.4);
+}
+
+.circleRecording .dot {
+  background: #b85450; /* red when recording */
+  box-shadow: 0 4px 20px rgba(184, 84, 80, 0.4);
+}
+
+.circlePaused .dot {
+  background: var(--color-sage);
+  opacity: 0.6;
+}
+
+/* ─── Timer + status ─── */
+
+.statusArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.timerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.timerActive {
+  color: #b85450;
+}
+
+.stateLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-text-subtle);
+}
+
+/* ─── Error ─── */
+
+.recorderError {
+  font-size: 14px;
+  color: var(--color-red);
+  text-align: center;
+  max-width: 280px;
+}
+
+/* ─── Controls (stop button) ─── */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stopBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--color-bg-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-body);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.stopBtn:hover {
+  border-color: var(--color-sage-dark);
+  color: var(--color-sage-dark);
+}
+
+.stopIcon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ─── Review / stopped screen ─── */
+
+.reviewContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px;
+  gap: 24px;
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.reviewCard {
+  width: 100%;
+  background: var(--butter-yellow);
+  border: 1px solid #f0e8c0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviewLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-sage-dark);
+}
+
+.reviewDuration {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.audioPreview {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+}
+
+.uploadError {
+  font-size: 13px;
+  color: var(--color-red);
+  text-align: center;
+}
+
+/* ─── Review actions ─── */
+
+.reviewActions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saveBtn {
+  width: 100%;
+  height: 52px;
+  background: var(--color-sage-dark);
+  color: var(--color-text-white);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 26px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.saveBtn:hover {
+  background: #4a6954;
+}
+
+.reRecordBtn {
+  width: 100%;
+  height: 48px;
+  background: none;
+  color: var(--color-text-subtle);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid var(--color-border);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.reRecordBtn:hover {
+  border-color: var(--color-sage);
+  color: var(--color-sage-dark);
+}
+
+/* ─── Uploading screen ─── */
+
+.uploadingPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  gap: 16px;
+  background: var(--color-bg);
+}
+
+.uploadingText {
+  font-size: 15px;
+  color: var(--color-text-subtle);
+}

@@ -1,0 +1,288 @@
+/* components/VoiceCard.module.css
+   4 themes ported from Voice_Card_Theme_Spec.md
+   Uses CSS Modules — theme classes applied via JS.
+*/
+
+/* ─── Base card ─── */
+
+.card {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Accent strip (story + clean only) ─── */
+
+.accent {
+  display: none; /* hidden by default; shown by theme overrides */
+}
+
+/* ─── Header ─── */
+
+.header {
+  padding: 14px 16px 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.icon {
+  font-size: 14px;
+  color: var(--color-text-caption);
+  margin-bottom: 4px;
+  min-height: 18px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-sage-dark);
+  margin-bottom: 4px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+/* ─── Player row ─── */
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+}
+
+.playBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-sage-dark);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.playBtn:hover {
+  background: #4a6954;
+}
+
+.playLoading {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Waveform bars */
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  height: 24px;
+}
+
+.waveBar {
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--color-sage);
+  transition: opacity 0.2s;
+}
+
+/* Progress bar (story + clean) */
+.progressBar {
+  flex: 1;
+  height: 4px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-sage);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+/* ─── Footer ─── */
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px 12px;
+}
+
+.date {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.privacy {
+  font-size: 11px;
+  color: var(--color-text-subtle);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ═══════════════════════════════════════
+   THEME: WARM (butter-yellow)
+   ═══════════════════════════════════════ */
+
+.themeWarm {
+  background: var(--butter-yellow);
+  border: 1px solid #f0e8c0;
+}
+
+.themeWarm .label {
+  color: var(--color-sage-dark);
+}
+
+.themeWarm .waveBar {
+  background: var(--color-sage);
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════
+   THEME: STORY (white + yellow top strip)
+   ═══════════════════════════════════════ */
+
+.themeStory {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border-light);
+}
+
+.themeStory .accent {
+  display: block;
+  height: 6px;
+  background: var(--butter-yellow);
+  width: 100%;
+}
+
+.themeStory .label {
+  display: none;
+}
+
+.themeStory .icon {
+  color: var(--color-text-caption);
+}
+
+.themeStory .playBtn {
+  width: 32px;
+  height: 32px;
+}
+
+.themeStory .duration {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+}
+
+/* ═══════════════════════════════════════
+   THEME: SAGE (sage-tinted background)
+   ═══════════════════════════════════════ */
+
+.themeSage {
+  background: var(--color-sage-light);
+  border: 1px solid #d0e0d5;
+}
+
+.themeSage .icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-sage-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.themeSage .label {
+  display: none;
+}
+
+.themeSage .waveBar {
+  background: var(--color-sage-dark);
+  opacity: 0.4;
+}
+
+.themeSage .date,
+.themeSage .privacy {
+  color: var(--color-sage-dark);
+  opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════
+   THEME: CLEAN (white + waveform header)
+   ═══════════════════════════════════════ */
+
+.themeClean {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border-light);
+}
+
+.themeClean .accent {
+  display: block;
+  height: 36px;
+  background: var(--color-sage-light);
+  width: 100%;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-sage) 0px,
+    var(--color-sage) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+  opacity: 0.6;
+}
+
+.themeClean .label {
+  display: none;
+}
+
+.themeClean .icon {
+  display: none;
+}
+
+.themeClean .duration {
+  font-size: 12px;
+  background: var(--color-sage-light);
+  color: var(--color-sage-dark);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.themeClean .progressBar {
+  background: var(--color-border-light);
+}
+
+.themeClean .progressFill {
+  background: var(--color-sage-dark);
+}
