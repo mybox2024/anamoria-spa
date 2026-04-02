@@ -1,0 +1,85 @@
+/* DictateButton.module.css
+   Ported from axr_MemoryVaultV2.css .textarea-dictate-btn
+   Positioned absolutely inside textarea wrapper */
+
+.dictateBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-sage-dark, #5b7a65);
+  border: none;
+  cursor: pointer;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(91, 122, 101, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+  position: relative;
+  z-index: 2;
+  padding: 0;
+}
+
+.dictateBtn:hover {
+  background: #4a6954;
+}
+
+.dictateBtn:active {
+  transform: scale(0.95);
+}
+
+.dictateBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Size variants */
+.medium {
+  width: 34px;
+  height: 34px;
+}
+
+.small {
+  width: 28px;
+  height: 28px;
+}
+
+/* Active (listening) state */
+.active {
+  background: var(--color-red, #b85450);
+}
+
+.active:hover {
+  background: #a04845;
+}
+
+/* SVG icon sizing */
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.small .icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Pulse ring animation when listening */
+.pulse {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--color-red, #b85450);
+  animation: dictate-pulse 1.5s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes dictate-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}

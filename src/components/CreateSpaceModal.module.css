@@ -1,0 +1,257 @@
+/* components/CreateSpaceModal.module.css
+   v1.0 — Ported from LWC axr_MemoryVaultV2.css
+   Source: .modal-overlay, .modal-content, .create-space-modal,
+           .create-space-body, .create-space-input
+   April 1, 2026
+*/
+
+/* ═══════════════════════════════════════
+   OVERLAY BACKDROP
+   ═══════════════════════════════════════ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════
+   MODAL CARD
+   LWC: .modal-content.create-space-modal
+   ═══════════════════════════════════════ */
+
+.modal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 20px;
+  max-width: min(680px, calc(100vw - 48px));
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.25s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Header ─── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-subtle, #737373);
+  transition: background 0.15s ease;
+}
+
+.closeBtn:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+/* ─── Body ─── */
+
+.body {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.prompt {
+  font-size: 18px;
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  line-height: 1.45;
+  text-align: center;
+  margin: 0 0 24px 0;
+}
+
+/* Name input — matches LWC .create-space-input */
+.input {
+  width: 100%;
+  padding: 18px 20px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: 1.5px solid #e0ddd8;
+  background: var(--color-bg, #faf9f7);
+  text-align: center;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+.input::placeholder {
+  color: var(--color-text-placeholder, #b2bec3);
+}
+
+/* ─── Photo upload ─── */
+
+.photoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  justify-content: center;
+}
+
+.photoDashed {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px dashed #d0d0d0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease;
+  color: var(--color-text-subtle, #737373);
+}
+
+.photoDashed:hover {
+  border-color: var(--color-sage, #7c9885);
+}
+
+.photoHelper {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoPreviewWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.photoPreviewImg {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.photoChange {
+  font-size: 13px;
+  color: var(--color-sage-dark, #5b7a65);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+/* ─── CTA area ─── */
+
+.cta {
+  padding: 0 28px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-red, #b85450);
+  margin: 0;
+  text-align: center;
+}
+
+/* Next button — full-width sage */
+.nextBtn {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-white, #ffffff);
+  background: var(--color-sage, #7c9885);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.nextBtn:hover:not(:disabled) {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+.nextBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Privacy note */
+.privacyNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.privacyNote svg {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .modal {
+    animation: none !important;
+  }
+}

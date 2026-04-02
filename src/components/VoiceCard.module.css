@@ -1,69 +1,98 @@
 /* components/VoiceCard.module.css
-   4 themes ported from Voice_Card_Theme_Spec.md
-   Uses CSS Modules — theme classes applied via JS.
+   v2.0 — Warm amber theme ported from LWC axr_MediaCard.css
+   Source of truth: .voice-theme-warm + .masonry-item.voice (lines 1553–1705)
+   April 1, 2026
 */
 
-/* ─── Base card ─── */
+/* ═══════════════════════════════════════
+   WARM AMBER CARD SHELL
+   Gradient background: linear-gradient(160deg, #fbf5e8, #f5ecd4)
+   ═══════════════════════════════════════ */
 
 .card {
+  background: linear-gradient(160deg, #fbf5e8, #f5ecd4);
+  border: 1px solid rgba(200, 180, 130, 0.2);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  position: relative;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* ─── Accent strip (story + clean only) ─── */
-
-.accent {
-  display: none; /* hidden by default; shown by theme overrides */
+.card:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-/* ─── Header ─── */
+/* ─── Header: dot + label + title ─── */
 
 .header {
-  padding: 14px 16px 8px;
+  padding: 16px 16px 8px;
+}
+
+.headerTop {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
-.icon {
-  font-size: 14px;
-  color: var(--color-text-caption);
-  margin-bottom: 4px;
-  min-height: 18px;
+/* Amber dot — matches LWC .voice-theme-warm .voice-card-icon */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c4956a;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
+/* VOICE label — warm brown */
 .label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-sage-dark);
-  margin-bottom: 4px;
+  letter-spacing: 0.8px;
+  color: #8b7355;
+  line-height: 1;
 }
 
+/* Title */
 .title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  line-height: 1.4;
+  color: #2d3436;
+  margin: 4px 0 0;
+  line-height: 1.35;
 }
 
 /* ─── Player row ─── */
+/* Semi-transparent overlay on warm gradient — LWC voice-theme-warm .voice-card-player */
 
 .player {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  margin: 0 12px 8px;
+  padding: 8px 12px;
 }
 
+/* Play button — warm brown circle (28px) */
 .playBtn {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   border-radius: 50%;
-  background: var(--color-sage-dark);
+  background: #8b7355;
   border: none;
   cursor: pointer;
   display: flex;
@@ -71,218 +100,201 @@
   justify-content: center;
   flex-shrink: 0;
   transition: background 0.2s;
+  color: #fff;
+  padding: 0;
 }
 
 .playBtn:hover {
-  background: #4a6954;
+  background: #7a6548;
 }
 
 .playLoading {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255,255,255,0.4);
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
-/* Waveform bars */
+/* Waveform bars — warm brown */
 .waveform {
   display: flex;
   align-items: center;
   gap: 2px;
   flex: 1;
-  height: 24px;
+  height: 16px;
 }
 
 .waveBar {
   width: 3px;
   border-radius: 1.5px;
-  background: var(--color-sage);
+  background: #8b7355;
   transition: opacity 0.2s;
 }
 
-/* Progress bar (story + clean) */
-.progressBar {
-  flex: 1;
-  height: 4px;
-  background: rgba(0,0,0,0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  background: var(--color-sage);
-  border-radius: 2px;
-  transition: width 0.1s linear;
-}
-
+/* Duration — warm brown */
 .duration {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #8b7355;
   flex-shrink: 0;
 }
 
-/* ─── Footer ─── */
+/* ─── Footer: date + privacy ─── */
 
 .footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 16px 12px;
+  padding: 8px 16px 12px;
 }
 
 .date {
   font-size: 12px;
-  color: var(--color-text-subtle);
+  color: #9e9a95;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
 }
 
-.privacy {
-  font-size: 11px;
-  color: var(--color-text-subtle);
+.privacyIcon {
   display: flex;
   align-items: center;
-  gap: 3px;
-}
-
-/* ═══════════════════════════════════════
-   THEME: WARM (butter-yellow)
-   ═══════════════════════════════════════ */
-
-.themeWarm {
-  background: var(--butter-yellow);
-  border: 1px solid #f0e8c0;
-}
-
-.themeWarm .label {
-  color: var(--color-sage-dark);
-}
-
-.themeWarm .waveBar {
-  background: var(--color-sage);
-  opacity: 0.5;
-}
-
-/* ═══════════════════════════════════════
-   THEME: STORY (white + yellow top strip)
-   ═══════════════════════════════════════ */
-
-.themeStory {
-  background: var(--color-bg-white);
-  border: 1px solid var(--color-border-light);
-}
-
-.themeStory .accent {
-  display: block;
-  height: 6px;
-  background: var(--butter-yellow);
-  width: 100%;
-}
-
-.themeStory .label {
-  display: none;
-}
-
-.themeStory .icon {
-  color: var(--color-text-caption);
-}
-
-.themeStory .playBtn {
-  width: 32px;
-  height: 32px;
-}
-
-.themeStory .duration {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-subtle);
-}
-
-/* ═══════════════════════════════════════
-   THEME: SAGE (sage-tinted background)
-   ═══════════════════════════════════════ */
-
-.themeSage {
-  background: var(--color-sage-light);
-  border: 1px solid #d0e0d5;
-}
-
-.themeSage .icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--color-sage-tint);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-
-.themeSage .label {
-  display: none;
-}
-
-.themeSage .waveBar {
-  background: var(--color-sage-dark);
-  opacity: 0.4;
-}
-
-.themeSage .date,
-.themeSage .privacy {
-  color: var(--color-sage-dark);
-  opacity: 0.7;
-}
-
-/* ═══════════════════════════════════════
-   THEME: CLEAN (white + waveform header)
-   ═══════════════════════════════════════ */
-
-.themeClean {
-  background: var(--color-bg-white);
-  border: 1px solid var(--color-border-light);
-}
-
-.themeClean .accent {
-  display: block;
-  height: 36px;
-  background: var(--color-sage-light);
-  width: 100%;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--color-sage) 0px,
-    var(--color-sage) 3px,
-    transparent 3px,
-    transparent 7px
-  );
   opacity: 0.6;
 }
 
-.themeClean .label {
-  display: none;
+/* ═══════════════════════════════════════
+   HOVER OVERLAY: Favorite + Edit
+   Ported from LWC .grid-item-change behavior
+   ═══════════════════════════════════════ */
+
+.overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.themeClean .icon {
-  display: none;
+/* Show on card hover */
+.card:hover .overlay {
+  opacity: 1;
 }
 
-.themeClean .duration {
-  font-size: 12px;
-  background: var(--color-sage-light);
-  color: var(--color-sage-dark);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
+/* When liked — overlay is always visible (but only the heart) */
+.overlayLiked {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
-.themeClean .progressBar {
-  background: var(--color-border-light);
+/* White circular buttons with backdrop blur — LWC .grid-item-change-like */
+.overlayBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  padding: 0;
 }
 
-.themeClean .progressFill {
-  background: var(--color-sage-dark);
+.overlayBtn:hover {
+  background: rgba(255, 255, 255, 1);
+  color: #4b5563;
+  transform: scale(1.08);
+}
+
+/* Liked heart — always visible, red with glow */
+.overlayBtnLiked {
+  opacity: 1 !important;
+  visibility: visible !important;
+  color: #e76869 !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  box-shadow: 0 2px 10px rgba(231, 104, 105, 0.3) !important;
+}
+
+/* Edit button — hidden when liked but not hovering */
+.overlayEditWhenLiked {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card:hover .overlayEditWhenLiked {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Edit button default (always hidden until hover, handled by parent .overlay) */
+.overlayEdit {
+  color: #9ca3af;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE ADJUSTMENTS
+   ═══════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .card {
+    border-radius: 12px;
+  }
+
+  .overlay {
+    top: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .overlay {
+    top: 8px;
+    right: 8px;
+    gap: 4px;
+  }
+
+  .overlayBtn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+.card:focus-visible {
+  outline: 2px solid #7c9885;
+  outline-offset: 2px;
+}
+
+.playBtn:focus-visible,
+.overlayBtn:focus-visible {
+  outline: 2px solid #7c9885;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .overlayBtn,
+  .overlay,
+  .waveBar {
+    animation: none !important;
+    transition: none !important;
+  }
 }

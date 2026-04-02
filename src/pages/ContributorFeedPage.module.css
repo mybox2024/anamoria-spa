@@ -1,0 +1,44 @@
+/* ContributorFeedPage.module.css */
+
+.screen { display: flex; flex-direction: column; min-height: 100dvh; background: var(--color-bg, #faf9f7); }
+
+.header { background: var(--color-bg, #faf9f7); border-bottom: 1px solid var(--color-border-light, #edebe7); position: sticky; top: 0; z-index: 10; }
+.headerInner { display: flex; align-items: center; gap: 14px; max-width: var(--cw, 100%); padding: 14px var(--pad, 20px); margin: 0 auto; }
+.logo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-sage-dark, #5b7a65); }
+.headerInfo { display: flex; flex-direction: column; gap: 1px; }
+.headerName { font-size: 16px; font-weight: 600; color: var(--color-text-primary, #2d3436); font-family: var(--font-serif, 'Lora', Georgia, serif); }
+.headerSub { font-size: 12px; color: var(--color-text-caption, #636e72); }
+
+/* CTA */
+.ctaSection { max-width: var(--cw, 100%); margin: 0 auto; padding: 24px var(--pad, 20px) 16px; text-align: center; }
+.ctaText { font-size: 16px; font-weight: 500; color: var(--color-text-primary, #2d3436); font-family: var(--font-serif, 'Lora', Georgia, serif); margin: 0 0 14px; }
+.ctaButtons { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+.ctaBtn { padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; background: var(--color-sage-dark, #5b7a65); color: #fff; border: none; cursor: pointer; font-family: var(--font-sans, 'DM Sans', sans-serif); transition: background 0.15s; }
+.ctaBtn:hover { background: #4a6954; }
+.ctaNote { font-size: 12px; color: var(--color-text-placeholder, #b2bec3); margin: 0; }
+
+/* Feed */
+.feed { max-width: var(--cw, 100%); margin: 0 auto; padding: 0 var(--pad, 20px) 40px; display: flex; flex-direction: column; gap: 12px; }
+
+.emptyState { text-align: center; padding: 40px 20px; font-size: 14px; color: var(--color-text-subtle, #737373); }
+
+.card { background: var(--color-bg-white, #fff); border: 1px solid var(--color-border-light, #edebe7); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.cardCategory { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-sage-dark, #5b7a65); margin: 0; }
+.cardTitle { font-size: 15px; font-weight: 600; color: var(--color-text-primary, #2d3436); font-family: var(--font-serif, 'Lora', Georgia, serif); margin: 2px 0 0; }
+.cardNote { font-size: 13px; color: var(--color-text-body, #3d4a3f); line-height: 1.45; margin: 4px 0 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cardDuration { font-size: 13px; color: var(--color-text-subtle, #737373); margin: 4px 0 0; }
+.cardFooter { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border-light, #edebe7); }
+.cardDate { font-size: 12px; color: var(--color-text-subtle, #737373); }
+.cardCreator { font-size: 11px; font-weight: 600; color: var(--color-sage, #7c9885); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Error / loading */
+.errorScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; gap: 16px; padding: 24px; text-align: center; }
+.errorText { font-size: 15px; color: var(--color-text-caption, #636e72); line-height: 1.5; }
+
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; gap: 12px; color: var(--color-text-caption, #636e72); font-size: 14px; }
+.loadingDot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-sage, #7c9885); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+@media (min-width: 640px) { .headerInner, .ctaSection, .feed { max-width: 560px; } }
+@media (min-width: 900px) { .headerInner, .ctaSection, .feed { max-width: 740px; } }
+@media (min-width: 1280px) { .headerInner, .ctaSection, .feed { max-width: 800px; } }

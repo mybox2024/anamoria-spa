@@ -25,6 +25,12 @@ import ConsentPage from './pages/ConsentPage';
 import CreateSpacePage from './pages/CreateSpacePage';
 import SpacePage from './pages/SpacePage';
 import RecordPage from './pages/RecordPage';
+import WritePage from './pages/WritePage';
+import PhotoPage from './pages/PhotoPage';
+import MemoryDetailPage from './pages/MemoryDetailPage';
+import InvitePage from './pages/InvitePage';
+import ContributorLandingPage from './pages/ContributorLandingPage';
+import ContributorFeedPage from './pages/ContributorFeedPage';
 
 // ─── App context — shared state across all pages ──────────────────────────
 
@@ -231,6 +237,42 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/spaces/:spaceId/write"
+          element={
+            <ProtectedRoute>
+              <WritePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spaces/:spaceId/photo"
+          element={
+            <ProtectedRoute>
+              <PhotoPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spaces/:spaceId/memories/:memId"
+          element={
+            <ProtectedRoute>
+              <MemoryDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spaces/:spaceId/invite"
+          element={
+            <ProtectedRoute>
+              <InvitePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Public (no auth) ────────────────────────────────── */}
+        <Route path="/invite/:token" element={<ContributorLandingPage />} />
+        <Route path="/contribute/:spaceId" element={<ContributorFeedPage />} />
 
         {/* ── Fallback ──────────────────────────────────────────── */}
         <Route path="*" element={<Navigate to="/join" replace />} />
