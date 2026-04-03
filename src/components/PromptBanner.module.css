@@ -1,0 +1,66 @@
+/* components/PromptBanner.module.css
+   v1.1 — April 2, 2026
+   Ported from LWC .prompt-banner styles.
+*/
+
+.banner {
+  background-color: var(--color-sage-light, #e8f0eb);
+  border-radius: 12px;
+  padding: 20px 24px;
+  text-align: center;
+}
+
+/* Full-width variant — edge-to-edge, no border-radius */
+.bannerFull {
+  border-radius: 0;
+  padding: 24px 28px;
+}
+
+.category {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--color-sage-dark, #5b7a65);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.text {
+  font-size: 16px;
+  font-weight: 500;
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  color: var(--color-text-primary, #2d3436);
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0 0 8px 0;
+}
+
+.skip {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--color-sage-dark, #5b7a65);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+  padding: 4px 0;
+  display: inline-block;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: color 0.15s ease;
+}
+
+.skip:hover {
+  color: #4a6954;
+}
+
+@media (min-width: 900px) {
+  .banner { padding: 22px 28px; }
+  .bannerFull { padding: 26px 32px; }
+  .text { font-size: 17px; }
+}
+
+@media (min-width: 1280px) {
+  .text { font-size: 18px; }
+}

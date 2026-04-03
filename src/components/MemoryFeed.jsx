@@ -1,14 +1,19 @@
 // components/MemoryFeed.jsx — Anamoria SPA
-// v2.0 — Space screen overhaul (April 1, 2026)
+// v2.1 — Voice edit routes to RecordPage (April 3, 2026)
 //
-// Features:
+// Changes from v2.0:
+//   - handleEdit: voice memories route to /spaces/:id/record with editMode state
+//   - handleEdit: text/photo memories route to MemoryDetailPage (unchanged)
+//   - handleCardClick: voice cards route to RecordPage in edit mode (same as edit icon)
+//   - handleCardClick: text/photo cards route to MemoryDetailPage (unchanged)
+//
+// Features (unchanged):
 //   - Macy.js masonry layout (CDN loaded, CSS columns fallback)
 //   - Private / Shared tabs (client-side filter on isPrivate)
 //   - Photo cards with CloudFront signed URL fetch
 //   - Voice cards (warm amber theme)
 //   - Text cards (white, amber "TEXT" label)
 //   - Favorite toggle + edit icon overlays on all card types
-//   - Card click → memory detail navigation
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -142,10 +147,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
   }, [spaceId, getApi, onMemoryCount]);
 
   /* ─── Fetch photo CloudFront URLs ─── */
-  // Use a ref to track which keys have been fetched or are in-flight.
-  // This survives React 18 StrictMode double-mount and prevents
-  // duplicate API calls that would generate new signed URLs and
-  // cause the browser to abort in-flight image loads.
   const fetchedKeysRef = useRef(new Set());
 
   useEffect(() => {
@@ -156,7 +157,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
     );
     if (photoMems.length === 0) return;
 
-    // Mark as in-flight immediately
     photoMems.forEach((m) => fetchedKeysRef.current.add(m.s3Key));
 
     let cancelled = false;
@@ -165,7 +165,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
       const api = getApi();
       const results = {};
 
-      // Fetch in parallel (max 6 concurrent)
       const chunks = [];
       for (let i = 0; i < photoMems.length; i += 6) {
         chunks.push(photoMems.slice(i, i + 6));
@@ -179,7 +178,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
             results[m.s3Key] = data.playbackUrl;
           } catch (err) {
             console.error('Photo URL fetch error:', err);
-            // Remove from fetched set so retry is possible
             fetchedKeysRef.current.delete(m.s3Key);
           }
         });
@@ -220,7 +218,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
 
         macyInstanceRef.current = instance;
 
-        // Listen for image load events
         if (instance.on) {
           instance.on(instance.constants.EVENT_IMAGE_COMPLETE, () => {
             instance.recalculate(true, true);
@@ -230,7 +227,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
         if (!cancelled) setMacyReady(true);
       })
       .catch(() => {
-        // Macy failed — CSS columns fallback is already in place
         if (!cancelled) setMacyReady(false);
       });
 
@@ -249,10 +245,8 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
     const inst = macyInstanceRef.current;
     if (!inst) return;
 
-    // Allow React to finish rendering, then recalculate
     const raf1 = requestAnimationFrame(() => {
       inst.recalculate(true, true);
-      // Second pass after images may have loaded
       const raf2 = requestAnimationFrame(() => {
         inst.recalculate(true, true);
       });
@@ -262,7 +256,7 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
     return () => cancelAnimationFrame(raf1);
   }, [memories, activeTab, photoUrls]);
 
-  /* ─── Recalculate on photo URL load (images change card height) ─── */
+  /* ─── Recalculate on photo URL load ─── */
 
   const handleImageLoad = useCallback(() => {
     const inst = macyInstanceRef.current;
@@ -275,30 +269,44 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
 
   const filteredMemories = memories.filter((m) => {
     if (activeTab === 'private') return m.isPrivate;
-    return !m.isPrivate; // shared
+    return !m.isPrivate;
   });
 
   /* ─── Navigation ─── */
 
+  // v2.1: Voice cards go to RecordPage in edit mode; text/photo go to MemoryDetailPage
   const handleCardClick = useCallback((memory) => {
-    navigate(`/spaces/${spaceId}/memories/${memory.id}`, {
-      state: { memory },
-    });
+    const category = (memory.category || '').toLowerCase();
+    if (category === 'voice') {
+      navigate(`/spaces/${spaceId}/record`, {
+        state: { editMode: true, editMemory: memory },
+      });
+    } else {
+      navigate(`/spaces/${spaceId}/memories/${memory.id}`, {
+        state: { memory },
+      });
+    }
   }, [navigate, spaceId]);
 
+  // v2.1: Voice edit → RecordPage; text/photo edit → MemoryDetailPage
   const handleEdit = useCallback((memory) => {
-    navigate(`/spaces/${spaceId}/memories/${memory.id}`, {
-      state: { memory, editing: true },
-    });
+    const category = (memory.category || '').toLowerCase();
+    if (category === 'voice') {
+      navigate(`/spaces/${spaceId}/record`, {
+        state: { editMode: true, editMemory: memory },
+      });
+    } else {
+      navigate(`/spaces/${spaceId}/memories/${memory.id}`, {
+        state: { memory, editing: true },
+      });
+    }
   }, [navigate, spaceId]);
 
   /* ─── Favorite toggle (optimistic update) ─── */
-  // Endpoint confirmed: POST /memories/{id}/favorite (toggles is_favorite)
 
   const handleFavorite = useCallback(async (memory) => {
     const newVal = !memory.isFavorite;
 
-    // Optimistic update
     setMemories((prev) =>
       prev.map((m) => (m.id === memory.id ? { ...m, isFavorite: newVal } : m))
     );
@@ -306,7 +314,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
     try {
       const api = getApi();
       const result = await api.post(`/memories/${memory.id}/favorite`);
-      // Use server response as source of truth
       if (result && result.isFavorite !== undefined) {
         setMemories((prev) =>
           prev.map((m) => (m.id === memory.id ? { ...m, isFavorite: result.isFavorite } : m))
@@ -314,7 +321,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
       }
     } catch (err) {
       console.error('Favorite toggle failed:', err);
-      // Revert on failure
       setMemories((prev) =>
         prev.map((m) => (m.id === memory.id ? { ...m, isFavorite: !newVal } : m))
       );
@@ -420,7 +426,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                     role="button"
                     tabIndex={0}
                   >
-                    {/* Image area */}
                     <div className={styles.photoImageWrap}>
                       {photoUrl ? (
                         <img
@@ -435,7 +440,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                         </div>
                       )}
 
-                      {/* Hover overlay: favorite + edit */}
                       <div className={`${styles.cardOverlay} ${memory.isFavorite ? styles.cardOverlayLiked : ''}`}>
                         <button
                           className={`${styles.cardOverlayBtn} ${memory.isFavorite ? styles.cardOverlayBtnLiked : ''}`}
@@ -454,7 +458,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                       </div>
                     </div>
 
-                    {/* Content below image */}
                     <div className={styles.photoContent}>
                       {memory.title && (
                         <p className={styles.photoTitle}>{memory.title}</p>
@@ -462,7 +465,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                       {!memory.title && <p className={styles.photoLabel}>Photo</p>}
                     </div>
 
-                    {/* Footer */}
                     <div className={`${styles.cardFooter} ${styles.photoCardFooter}`}>
                       <span className={styles.cardDate}>{formatDate(memory.createdAt)}</span>
                       <span className={styles.cardPrivacy}>
@@ -483,7 +485,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                   role="button"
                   tabIndex={0}
                 >
-                  {/* Hover overlay */}
                   <div className={`${styles.cardOverlay} ${memory.isFavorite ? styles.cardOverlayLiked : ''}`}>
                     <button
                       className={`${styles.cardOverlayBtn} ${memory.isFavorite ? styles.cardOverlayBtnLiked : ''}`}
@@ -501,10 +502,8 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                     </button>
                   </div>
 
-                  {/* TEXT label — warm amber */}
                   <p className={styles.textLabel}>TEXT</p>
 
-                  {/* Content */}
                   <div className={styles.textContent}>
                     {memory.title && (
                       <p className={styles.textTitle}>{memory.title}</p>
@@ -514,7 +513,6 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                     )}
                   </div>
 
-                  {/* Footer */}
                   <div className={styles.cardFooter}>
                     <span className={styles.cardDate}>{formatDate(memory.createdAt)}</span>
                     <span className={styles.cardPrivacy}>

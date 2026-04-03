@@ -1,21 +1,51 @@
 // pages/RecordPage.jsx — Anamoria SPA
+// v5.0 — Edit mode for existing voice memories (April 3, 2026)
 // Route: /spaces/:spaceId/record (protected — JWT required)
+//
+// Screens: Record (5a) | Review (5b) | Success (5c) | Uploading
+//
+// Edit mode (v5.0):
+//   - Nav state: { editMode: true, editMemory: {...} }
+//   - Lands on Review (5b) with existing audio playback, label, privacy
+//   - "Record new version" → Record (5a) → stop → Review (5b) with new blob → save
+//   - Save calls PATCH /memories/:id
+//   - Success (5c) after save
+//   - Cancel → back to feed
+//
+// Components: LovedOneBar, PromptBanner (fullWidth), BottomNav
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useRecorder } from '../hooks/useRecorder';
 import { createApiClient } from '../api/client';
+import LovedOneBar from '../components/LovedOneBar';
+import PromptBanner from '../components/PromptBanner';
+import BottomNav from '../components/BottomNav';
 import styles from './RecordPage.module.css';
+
+/* ─── Helper ─── */
+function formatDurationSec(val) {
+  const s = Math.round(Number(val) || 0);
+  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+}
 
 export default function RecordPage() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { getAccessTokenSilently } = useAuth0();
-  const api = createApiClient(getAccessTokenSilently);
 
-  const promptId = location.state?.promptId || null;
+  const getApi = useCallback(
+    () => createApiClient(getAccessTokenSilently),
+    [getAccessTokenSilently]
+  );
+
+  // ─── Edit mode (v5.0) ──────────────────────────────────
+  const editMode = location.state?.editMode || false;
+  const editMemory = location.state?.editMemory || null;
+
+  const promptIdFromNav = location.state?.promptId || null;
 
   const {
     recordingState,
@@ -31,11 +61,117 @@ export default function RecordPage() {
     reRecord,
   } = useRecorder();
 
+  // ─── Space + Prompt data ─────────────────────────────────
+
+  const [space, setSpace] = useState(null);
+  const [prompt, setPrompt] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoadingData(true);
+      try {
+        const api = getApi();
+        const [spaceData, promptData] = await Promise.all([
+          api.get(`/spaces/${spaceId}`),
+          api.get(`/spaces/${spaceId}/prompt`).catch(() => null),
+        ]);
+        if (!cancelled) {
+          setSpace(spaceData);
+          setPrompt(promptData);
+        }
+      } catch (err) {
+        console.error('RecordPage data load error:', err);
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [spaceId, getApi]);
+
+  const activePromptId = promptIdFromNav || prompt?.promptId || null;
+
+  // ─── Edit mode: fetch existing audio URL + pre-fill ─────
+
+  const [existingAudioUrl, setExistingAudioUrl] = useState(null);
+  const [loadingEditAudio, setLoadingEditAudio] = useState(!!editMode);
+  const existingAudioRef = useRef(null);
+  const [existingPlaying, setExistingPlaying] = useState(false);
+  const [showReRecordConfirm, setShowReRecordConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!editMode || !editMemory) {
+      setLoadingEditAudio(false);
+      return;
+    }
+
+    // Pre-fill label and privacy from existing memory
+    setMemoryLabel(editMemory.title || '');
+    setIsPrivate(editMemory.isPrivate ?? true);
+
+    // Fetch signed playback URL for existing recording
+    const s3Key = editMemory.voiceNote?.s3Key || editMemory.s3Key;
+    if (!s3Key) {
+      setLoadingEditAudio(false);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchAudioUrl() {
+      try {
+        const api = getApi();
+        const data = await api.get(`/media/playback/${encodeURIComponent(s3Key)}`);
+        if (!cancelled) setExistingAudioUrl(data.playbackUrl);
+      } catch (err) {
+        console.error('Edit audio load error:', err);
+      } finally {
+        if (!cancelled) setLoadingEditAudio(false);
+      }
+    }
+    fetchAudioUrl();
+    return () => { cancelled = true; };
+  }, [editMode, editMemory, getApi]);
+
+  // Existing audio playback controls
+  function toggleExistingPlayback() {
+    const audio = existingAudioRef.current;
+    if (!audio) return;
+    if (existingPlaying) { audio.pause(); } else { audio.play(); }
+    setExistingPlaying(!existingPlaying);
+  }
+
+  useEffect(() => {
+    const audio = existingAudioRef.current;
+    if (!audio) return;
+    function handleEnded() { setExistingPlaying(false); }
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  });
+
+  // Cleanup existing audio on unmount
+  useEffect(() => {
+    return () => {
+      if (existingAudioRef.current) {
+        existingAudioRef.current.pause();
+        existingAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  // ─── Review screen state ─────────────────────────────────
+
+  const [isPrivate, setIsPrivate] = useState(editMemory?.isPrivate ?? true);
+  const [memoryLabel, setMemoryLabel] = useState(editMemory?.title || '');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [s3KeySaved, setS3KeySaved] = useState(null);
   const previewAudioRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [savedDuration, setSavedDuration] = useState('0:00');
 
   useEffect(() => {
     if (audioBlob && recordingState === 'stopped') {
@@ -45,46 +181,75 @@ export default function RecordPage() {
     }
   }, [audioBlob, recordingState]);
 
+  function togglePlayback() {
+    const audio = previewAudioRef.current;
+    if (!audio) return;
+    if (playing) { audio.pause(); } else { audio.play(); }
+    setPlaying(!playing);
+  }
+
+  useEffect(() => {
+    const audio = previewAudioRef.current;
+    if (!audio) return;
+    function handleEnded() { setPlaying(false); }
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  });
+
+  // ─── Prompt skip ─────────────────────────────────────────
+
+  const handleSkipPrompt = useCallback(async () => {
+    try {
+      const api = getApi();
+      const nextPrompt = await api.post(`/spaces/${spaceId}/prompt/advance`);
+      if (nextPrompt) setPrompt(nextPrompt);
+    } catch (err) {
+      console.error('Skip prompt error:', err);
+    }
+  }, [getApi, spaceId]);
+
+  // ─── Save: NEW recording (create mode) ───────────────────
+
   async function handleSave() {
     if (!audioBlob) return;
     setUploadError('');
     setUploading(true);
 
-    // Strip codecs suffix — handler accepts 'audio/webm' not 'audio/webm;codecs=opus'
     const baseMimeType = (mimeType || 'audio/webm').split(';')[0];
 
     try {
-      // Step 1: Get pre-signed upload URL
+      const api = getApi();
+
       const uploadData = await api.post('/media/upload-url', {
         spaceId,
         mimeType: baseMimeType,
         mediaType: 'voice',
       });
 
-      // Step 2: Upload blob directly to S3
       await api.putS3(uploadData.uploadUrl, audioBlob, baseMimeType);
       setS3KeySaved(uploadData.s3Key);
 
-      // Step 3: Create memory record
       await api.post(`/spaces/${spaceId}/memories`, {
         type: 'voice',
         s3Key: uploadData.s3Key,
         mimeType: baseMimeType,
         duration: Math.round(duration),
-        isPrivate: true,
-        ...(promptId ? { promptId } : {}),
+        isPrivate,
+        ...(memoryLabel.trim() ? { title: memoryLabel.trim() } : {}),
+        ...(activePromptId ? { promptId: activePromptId } : {}),
       });
 
-      // Step 4: Mark prompt responded (fire-and-forget)
-      if (promptId) {
-        api.post(`/spaces/${spaceId}/prompt/respond`, { promptId }).catch(() => {});
+      if (activePromptId) {
+        api.post(`/spaces/${spaceId}/prompt/respond`, { promptId: activePromptId }).catch(() => {});
       }
 
-      navigate(`/spaces/${spaceId}`, { replace: true });
+      setSavedDuration(durationFormatted);
+      setUploading(false);
+      setSaved(true);
     } catch (err) {
       console.error('Save error:', err);
       if (s3KeySaved) {
-        setUploadError('Recording uploaded but save failed. Tap "Save recording" to retry.');
+        setUploadError('Recording uploaded but save failed. Tap "Save" to retry.');
       } else {
         setUploadError('Upload failed. Please try again.');
       }
@@ -92,11 +257,89 @@ export default function RecordPage() {
     }
   }
 
+  // ─── Save: EDIT mode (metadata only or re-record) ────────
+
+  async function handleEditSave() {
+    setUploadError('');
+    setUploading(true);
+
+    try {
+      const api = getApi();
+      const updates = {};
+
+      // Metadata changes
+      const trimLabel = memoryLabel.trim();
+      if (trimLabel !== (editMemory.title || '')) {
+        updates.title = trimLabel || null;
+      }
+      if (isPrivate !== (editMemory.isPrivate ?? true)) {
+        updates.isPrivate = isPrivate;
+      }
+
+      // If user re-recorded, upload new audio
+      if (audioBlob) {
+        const baseMimeType = (mimeType || 'audio/webm').split(';')[0];
+        const uploadData = await api.post('/media/upload-url', {
+          spaceId,
+          mimeType: baseMimeType,
+          mediaType: 'voice',
+        });
+        await api.putS3(uploadData.uploadUrl, audioBlob, baseMimeType);
+
+        updates.newVoiceS3Key = uploadData.s3Key;
+        updates.newVoiceDuration = Math.round(duration);
+        updates.newVoiceMimeType = baseMimeType;
+      }
+
+      // Always send PATCH (even if only metadata)
+      if (Object.keys(updates).length > 0) {
+        await api.patch(`/memories/${editMemory.id}`, updates);
+      }
+
+      // Duration for success screen
+      if (audioBlob) {
+        setSavedDuration(durationFormatted);
+      } else {
+        setSavedDuration(formatDurationSec(editMemory.voiceNote?.duration || 0));
+      }
+
+      setUploading(false);
+      setSaved(true);
+    } catch (err) {
+      console.error('Edit save error:', err);
+      setUploadError('Save failed. Please try again.');
+      setUploading(false);
+    }
+  }
+
+  // ─── "Record new version" — from edit review ─────────────
+
+  function handleRecordNewVersion() {
+    setShowReRecordConfirm(true);
+  }
+
+  function handleConfirmReRecord() {
+    setShowReRecordConfirm(false);
+    // Stop existing playback
+    if (existingAudioRef.current) {
+      existingAudioRef.current.pause();
+      setExistingPlaying(false);
+    }
+    // Clear existing audio so we fall through to record screen
+    setExistingAudioUrl(null);
+    // reRecord resets recorder to idle
+    reRecord();
+  }
+
+  // ─── Circle handler ──────────────────────────────────────
+
   function handleCircleTap() {
     if (recordingState === 'idle') startRecording();
     else if (recordingState === 'recording') pauseRecording();
     else if (recordingState === 'paused') resumeRecording();
   }
+
+  // ─── Class composition ───────────────────────────────────
 
   const circleClass = [
     styles.circle,
@@ -125,119 +368,528 @@ export default function RecordPage() {
     recordingState === 'paused'    ? 'Paused' :
                                      'Ready';
 
-  // ─── Uploading screen ───────────────────────────────────────
+  const barSubtitle =
+    recordingState === 'stopped'   ? 'Review before saving' :
+    recordingState === 'recording' ? 'Recording...' :
+    recordingState === 'paused'    ? 'Paused' :
+                                     'Ready to record';
 
-  if (uploading) {
+  const spaceName = space?.name || 'Space';
+  const spacePhotoUrl = space?.photoUrl || null;
+
+  // ─── Record another (from success screen) ─────────────────
+
+  function handleRecordAnother() {
+    setSaved(false);
+    setS3KeySaved(null);
+    setUploadError('');
+    setIsPrivate(true);
+    setMemoryLabel('');
+    setPlaying(false);
+    reRecord();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER ORDER
+  // ═══════════════════════════════════════════════════════════
+
+  // ─── 1. Loading ───────────────────────────────────────────
+
+  if (loadingData || loadingEditAudio) {
     return (
-      <div className={styles.uploadingPage}>
+      <div className={styles.loadingPage}>
         <div className="app-loading-spinner" />
-        <p className={styles.uploadingText}>Saving your recording...</p>
       </div>
     );
   }
 
-  // ─── Review screen (stopped) ────────────────────────────────
+  // ─── 2. Uploading ─────────────────────────────────────────
 
-  if (recordingState === 'stopped' && audioBlob) {
+  if (uploading) {
     return (
       <div className={styles.page}>
-        <header className={styles.header}>
-          <button className={styles.backBtn} onClick={reRecord} aria-label="Back">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" stroke="currentColor"/>
-            </svg>
-          </button>
-          <span className={styles.headerTitle}>Review recording</span>
-        </header>
+        <LovedOneBar
+          spaceName={spaceName}
+          spacePhotoUrl={spacePhotoUrl}
+          subtitle="Saving..."
+          onBack={() => {}}
+          backLabel="Saving in progress"
+        />
+        <div className={styles.uploadingContent}>
+          <div className="app-loading-spinner" />
+          <p className={styles.uploadingText}>Saving your recording...</p>
+        </div>
+        <BottomNav spaceId={spaceId} activeTab="record" />
+      </div>
+    );
+  }
 
-        <div className={styles.reviewContent}>
-          <div className={styles.reviewCard}>
-            <p className={styles.reviewLabel}>YOUR RECORDING</p>
-            <p className={styles.reviewDuration}>{durationFormatted}</p>
-            {previewUrl && (
-              <audio
-                ref={previewAudioRef}
-                src={previewUrl}
-                controls
-                className={styles.audioPreview}
-              />
-            )}
+  // ─── 3. Success screen (5c) — after save (new or edit) ───
+
+  if (saved) {
+    return (
+      <div className={styles.page}>
+        <LovedOneBar
+          spaceName={spaceName}
+          spacePhotoUrl={spacePhotoUrl}
+          subtitle={memoryLabel.trim() ? `${memoryLabel.trim()} · Memory saved` : 'Memory saved'}
+          onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+          backLabel="Back to feed"
+        />
+
+        <div className={styles.savedBody}>
+          {/* JUST ADDED card */}
+          <div className={styles.savedCardWrapper}>
+            <span className={styles.savedBadge}>{editMode ? 'UPDATED' : 'JUST ADDED'}</span>
+            <div className={styles.savedCard}>
+              {prompt && prompt.text && (
+                <p className={styles.savedPrompt}>{prompt.text}</p>
+              )}
+
+              <div className={styles.savedPlayerRow}>
+                <button
+                  className={styles.playBtn}
+                  onClick={togglePlayback}
+                  aria-label={playing ? 'Pause playback' : 'Play recording'}
+                >
+                  {playing ? (
+                    <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                      <rect x="0" y="0" width="4" height="14" rx="1" />
+                      <rect x="8" y="0" width="4" height="14" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                      <path d="M0 0l12 7-12 7V0z" />
+                    </svg>
+                  )}
+                </button>
+
+                <div className={styles.waveform}>
+                  {[8,14,10,18,12,20,16,22,14,18,10,16,20,12,8,14,6,10].map((h, i) => (
+                    <span
+                      key={i}
+                      className={`${styles.waveBar} ${i >= 12 ? styles.waveBarLight : ''}`}
+                      style={{ height: `${h}px` }}
+                    />
+                  ))}
+                </div>
+
+                <span className={styles.playbackDuration}>{savedDuration}</span>
+              </div>
+
+              <div className={styles.savedCardFooter}>
+                <span className={styles.savedPrivacy}>
+                  {isPrivate ? '🔒 Private' : '🌐 Shared'}
+                </span>
+                <span className={styles.savedDot}>·</span>
+                <span className={styles.savedTime}>Just now</span>
+              </div>
+
+              {previewUrl && (
+                <audio ref={previewAudioRef} src={previewUrl} className={styles.hiddenAudio} />
+              )}
+              {/* If edit mode without re-record, use existing audio for playback */}
+              {!previewUrl && existingAudioUrl && (
+                <audio ref={previewAudioRef} src={existingAudioUrl} className={styles.hiddenAudio} />
+              )}
+            </div>
           </div>
+
+          <div className={styles.savedActions}>
+            <button className={styles.saveBtn} onClick={handleRecordAnother}>
+              🎤 Record another
+            </button>
+            <button
+              className={styles.reRecordBtn}
+              onClick={() => navigate(`/spaces/${spaceId}/invite`)}
+            >
+              Invite family to add memories
+            </button>
+            <button
+              className={styles.viewAllBtn}
+              onClick={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+            >
+              View all memories
+            </button>
+          </div>
+        </div>
+
+        <BottomNav spaceId={spaceId} activeTab="record" />
+      </div>
+    );
+  }
+
+  // ─── 4. EDIT REVIEW (5b) — existing audio, before re-recording ───
+
+  if (editMode && !audioBlob && existingAudioUrl) {
+    const existingDuration = formatDurationSec(editMemory?.voiceNote?.duration || 0);
+
+    return (
+      <div className={styles.page}>
+        <LovedOneBar
+          spaceName={spaceName}
+          spacePhotoUrl={spacePhotoUrl}
+          subtitle="Edit recording"
+          onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+          backLabel="Back to feed"
+        />
+
+        {/* Prompt banner — shows original prompt context */}
+        {prompt && (
+          <div className={styles.promptWrap}>
+            <PromptBanner prompt={prompt} showSkip={false} fullWidth />
+          </div>
+        )}
+
+        <div className={styles.reviewBody}>
+          {/* Existing audio playback card */}
+          <div className={styles.playbackCard}>
+            <span className={styles.playbackLabel}>CURRENT RECORDING</span>
+            <div className={styles.playerRow}>
+              <button
+                className={`${styles.playBtn} ${existingPlaying ? styles.playBtnPlaying : ''}`}
+                onClick={toggleExistingPlayback}
+                aria-label={existingPlaying ? 'Pause playback' : 'Play recording'}
+              >
+                {existingPlaying ? (
+                  <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                    <rect x="0" y="0" width="4" height="14" rx="1" />
+                    <rect x="8" y="0" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                    <path d="M0 0l12 7-12 7V0z" />
+                  </svg>
+                )}
+              </button>
+
+              <div className={styles.waveform}>
+                {[8,14,10,18,12,20,16,22,14,18,10,16,20,12,8,14,6,10].map((h, i) => (
+                  <span
+                    key={i}
+                    className={`${styles.waveBar} ${i >= 12 ? styles.waveBarLight : ''}`}
+                    style={{ height: `${h}px` }}
+                  />
+                ))}
+              </div>
+
+              <span className={styles.playbackDuration}>{existingDuration}</span>
+            </div>
+
+            {existingAudioUrl && (
+              <audio ref={existingAudioRef} src={existingAudioUrl} className={styles.hiddenAudio} />
+            )}
+
+            {/* Record new version link */}
+            <button
+              className={styles.recordNewVersionBtn}
+              onClick={handleRecordNewVersion}
+            >
+              Record new version
+            </button>
+          </div>
+
+          {/* Settings card — label + privacy grouped */}
+          <div className={styles.settingsCard}>
+            <div className={styles.settingsInputRow}>
+              <input
+                type="text"
+                className={styles.labelInput}
+                placeholder="Label (optional) — e.g., Advice, Funny moments..."
+                value={memoryLabel}
+                onChange={(e) => setMemoryLabel(e.target.value)}
+              />
+            </div>
+            <div className={styles.settingsDivider} />
+            <div
+              className={styles.settingsRow}
+              onClick={() => setIsPrivate((prev) => !prev)}
+              role="switch"
+              aria-checked={isPrivate}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsPrivate((prev) => !prev);
+                }
+              }}
+            >
+              <div className={styles.privacyLabel}>
+                <span className={styles.privacyIcon}>
+                  {isPrivate ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  )}
+                </span>
+                <span className={styles.privacyText}>{isPrivate ? 'Private' : 'Shared'}</span>
+              </div>
+              <div className={`${styles.toggleTrack} ${isPrivate ? styles.toggleTrackOn : styles.toggleTrackOff}`}>
+                <div className={styles.toggleThumb} />
+              </div>
+            </div>
+          </div>
+
+          <p className={styles.settingsHint}>You can change privacy anytime</p>
 
           {uploadError && (
             <p className={styles.uploadError} role="alert">{uploadError}</p>
           )}
 
+          {/* Action buttons */}
           <div className={styles.reviewActions}>
-            <button className={styles.saveBtn} onClick={handleSave}>
-              Save recording
+            <button className={styles.saveBtn} onClick={handleEditSave}>
+              Save Changes
             </button>
-            <button className={styles.reRecordBtn} onClick={reRecord}>
-              Record again
+            <button
+              className={styles.reRecordBtn}
+              onClick={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+            >
+              Cancel
             </button>
           </div>
         </div>
+
+        {/* Re-record confirmation modal */}
+        {showReRecordConfirm && (
+          <div className={styles.modalBackdrop} onClick={() => setShowReRecordConfirm(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalIcon}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b85450" strokeWidth="1.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h3 className={styles.modalTitle}>Replace recording?</h3>
+              <p className={styles.modalText}>
+                This will replace your current recording. You can't undo this.
+              </p>
+              <div className={styles.modalActions}>
+                <button
+                  className={styles.modalCancelBtn}
+                  onClick={() => setShowReRecordConfirm(false)}
+                >
+                  Keep current
+                </button>
+                <button
+                  className={styles.modalConfirmBtn}
+                  onClick={handleConfirmReRecord}
+                >
+                  Record new version
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BottomNav spaceId={spaceId} activeTab="record" />
       </div>
     );
   }
 
-  // ─── Idle / Recording / Paused screen ──────────────────────
+  // ─── 5. REVIEW (5b) — after recording (new or re-recorded) ───
+
+  if (recordingState === 'stopped' && audioBlob) {
+    return (
+      <div className={styles.page}>
+        <LovedOneBar
+          spaceName={spaceName}
+          spacePhotoUrl={spacePhotoUrl}
+          subtitle="Review before saving"
+          onBack={reRecord}
+          backLabel="Back to recording"
+        />
+
+        {prompt && (
+          <div className={styles.promptWrap}>
+            <PromptBanner prompt={prompt} showSkip={false} fullWidth />
+          </div>
+        )}
+
+        <div className={styles.reviewBody}>
+          {/* Playback card */}
+          <div className={styles.playbackCard}>
+            <span className={styles.playbackLabel}>YOUR RECORDING</span>
+            <div className={styles.playerRow}>
+              <button
+                className={`${styles.playBtn} ${playing ? styles.playBtnPlaying : ''}`}
+                onClick={togglePlayback}
+                aria-label={playing ? 'Pause playback' : 'Play recording'}
+              >
+                {playing ? (
+                  <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                    <rect x="0" y="0" width="4" height="14" rx="1" />
+                    <rect x="8" y="0" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                    <path d="M0 0l12 7-12 7V0z" />
+                  </svg>
+                )}
+              </button>
+
+              <div className={styles.waveform}>
+                {[8,14,10,18,12,20,16,22,14,18,10,16,20,12,8,14,6,10].map((h, i) => (
+                  <span
+                    key={i}
+                    className={`${styles.waveBar} ${i >= 12 ? styles.waveBarLight : ''}`}
+                    style={{ height: `${h}px` }}
+                  />
+                ))}
+              </div>
+
+              <span className={styles.playbackDuration}>{durationFormatted}</span>
+            </div>
+
+            {previewUrl && (
+              <audio ref={previewAudioRef} src={previewUrl} className={styles.hiddenAudio} />
+            )}
+          </div>
+
+          {/* Settings card — label + privacy grouped */}
+          <div className={styles.settingsCard}>
+            <div className={styles.settingsInputRow}>
+              <input
+                type="text"
+                className={styles.labelInput}
+                placeholder="Label (optional) — e.g., Advice, Funny moments..."
+                value={memoryLabel}
+                onChange={(e) => setMemoryLabel(e.target.value)}
+              />
+            </div>
+            <div className={styles.settingsDivider} />
+            <div
+              className={styles.settingsRow}
+              onClick={() => setIsPrivate((prev) => !prev)}
+              role="switch"
+              aria-checked={isPrivate}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsPrivate((prev) => !prev);
+                }
+              }}
+            >
+              <div className={styles.privacyLabel}>
+                <span className={styles.privacyIcon}>
+                  {isPrivate ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  )}
+                </span>
+                <span className={styles.privacyText}>{isPrivate ? 'Private' : 'Shared'}</span>
+              </div>
+              <div className={`${styles.toggleTrack} ${isPrivate ? styles.toggleTrackOn : styles.toggleTrackOff}`}>
+                <div className={styles.toggleThumb} />
+              </div>
+            </div>
+          </div>
+
+          <p className={styles.settingsHint}>You can change privacy anytime</p>
+
+          {uploadError && (
+            <p className={styles.uploadError} role="alert">{uploadError}</p>
+          )}
+
+          {/* Action buttons */}
+          <div className={styles.reviewActions}>
+            <button className={styles.saveBtn} onClick={editMode ? handleEditSave : handleSave}>
+              {editMode ? 'Save Changes' : `Add to ${spaceName}'s space`}
+            </button>
+            <button className={styles.reRecordBtn} onClick={reRecord}>
+              Re-record
+            </button>
+          </div>
+        </div>
+
+        <BottomNav spaceId={spaceId} activeTab="record" />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 6. RECORD SCREEN (5a) — idle / recording / paused
+  // ═══════════════════════════════════════════════════════════
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button
-          className={styles.backBtn}
-          onClick={() => navigate(`/spaces/${spaceId}`, { replace: true })}
-          aria-label="Back to space"
-        >
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" stroke="currentColor"/>
-          </svg>
-        </button>
-        <span className={styles.headerTitle}>Voice note</span>
-      </header>
+      <LovedOneBar
+        spaceName={spaceName}
+        spacePhotoUrl={spacePhotoUrl}
+        subtitle={barSubtitle}
+        onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+        backLabel="Back to feed"
+      />
 
       <div className={styles.recordingContent}>
-
-        <button
-          className={circleClass}
-          onClick={handleCircleTap}
-          aria-label={
-            recordingState === 'idle'      ? 'Start recording' :
-            recordingState === 'recording' ? 'Pause recording' :
-                                             'Resume recording'
-          }
-        >
-          <div className={ringClass} />
-          <div className={styles.dot} />
-        </button>
-
-        <div className={styles.statusArea}>
-          <div className={styles.timerRow}>
-            <span className={timerClass}>{durationFormatted}</span>
-            <span className={styles.stateLabel}>{stateLabel}</span>
+        {prompt && (
+          <div className={styles.promptWrap}>
+            <PromptBanner
+              prompt={prompt}
+              onSkip={handleSkipPrompt}
+              showSkip={recordingState === 'idle'}
+              fullWidth
+            />
           </div>
-          <p className={styles.hint}>{hintText}</p>
+        )}
+
+        <div className={styles.circleArea}>
+          <button
+            className={circleClass}
+            onClick={handleCircleTap}
+            aria-label={
+              recordingState === 'idle'      ? 'Start recording' :
+              recordingState === 'recording' ? 'Pause recording' :
+                                               'Resume recording'
+            }
+          >
+            <div className={ringClass} />
+            <div className={styles.dot} />
+          </button>
+
+          <div className={styles.statusArea}>
+            <div className={styles.timerRow}>
+              <span className={timerClass}>{durationFormatted}</span>
+              <span className={styles.stateLabel}>{stateLabel}</span>
+            </div>
+            <p className={styles.hint}>{hintText}</p>
+          </div>
+
+          {recorderError && (
+            <p className={styles.recorderError} role="alert">{recorderError}</p>
+          )}
+
+          {(recordingState === 'recording' || recordingState === 'paused') && (
+            <div className={styles.controls}>
+              <button
+                className={styles.stopBtn}
+                onClick={stopRecording}
+                aria-label="Stop recording"
+              >
+                <span className={styles.stopIcon} />
+                Stop
+              </button>
+            </div>
+          )}
         </div>
-
-        {recorderError && (
-          <p className={styles.recorderError} role="alert">{recorderError}</p>
-        )}
-
-        {(recordingState === 'recording' || recordingState === 'paused') && (
-          <div className={styles.controls}>
-            <button
-              className={styles.stopBtn}
-              onClick={stopRecording}
-              aria-label="Stop recording"
-            >
-              <span className={styles.stopIcon} />
-              Stop
-            </button>
-          </div>
-        )}
       </div>
+
+      <BottomNav spaceId={spaceId} activeTab="record" />
     </div>
   );
 }

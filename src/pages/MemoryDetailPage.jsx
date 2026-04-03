@@ -1,6 +1,9 @@
 // MemoryDetailPage.jsx — /spaces/:spaceId/memories/:memId
-// View, edit, favorite, re-record for voice/text/photo memories
-// Data: passed via navigation state (memory object), fallback fetches feed
+// v2.0 — Voice edit removed; voice memories now route to RecordPage (April 3, 2026)
+//
+// This page handles text and photo memory detail/edit only.
+// Voice memories are edited via RecordPage Review screen (5b).
+//
 // APIs: PATCH /memories/:id, POST /memories/:id/favorite, GET /media/playback/:key
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -18,11 +21,6 @@ function formatDate(dateStr) {
   } catch { return ''; }
 }
 
-function formatDuration(val) {
-  const s = Math.round(Number(val) || 0);
-  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-}
-
 export default function MemoryDetailPage() {
   const { spaceId, memId } = useParams();
   const navigate = useNavigate();
@@ -33,21 +31,26 @@ export default function MemoryDetailPage() {
   const [memory, setMemory] = useState(location.state?.memory || null);
   const [space, setSpace] = useState(null);
   // Edit mode
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(location.state?.editing || false);
   const [editTitle, setEditTitle] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editPrivate, setEditPrivate] = useState(true);
   const [saving, setSaving] = useState(false);
-  // Audio
-  const [playing, setPlaying] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const audioRef = useRef(null);
   // Photo
   const [photoUrl, setPhotoUrl] = useState(null);
   // UI
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!location.state?.memory);
+
+  // ─── Redirect voice memories to RecordPage ───
+  useEffect(() => {
+    if (memory && (memory.category || '').toLowerCase() === 'voice') {
+      navigate(`/spaces/${spaceId}/record`, {
+        state: { editMode: true, editMemory: memory },
+        replace: true,
+      });
+    }
+  }, [memory, spaceId, navigate]);
 
   // ─── Load memory + space data ───
   useEffect(() => {
@@ -55,12 +58,10 @@ export default function MemoryDetailPage() {
     async function load() {
       const api = createApiClient(getAccessTokenSilently);
       try {
-        // Always fetch space for header
         const spaceData = await api.get(`/spaces/${spaceId}`);
         if (cancelled) return;
         setSpace(spaceData);
 
-        // If no memory from nav state, fetch feed and find it
         if (!memory) {
           const feedData = await api.get(`/spaces/${spaceId}/memories?limit=100&offset=0`);
           const found = (feedData.memories || []).find(m => m.id === memId);
@@ -101,7 +102,7 @@ export default function MemoryDetailPage() {
     return () => { cancelled = true; };
   }, [memory, getAccessTokenSilently]);
 
-  // ─── Init edit fields when entering edit mode ───
+  // ─── Init edit fields ───
   useEffect(() => {
     if (editing && memory) {
       setEditTitle(memory.title || '');
@@ -110,57 +111,11 @@ export default function MemoryDetailPage() {
     }
   }, [editing, memory]);
 
-  // ─── Audio cleanup ───
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
   // ─── Handlers ───
 
   const handleBack = useCallback(() => {
     navigate(`/spaces/${spaceId}`);
   }, [navigate, spaceId]);
-
-  const handlePlayPause = useCallback(async () => {
-    if (audioLoading) return;
-    if (audioRef.current && playing) {
-      audioRef.current.pause();
-      setPlaying(false);
-      return;
-    }
-    if (audioRef.current && !playing) {
-      audioRef.current.play();
-      setPlaying(true);
-      return;
-    }
-
-    const s3Key = memory?.voiceNote?.s3Key || memory?.s3Key;
-    if (!s3Key) return;
-
-    setAudioLoading(true);
-    try {
-      const api = createApiClient(getAccessTokenSilently);
-      const data = await api.get(`/media/playback/${encodeURIComponent(s3Key)}`);
-      const audio = new Audio(data.playbackUrl);
-      audioRef.current = audio;
-      audio.ontimeupdate = () => {
-        if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
-      };
-      audio.onended = () => { setPlaying(false); setProgress(0); };
-      audio.onerror = () => { setPlaying(false); setAudioLoading(false); };
-      await audio.play();
-      setPlaying(true);
-    } catch (err) {
-      console.error('Playback error:', err);
-    } finally {
-      setAudioLoading(false);
-    }
-  }, [playing, audioLoading, memory, getAccessTokenSilently]);
 
   const handleFavorite = useCallback(async () => {
     if (!memory) return;
@@ -202,20 +157,11 @@ export default function MemoryDetailPage() {
     }
   }, [saving, editTitle, editNote, editPrivate, memory, getAccessTokenSilently]);
 
-  const handleReRecord = useCallback(() => {
-    // Navigate to record page with edit context
-    navigate(`/spaces/${spaceId}/record`, {
-      state: { editMemoryId: memory.id, editMode: true },
-    });
-  }, [navigate, spaceId, memory]);
-
   // ─── Derived ───
   const category = (memory?.category || '').toLowerCase();
-  const isVoice = category === 'voice';
   const isText = category === 'text';
   const isPhoto = category === 'photo';
   const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
-  const duration = memory?.voiceNote?.duration || 0;
 
   // ─── Loading ───
   if (loading) {
@@ -236,8 +182,11 @@ export default function MemoryDetailPage() {
     );
   }
 
+  // Voice memories redirect (safety — should not render)
+  if (category === 'voice') return null;
+
   // ═══════════════════════════════════════
-  //  EDIT MODE
+  //  EDIT MODE (text/photo only)
   // ═══════════════════════════════════════
   if (editing) {
     return (
@@ -262,7 +211,7 @@ export default function MemoryDetailPage() {
             />
           </div>
 
-          {/* Note (text memories only) */}
+          {/* Note (text memories) */}
           {isText && (
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Memory text</label>
@@ -321,11 +270,10 @@ export default function MemoryDetailPage() {
   }
 
   // ═══════════════════════════════════════
-  //  VIEW MODE (default)
+  //  VIEW MODE (text/photo only)
   // ═══════════════════════════════════════
   return (
     <div className={styles.screen}>
-      {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerInner}>
           <button className={styles.backBtn} onClick={handleBack}>←</button>
@@ -356,7 +304,6 @@ export default function MemoryDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className={styles.content}>
         {/* Category + date */}
         <div className={styles.meta}>
@@ -367,37 +314,6 @@ export default function MemoryDetailPage() {
         {/* Title */}
         {memory.title && (
           <h1 className={styles.title}>{memory.title}</h1>
-        )}
-
-        {/* Voice player */}
-        {isVoice && (
-          <div className={styles.voicePlayer}>
-            <button className={styles.playBtn} onClick={handlePlayPause}>
-              {audioLoading ? (
-                <div className={styles.playLoading} />
-              ) : playing ? (
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <rect x="5" y="4" width="4" height="16" rx="1" fill="white" />
-                  <rect x="15" y="4" width="4" height="16" rx="1" fill="white" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path d="M6 4l14 8-14 8V4z" fill="white" />
-                </svg>
-              )}
-            </button>
-            <div className={styles.progressBar}>
-              <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            </div>
-            <span className={styles.duration}>{formatDuration(duration)}</span>
-          </div>
-        )}
-
-        {/* Re-record button (voice only) */}
-        {isVoice && (
-          <button className={styles.reRecordBtn} onClick={handleReRecord}>
-            🎙 Record new version
-          </button>
         )}
 
         {/* Photo image */}
