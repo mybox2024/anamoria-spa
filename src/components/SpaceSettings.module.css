@@ -1,0 +1,745 @@
+/* components/SpaceSettings.module.css
+   v1.0 — Space Settings modal (April 4, 2026)
+   Source: axr_MemoryVaultV2.css (modal, toggle, settings-section, contributors, theme-picker)
+*/
+
+/* ═══════════════════════════════════════
+   MODAL OVERLAY + CONTAINER
+   ═══════════════════════════════════════ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1);
+  max-height: 85vh;
+  max-width: min(680px, calc(100vw - 48px));
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════ */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+  flex-shrink: 0;
+  min-height: 64px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.closeBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: var(--color-bg-warm, #f5f5f4);
+  border-radius: 50%;
+  color: var(--color-text-subtle, #737373);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.closeBtn:hover {
+  background: var(--color-sage-light, #e8f0eb);
+  color: var(--color-text-primary, #2d3436);
+}
+
+/* ═══════════════════════════════════════
+   SCROLLABLE BODY
+   ═══════════════════════════════════════ */
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px;
+  scrollbar-width: thin;
+}
+
+/* ═══════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════ */
+
+.section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0 0 16px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+/* ═══════════════════════════════════════
+   FORM INPUTS
+   ═══════════════════════════════════════ */
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  margin-bottom: 6px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.formInput {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e0ddd8;
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--color-bg-white, #ffffff);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.formInput:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+.formSelect {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e0ddd8;
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--color-bg-white, #ffffff);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+  appearance: auto;
+}
+
+.formSelect:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+/* ═══════════════════════════════════════
+   TOGGLE SWITCH
+   Source: axr_MemoryVaultV2.css .modal-toggle-track
+   ═══════════════════════════════════════ */
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.toggleRowLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.toggleLabel {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.toggleDesc {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.4;
+}
+
+.toggleTrack {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  background-color: #e0ddd8;
+}
+
+.toggleOn {
+  background-color: var(--color-sage-dark, #5b7a65);
+}
+
+.toggleKnob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: margin-left 0.2s ease;
+}
+
+.toggleOn .toggleKnob {
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════
+   VOICE CARD THEME PICKER
+   Source: Voice_Card_Theme_Spec.md
+   ═══════════════════════════════════════ */
+
+.themePicker {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.themeOption {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.themeOption:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.themeSelected {
+  border-color: var(--color-sage-dark, #5b7a65);
+  background: rgba(91, 122, 101, 0.06);
+}
+
+.themePickerName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-body, #3d4a3f);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.themeSelected .themePickerName {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+/* Theme preview thumbnails */
+.themePreview {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.themePreviewInner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.themePreviewLabel {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.themePreviewWaveform {
+  height: 12px;
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+/* Warm */
+.themePreview_warm {
+  background: #fdf6e3;
+  border: 1px solid #f0e8c0;
+}
+
+.themePreview_warm .themePreviewLabel {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.themePreview_warm .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Story */
+.themePreview_story {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+}
+
+.themePreview_story .themePreviewLabel {
+  color: var(--color-text-subtle, #737373);
+}
+
+.themePreview_story .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Sage */
+.themePreview_sage {
+  background: var(--color-sage-light, #e8f0eb);
+  border: 1px solid #d0e0d5;
+}
+
+.themePreview_sage .themePreviewLabel {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.themePreview_sage .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Clean */
+.themePreview_clean {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+}
+
+.themePreview_clean .themePreviewLabel {
+  color: var(--color-text-subtle, #737373);
+  font-size: 7px;
+}
+
+.themePreview_clean .themePreviewWaveform {
+  background: var(--color-border-light, #edebe7);
+}
+
+/* ═══════════════════════════════════════
+   WEEKLY REMINDERS INPUTS
+   ═══════════════════════════════════════ */
+
+.reminderInputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.reminderGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.reminderLabel {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  margin-bottom: 6px;
+}
+
+/* ═══════════════════════════════════════
+   CONTRIBUTORS LIST
+   Source: axr_MemoryVaultV2.css .contributors-list
+   ═══════════════════════════════════════ */
+
+.contributorList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.contributorItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+  gap: 10px;
+}
+
+.contributorItem:last-child {
+  border-bottom: none;
+}
+
+.contributorInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.contributorName {
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  font-size: 15px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.contributorDetails {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  flex: 1;
+  min-width: 120px;
+}
+
+.contributorEmail {
+  font-size: 12px;
+  color: #737373;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contributorMemories {
+  font-size: 12px;
+  color: #737373;
+}
+
+.statusPending {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(212, 136, 15, 0.094);
+  color: #d4880f;
+  border-radius: 10px;
+}
+
+.statusActive {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(91, 122, 101, 0.094);
+  color: #5b7a65;
+  border-radius: 10px;
+}
+
+.removeBtn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1.5px solid #b85450;
+  color: #b85450;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.removeBtn:hover {
+  background: rgba(184, 84, 80, 0.1);
+}
+
+.noContributors {
+  text-align: center;
+  color: var(--color-text-subtle, #737373);
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+.loadingText {
+  text-align: center;
+  color: var(--color-text-subtle, #737373);
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════
+   NEED HELP / SUPPORT LINK
+   ═══════════════════════════════════════ */
+
+.supportLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-primary, #2d3436);
+  padding: 14px 0;
+  width: 100%;
+  text-align: left;
+  font-size: 15px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.supportLink:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.supportIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   ERROR / SUCCESS MESSAGES
+   ═══════════════════════════════════════ */
+
+.errorMsg {
+  padding: 0 24px 8px;
+  font-size: 13px;
+  color: #b85450;
+  margin: 0;
+}
+
+.successMsg {
+  padding: 0 24px 8px;
+  font-size: 13px;
+  color: var(--color-sage-dark, #5b7a65);
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════
+   FOOTER
+   Source: axr_MemoryVaultV2.css .settings-footer
+   ═══════════════════════════════════════ */
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-light, #edebe7);
+  flex-shrink: 0;
+}
+
+.cancelBtn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  color: #737373;
+  border: 1.5px solid #e0ddd8;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.cancelBtn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.cancelBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.saveBtn {
+  padding: 10px 28px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--color-sage-dark, #5b7a65);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.saveBtn:hover {
+  background: #4a6654;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════
+   REMOVE CONTRIBUTOR CONFIRMATION
+   ═══════════════════════════════════════ */
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  padding: 24px;
+}
+
+.confirmModal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-width: 380px;
+  width: 100%;
+  padding: 28px;
+  text-align: center;
+}
+
+.confirmTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 12px;
+}
+
+.confirmMessage {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.removeBtnConfirm {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #b85450;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.removeBtnConfirm:hover {
+  background: #a04440;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    max-width: 100%;
+  }
+
+  .scroll {
+    padding: 0 16px;
+  }
+
+  .header {
+    padding: 16px;
+  }
+
+  .footer {
+    padding: 14px 16px;
+  }
+
+  .themePicker {
+    flex-wrap: wrap;
+  }
+
+  .themeOption {
+    flex: 0 0 calc(50% - 6px);
+  }
+
+  .reminderInputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .modal,
+  .toggleTrack,
+  .toggleKnob {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .toggleTrack {
+    border: 2px solid currentColor;
+  }
+
+  .themeOption {
+    border-width: 3px;
+  }
+}

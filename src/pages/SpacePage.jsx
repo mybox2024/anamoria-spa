@@ -1,12 +1,17 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.0 — Space screen overhaul (April 1, 2026)
+// v2.1 — Add Space Settings modal (April 4, 2026)
 // Route: /spaces/:spaceId (protected — JWT required)
+//
+// Changes from v2.0:
+//   - SpaceSettings modal opens from sidebar button (was navigate('/settings'))
+//   - onSave callback updates space state without reload
 //
 // Features:
 //   - Header bar: hamburger, avatar, space name, "Shared · N memories", + button
 //   - Sidebar drawer: space list, Space Settings, Group Dashboard, user info
 //   - Full-width masonry feed (MemoryFeed v2)
 //   - Prompt card or standalone record CTA
+//   - Space Settings modal (name, theme, reminders, contributors)
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -16,6 +21,7 @@ import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
 import CreateSpaceModal from '../components/CreateSpaceModal';
+import SpaceSettings from '../components/SpaceSettings';
 import styles from './SpacePage.module.css';
 
 /* ─── Inline SVG icons ─── */
@@ -95,6 +101,9 @@ export default function SpacePage() {
 
   // Create space modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Space settings modal
+  const [showSettings, setShowSettings] = useState(false);
 
   /* ─── Load space + prompt ─── */
 
@@ -188,6 +197,12 @@ export default function SpacePage() {
     setMemoryCount(count);
   }, []);
 
+  /* ─── Settings save callback (merges updated fields into parent state) ─── */
+
+  const handleSettingsSave = useCallback((updatedSpace) => {
+    setSpace((prev) => ({ ...prev, ...updatedSpace }));
+  }, []);
+
   /* ─── Loading state ─── */
 
   if (loading) {
@@ -212,7 +227,7 @@ export default function SpacePage() {
     );
   }
 
-  const isShared = !space.isPrivate;
+  const isShared = space.privacyMode === 'shared';
   const initial = (space.name || '?').charAt(0).toUpperCase();
 
   return (
@@ -355,7 +370,7 @@ export default function SpacePage() {
                       {sInitial}
                     </span>
                     <span className={styles.sidebarSpaceName}>{s.name}</span>
-                    {s.isPrivate && (
+                    {s.privacyMode === 'private' && (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" style={{ marginLeft: 'auto', opacity: 0.5 }}>
                         <rect x="5" y="11" width="14" height="10" rx="2" />
                         <path d="M8 11V7a4 4 0 0 1 8 0v4" />
@@ -369,7 +384,7 @@ export default function SpacePage() {
             <div className={styles.sidebarFooterNav}>
               <button
                 className={styles.sidebarNavBtn}
-                onClick={() => { closeSidebar(); navigate('/settings'); }}
+                onClick={() => { closeSidebar(); setShowSettings(true); }}
               >
                 <SettingsIcon />
                 Space Settings
@@ -405,6 +420,18 @@ export default function SpacePage() {
         <CreateSpaceModal
           getApi={getApi}
           onClose={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════
+          SPACE SETTINGS MODAL
+          ═══════════════════════════════════════ */}
+      {showSettings && (
+        <SpaceSettings
+          space={space}
+          getApi={getApi}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSettingsSave}
         />
       )}
     </div>
