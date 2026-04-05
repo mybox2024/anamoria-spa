@@ -1,5 +1,9 @@
 // App.jsx — Anamoria SPA
-// Step 3: Session bootstrap wired.
+// v1.2 — April 5, 2026
+// Changes from v1.1:
+//   - Bootstrap passes Auth0 user.email + user.name to POST /pilot/activate
+//   - Fixes blank email/display_name bug in users table
+// Added in v1.1: /leader route for pilot group leaders
 //
 // Boot sequence (runs after every Auth0 login):
 //   1. Auth0 checks session → isAuthenticated
@@ -31,6 +35,7 @@ import MemoryDetailPage from './pages/MemoryDetailPage';
 import InvitePage from './pages/InvitePage';
 import ContributorLandingPage from './pages/ContributorLandingPage';
 import ContributorFeedPage from './pages/ContributorFeedPage';
+import LeaderPage from './pages/LeaderPage';
 
 // ─── App context — shared state across all pages ──────────────────────────
 
@@ -59,7 +64,7 @@ function PlaceholderPage({ name }) {
 // Runs once after Auth0 confirms the user is authenticated.
 // Calls activate + spaces, then navigates to the correct screen.
 
-function useSessionBootstrap(isAuthenticated, getAccessTokenSilently) {
+function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User) {
   const navigate = useNavigate();
   const [appState, setAppState] = useState({
     bootstrapped: false,   // true after activate + spaces calls complete
@@ -81,7 +86,11 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently) {
 
     try {
       // Step 1: activate — creates or links user in DB
-      const activateBody = { groupId, displayName: '' };
+      const activateBody = {
+        groupId,
+        displayName: auth0User?.name || auth0User?.nickname || '',
+        email: auth0User?.email || '',
+      };
       const activateData = await api.post('/pilot/activate', activateBody);
 
       // Step 2: list spaces
@@ -145,7 +154,7 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently) {
         bootstrapError: err.error || 'BOOTSTRAP_FAILED',
       }));
     }
-  }, [getAccessTokenSilently, navigate]);
+  }, [getAccessTokenSilently, navigate, auth0User]);
 
   useEffect(() => {
     if (isAuthenticated && !appState.bootstrapped) {
@@ -159,8 +168,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently) {
 // ─── Inner app (inside BrowserRouter + AuthProvider) ─────────────────────
 
 function AppRoutes() {
-  const { isLoading, isAuthenticated, getAccessTokenSilently } = useAuth0();
-  const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently);
+  const { isLoading, isAuthenticated, getAccessTokenSilently, user } = useAuth0();
+  const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
 
   // Auth0 initializing
   if (isLoading) {
@@ -266,6 +275,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <InvitePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leader"
+          element={
+            <ProtectedRoute>
+              <LeaderPage />
             </ProtectedRoute>
           }
         />

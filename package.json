@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2",
+    "qrcode.react": "^4.2.0",
     "react": "^19",
     "react-dom": "^19",
     "react-router-dom": "^6"

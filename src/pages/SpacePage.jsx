@@ -1,10 +1,10 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.1 — Add Space Settings modal (April 4, 2026)
+// v2.2 — Conditional leader dashboard link (April 5, 2026)
 // Route: /spaces/:spaceId (protected — JWT required)
 //
-// Changes from v2.0:
-//   - SpaceSettings modal opens from sidebar button (was navigate('/settings'))
-//   - onSave callback updates space state without reload
+// Changes from v2.1:
+//   - Dashboard link in sidebar only visible when pilotRole === 'leader'
+//   - Added useAppContext import for role check
 //
 // Features:
 //   - Header bar: hamburger, avatar, space name, "Shared · N memories", + button
@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useAppContext } from '../App';
 import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
@@ -81,6 +82,7 @@ export default function SpacePage() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
   const { getAccessTokenSilently, user } = useAuth0();
+  const appState = useAppContext();
 
   // Stable getApi function for child components
   const getApi = useCallback(
@@ -389,13 +391,15 @@ export default function SpacePage() {
                 <SettingsIcon />
                 Space Settings
               </button>
-              <button
-                className={styles.sidebarNavBtn}
-                onClick={() => { closeSidebar(); navigate('/leader'); }}
-              >
-                <DashboardIcon />
-                Group Dashboard
-              </button>
+              {appState?.pilotRole === 'leader' && (
+                <button
+                  className={styles.sidebarNavBtn}
+                  onClick={() => { closeSidebar(); navigate('/leader'); }}
+                >
+                  <DashboardIcon />
+                  Group Dashboard
+                </button>
+              )}
             </div>
 
             {user && (
