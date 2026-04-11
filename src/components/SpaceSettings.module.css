@@ -4,6 +4,33 @@
 */
 
 /* ═══════════════════════════════════════
+   INLINE MODE (no overlay/modal chrome)
+   Used by SettingsPage two-panel layout
+   ═══════════════════════════════════════ */
+
+.inlineWrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.inlineScroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.inlineFooter {
+  border-top: 1px solid var(--color-border-light, #edebe7);
+  padding: 16px 0 0;
+  margin-top: 8px;
+}
+
+.inlineFooter .saveBtn {
+  width: 100%;
+}
+
+/* ═══════════════════════════════════════
    MODAL OVERLAY + CONTAINER
    ═══════════════════════════════════════ */
 

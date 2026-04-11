@@ -1,5 +1,10 @@
 // App.jsx — Anamoria SPA
-// v1.2 — April 5, 2026
+// v1.3 — April 7, 2026
+// Changes from v1.2:
+//   - Added Settings shell route (/settings)
+//   - Added B1 Pricing route (/settings/upgrade)
+//   - Added B2 Checkout route (/settings/upgrade/checkout)
+//   - Added B3 Success route (/settings/upgrade/success)
 // Changes from v1.1:
 //   - Bootstrap passes Auth0 user.email + user.name to POST /pilot/activate
 //   - Fixes blank email/display_name bug in users table
@@ -36,6 +41,10 @@ import InvitePage from './pages/InvitePage';
 import ContributorLandingPage from './pages/ContributorLandingPage';
 import ContributorFeedPage from './pages/ContributorFeedPage';
 import LeaderPage from './pages/LeaderPage';
+import SettingsPage from './pages/SettingsPage';
+import UpgradePage from './pages/UpgradePage';
+import CheckoutPage from './pages/CheckoutPage';
+import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
 // ─── App context — shared state across all pages ──────────────────────────
 
@@ -290,6 +299,40 @@ function AppRoutes() {
         {/* ── Public (no auth) ────────────────────────────────── */}
         <Route path="/invite/:token" element={<ContributorLandingPage />} />
         <Route path="/contribute/:spaceId" element={<ContributorFeedPage />} />
+
+        {/* ── Settings + Billing (B1–B3) ───────────────────────── */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/upgrade"
+          element={
+            <ProtectedRoute>
+              <UpgradePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/upgrade/checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/upgrade/success"
+          element={
+            <ProtectedRoute>
+              <UpgradeSuccessPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ── Fallback ──────────────────────────────────────────── */}
         <Route path="*" element={<Navigate to="/join" replace />} />

@@ -1,0 +1,441 @@
+/* pages/UpgradePage.module.css
+   v1.1 — Monthly/Yearly toggle, Claude-style card layout (April 7, 2026)
+   Tokens: variables.css
+*/
+
+/* ═══════════════════════════════════════
+   PAGE
+   ═══════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  background: var(--color-bg, #faf9f7);
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-area-top, 0px);
+  padding-bottom: 48px;
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════ */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  background: var(--color-bg-white, #ffffff);
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+}
+
+.backBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, #2d3436);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: background var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.backBtn:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.headerText {
+  flex: 1;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 4px;
+  font-family: var(--font-sans);
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0;
+  line-height: 1.4;
+  font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════
+   BILLING TOGGLE
+   ═══════════════════════════════════════ */
+
+.toggleArea {
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px 4px;
+}
+
+.toggleWrap {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-warm, #f5f5f4);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggleOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-subtle, #737373);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease),
+              color var(--transition-fast, 0.15s ease);
+  white-space: nowrap;
+}
+
+.toggleOptionActive {
+  background: var(--color-bg-white, #ffffff);
+  color: var(--color-text-primary, #2d3436);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.toggleSaveBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-sage-dark, #5b7a65);
+  background: var(--color-sage-light, #e8f0eb);
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+/* ═══════════════════════════════════════
+   CARDS GRID
+   ═══════════════════════════════════════ */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px 0;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Side by side on tablet+ */
+@media (min-width: 680px) {
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+    gap: 16px;
+    padding: 20px 24px 0;
+  }
+}
+
+/* ═══════════════════════════════════════
+   CARD BASE
+   ═══════════════════════════════════════ */
+
+.card {
+  background: var(--color-bg-white, #ffffff);
+  border: 1.5px solid var(--color-border, #e0ddd8);
+  border-radius: 18px;
+  padding: 24px 20px 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Highlighted (Premium) */
+.cardHighlighted {
+  border-color: var(--color-sage-dark, #5b7a65);
+  box-shadow: 0 0 0 1px rgba(91, 122, 101, 0.15),
+              0 4px 16px rgba(91, 122, 101, 0.08);
+}
+
+/* Free (muted) */
+.cardFree {
+  opacity: 0.75;
+}
+
+/* Forever */
+.cardForever {
+  border-color: var(--color-amber, #d4880f);
+  background: #fffcf5;
+}
+
+/* ═══════════════════════════════════════
+   BADGES
+   ═══════════════════════════════════════ */
+
+.badgeHighlighted {
+  position: absolute;
+  top: -11px;
+  left: 20px;
+  background: var(--color-sage-dark, #5b7a65);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--font-sans);
+}
+
+.badgeForever {
+  position: absolute;
+  top: -11px;
+  left: 20px;
+  background: var(--color-amber, #d4880f);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════
+   CARD TOP — name + tagline
+   ═══════════════════════════════════════ */
+
+.cardTop {
+  margin-bottom: 16px;
+}
+
+.planName {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 4px;
+  font-family: var(--font-sans);
+}
+
+.planTagline {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════
+   PRICE
+   ═══════════════════════════════════════ */
+
+.priceBlock {
+  margin-bottom: 20px;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.price {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+
+.period {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+}
+
+.priceNote {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  margin: 5px 0 0;
+  font-family: var(--font-sans);
+}
+
+.cardHighlighted .priceNote {
+  color: var(--color-sage-dark, #5b7a65);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════
+   CTA BUTTONS — above features (Claude pattern)
+   ═══════════════════════════════════════ */
+
+.ctaPrimary {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--color-sage-dark, #5b7a65);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.ctaPrimary:hover {
+  background: #4a6654;
+}
+
+.ctaForever {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--color-amber, #d4880f);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.ctaForever:hover {
+  background: #b8760d;
+}
+
+.ctaCurrent {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-text-subtle, #737373);
+  border: 1.5px solid var(--color-border, #e0ddd8);
+  cursor: default;
+  font-family: var(--font-sans);
+}
+
+.ctaNote {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  text-align: center;
+  margin: 6px 0 0;
+  font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════
+   FEATURE DIVIDER + LIST
+   ═══════════════════════════════════════ */
+
+.featureDivider {
+  height: 1px;
+  background: var(--color-border-light, #edebe7);
+  margin: 16px 0;
+}
+
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* "Everything in X, and:" — heading style, no check */
+.featureHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-body, #3d4a3f);
+  font-family: var(--font-sans);
+  margin-bottom: 2px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--color-text-body, #3d4a3f);
+  font-family: var(--font-sans);
+  line-height: 1.4;
+}
+
+.featureCheck {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-sage-light, #e8f0eb);
+  color: var(--color-sage-dark, #5b7a65);
+  flex-shrink: 0;
+}
+
+.cardForever .featureCheck {
+  background: rgba(212, 136, 15, 0.12);
+  color: var(--color-amber, #d4880f);
+}
+
+.cardFree .featureCheck {
+  background: var(--color-bg-warm, #f5f5f4);
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   FOOTER NOTE
+   ═══════════════════════════════════════ */
+
+.footerNote {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  margin: 24px auto 0;
+  padding: 0 16px;
+  line-height: 1.5;
+  font-family: var(--font-sans);
+  max-width: 380px;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .header {
+    padding: 14px 14px 16px;
+  }
+
+  .price {
+    font-size: 30px;
+  }
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .ctaPrimary,
+  .ctaForever,
+  .toggleOption,
+  .backBtn {
+    transition: none !important;
+  }
+}

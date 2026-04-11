@@ -1,6 +1,16 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.2 — Conditional leader dashboard link (April 5, 2026)
+// v2.7 — Upgrade shortcut goes directly to plan page (April 8, 2026)
+// Changes from v2.6:
+//   - Profile menu "Upgrade →" reverted to /settings/upgrade?from=spaceId
+//   - Settings nav item still goes to /settings?from=spaceId (unchanged)
 // Route: /spaces/:spaceId (protected — JWT required)
+//
+// Changes from v2.2:
+//   - sidebarUser block is now an interactive button
+//   - Clicking profile shows a menu: name, plan, Settings, Sign out
+//   - Settings navigates to /settings?from={spaceId}
+//   - Sign out calls Auth0 logout()
+//   - TODO: replace static "Free plan" with live tier from GET /billing/subscription
 //
 // Changes from v2.1:
 //   - Dashboard link in sidebar only visible when pilotRole === 'leader'
@@ -22,7 +32,6 @@ import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
 import CreateSpaceModal from '../components/CreateSpaceModal';
-import SpaceSettings from '../components/SpaceSettings';
 import styles from './SpacePage.module.css';
 
 /* ─── Inline SVG icons ─── */
@@ -74,6 +83,24 @@ function DashboardIcon() {
   );
 }
 
+function ChevronUpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  );
+}
+
+function SignOutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════
    SPACE PAGE COMPONENT
    ═══════════════════════════════════════ */
@@ -81,7 +108,7 @@ function DashboardIcon() {
 export default function SpacePage() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
-  const { getAccessTokenSilently, user } = useAuth0();
+  const { getAccessTokenSilently, logout, user } = useAuth0();
   const appState = useAppContext();
 
   // Stable getApi function for child components
@@ -104,8 +131,8 @@ export default function SpacePage() {
   // Create space modal
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Space settings modal
-  const [showSettings, setShowSettings] = useState(false);
+  // Profile / user menu inside sidebar
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   /* ─── Load space + prompt ─── */
 
@@ -156,6 +183,7 @@ export default function SpacePage() {
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
+    setShowUserMenu(false);
   }, []);
 
   /* ─── Navigate to space ─── */
@@ -197,12 +225,6 @@ export default function SpacePage() {
 
   const handleMemoryCount = useCallback((count) => {
     setMemoryCount(count);
-  }, []);
-
-  /* ─── Settings save callback (merges updated fields into parent state) ─── */
-
-  const handleSettingsSave = useCallback((updatedSpace) => {
-    setSpace((prev) => ({ ...prev, ...updatedSpace }));
   }, []);
 
   /* ─── Loading state ─── */
@@ -384,13 +406,6 @@ export default function SpacePage() {
             </div>
 
             <div className={styles.sidebarFooterNav}>
-              <button
-                className={styles.sidebarNavBtn}
-                onClick={() => { closeSidebar(); setShowSettings(true); }}
-              >
-                <SettingsIcon />
-                Space Settings
-              </button>
               {appState?.pilotRole === 'leader' && (
                 <button
                   className={styles.sidebarNavBtn}
@@ -403,14 +418,73 @@ export default function SpacePage() {
             </div>
 
             {user && (
-              <div className={styles.sidebarUser}>
-                <div className={styles.sidebarUserAvatar}>
-                  {(user.name || user.email || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.sidebarUserInfo}>
-                  <span className={styles.sidebarUserName}>{user.name || 'User'}</span>
-                  <span className={styles.sidebarUserEmail}>{user.email || ''}</span>
-                </div>
+              <div className={styles.sidebarUserWrapper}>
+
+                {/* ─── User menu (shown above profile button when open) ─── */}
+                {showUserMenu && (
+                  <div className={styles.userMenu}>
+
+                    {/* Plan badge */}
+                    {/* TODO: replace static copy with live tier from GET /billing/subscription */}
+                    <div className={styles.userMenuPlan}>
+                      <span className={styles.userMenuPlanBadge}>Free plan</span>
+                      <button
+                        className={styles.userMenuUpgradeLink}
+                        onClick={() => {
+                          closeSidebar();
+                          navigate(`/settings/upgrade?from=${spaceId}`);
+                        }}
+                      >
+                        Upgrade →
+                      </button>
+                    </div>
+
+                    <div className={styles.userMenuDivider} />
+
+                    {/* Settings */}
+                    <button
+                      className={styles.userMenuItem}
+                      onClick={() => {
+                        closeSidebar();
+                        navigate(`/settings?from=${spaceId}`);
+                      }}
+                    >
+                      <SettingsIcon />
+                      Settings
+                    </button>
+
+                    {/* Sign out */}
+                    <button
+                      className={`${styles.userMenuItem} ${styles.userMenuItemSignOut}`}
+                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin + '/join' } })}
+                    >
+                      <SignOutIcon />
+                      Sign out
+                    </button>
+
+                  </div>
+                )}
+
+                {/* ─── Profile button ─── */}
+                <button
+                  className={`${styles.sidebarUser} ${showUserMenu ? styles.sidebarUserOpen : ''}`}
+                  onClick={() => setShowUserMenu((v) => !v)}
+                  aria-expanded={showUserMenu}
+                  aria-label="Profile and settings"
+                >
+                  <div className={styles.sidebarUserAvatar}>
+                    {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.sidebarUserInfo}>
+                    <span className={styles.sidebarUserName}>{user.name || 'User'}</span>
+                    {/* TODO: replace with live tier from GET /billing/subscription */}
+                    <span className={styles.sidebarUserEmail}>Free plan</span>
+                  </div>
+                  <span className={`${styles.sidebarUserChevron} ${showUserMenu ? styles.sidebarUserChevronUp : ''}`}>
+                    <ChevronUpIcon />
+                  </span>
+                </button>
+
               </div>
             )}
           </aside>
@@ -427,17 +501,6 @@ export default function SpacePage() {
         />
       )}
 
-      {/* ═══════════════════════════════════════
-          SPACE SETTINGS MODAL
-          ═══════════════════════════════════════ */}
-      {showSettings && (
-        <SpaceSettings
-          space={space}
-          getApi={getApi}
-          onClose={() => setShowSettings(false)}
-          onSave={handleSettingsSave}
-        />
-      )}
     </div>
   );
 }

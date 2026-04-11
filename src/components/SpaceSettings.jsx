@@ -1,5 +1,10 @@
 // components/SpaceSettings.jsx — Anamoria SPA
-// v1.0 — Space Settings modal (April 4, 2026)
+// v1.1 — inline mode support (April 7, 2026)
+// Changes from v1.0:
+//   - Added `inline` prop (default false)
+//   - When inline=true: renders as plain div (no overlay/modal chrome)
+//     Used by SettingsPage to embed content directly in the right panel
+//   - Modal behaviour unchanged when inline=false
 // Source: axr_MemoryVaultV2.html/.js/.css (LWC Space Settings modal)
 //
 // Sections:
@@ -58,7 +63,7 @@ const THEME_OPTIONS = [
    SPACE SETTINGS COMPONENT
    ═══════════════════════════════════════ */
 
-export default function SpaceSettings({ space, getApi, onClose, onSave }) {
+export default function SpaceSettings({ space, getApi, onClose, onSave, inline = false }) {
 
   // ─── Editable state (initialized from space prop) ───
   const [editName, setEditName] = useState(space.name || '');
@@ -200,6 +205,197 @@ export default function SpaceSettings({ space, getApi, onClose, onSave }) {
      RENDER
      ═══════════════════════════════════════ */
 
+  // ─── Inline mode: no overlay/modal chrome — just the content ───
+  if (inline) {
+    return (
+      <div className={styles.inlineWrap}>
+
+        {/* ─── Scrollable sections ─── */}
+        <div className={styles.inlineScroll}>
+
+          {/* ══════ Section 1: Space Info ══════ */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>SPACE INFO</h3>
+
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Space Name</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+
+            <div className={styles.toggleRow} onClick={() => setAllowContributors(!allowContributors)}>
+              <div className={styles.toggleRowLeft}>
+                <span className={styles.toggleLabel}>Allow Contributors</span>
+                <span className={styles.toggleDesc}>Let family and friends contribute memories.</span>
+              </div>
+              <div className={`${styles.toggleTrack} ${allowContributors ? styles.toggleOn : ''}`}>
+                <div className={styles.toggleKnob} />
+              </div>
+            </div>
+          </div>
+
+          {/* ══════ Section 2: Voice Card Style ══════ */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>VOICE CARD STYLE</h3>
+            <p className={styles.hint}>Choose how your voice notes appear in the feed.</p>
+            <div className={styles.themePicker}>
+              {THEME_OPTIONS.map((theme) => (
+                <div
+                  key={theme.value}
+                  className={`${styles.themeOption} ${editTheme === theme.value ? styles.themeSelected : ''}`}
+                  onClick={() => setEditTheme(theme.value)}
+                >
+                  <div className={`${styles.themePreview} ${styles[`themePreview_${theme.value}`]}`}>
+                    <div className={styles.themePreviewInner}>
+                      <span className={styles.themePreviewLabel}>{theme.previewLabel}</span>
+                      <div className={styles.themePreviewWaveform} />
+                    </div>
+                  </div>
+                  <span className={styles.themePickerName}>{theme.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ══════ Section 3: Weekly Reminders ══════ */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>WEEKLY REMINDERS</h3>
+
+            <div className={styles.toggleRow} onClick={() => setReminderEnabled(!reminderEnabled)}>
+              <div className={styles.toggleRowLeft}>
+                <span className={styles.toggleLabel}>Enable Reminders</span>
+              </div>
+              <div className={`${styles.toggleTrack} ${reminderEnabled ? styles.toggleOn : ''}`}>
+                <div className={styles.toggleKnob} />
+              </div>
+            </div>
+
+            {reminderEnabled && (
+              <div className={styles.reminderInputs}>
+                <div className={styles.reminderGroup}>
+                  <label className={styles.reminderLabel}>Day</label>
+                  <select
+                    className={styles.formSelect}
+                    value={reminderDay}
+                    onChange={(e) => setReminderDay(e.target.value)}
+                  >
+                    {DAY_OPTIONS.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.reminderGroup}>
+                  <label className={styles.reminderLabel}>Time</label>
+                  <input
+                    type="time"
+                    className={styles.formInput}
+                    value={reminderTime}
+                    onChange={(e) => setReminderTime(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ══════ Section 4: Contributors ══════ */}
+          {allowContributors && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>
+                CONTRIBUTORS ({contributors.length})
+              </h3>
+
+              {loadingContributors && (
+                <p className={styles.loadingText}>Loading...</p>
+              )}
+
+              {!loadingContributors && contributors.length > 0 && (
+                <ul className={styles.contributorList}>
+                  {contributors.map((c) => (
+                    <li key={c.id} className={styles.contributorItem}>
+                      <div className={styles.contributorInfo}>
+                        <span className={styles.contributorName}>{c.contributor_name}</span>
+                        <span className={getStatusClass(c.status)}>{getStatusLabel(c.status)}</span>
+                      </div>
+                      <div className={styles.contributorDetails}>
+                        <span className={styles.contributorEmail}>{c.email}</span>
+                        <span className={styles.contributorMemories}>{getMemoryLabel(c.memory_count)}</span>
+                      </div>
+                      <button
+                        className={styles.removeBtn}
+                        onClick={() => setContributorToRemove(c)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {!loadingContributors && contributors.length === 0 && (
+                <p className={styles.noContributors}>
+                  No contributors yet. Use the Invite tab to share your space.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ══════ Section 5: Need Help ══════ */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>NEED HELP?</h3>
+            <p className={styles.hint}>
+              If you need to delete this space or have other questions, we're here to help.
+              We keep backups for 30 days in case you change your mind.
+            </p>
+            <button className={styles.supportLink} onClick={handleRequestDeletion}>
+              <span className={styles.supportIcon}><EnvelopeIcon /></span>
+              Request Space Deletion
+            </button>
+          </div>
+
+        </div>
+
+        {/* ─── Error / success messages ─── */}
+        {error && <p className={styles.errorMsg}>{error}</p>}
+        {success && <p className={styles.successMsg}>{success}</p>}
+
+        {/* ─── Inline footer — Save only ─── */}
+        <div className={styles.inlineFooter}>
+          <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+
+        {/* ─── Contributor removal confirmation (fixed — works in both modes) ─── */}
+        {contributorToRemove && (
+          <div className={styles.confirmOverlay} onClick={() => setContributorToRemove(null)}>
+            <div className={styles.confirmModal} onClick={stopPropagation}>
+              <h3 className={styles.confirmTitle}>Remove Contributor?</h3>
+              <p className={styles.confirmMessage}>
+                Remove <strong>{contributorToRemove.contributor_name}</strong> from this space?
+                Their memories will remain, but they won't be able to add new ones.
+              </p>
+              <div className={styles.confirmActions}>
+                <button className={styles.cancelBtn} onClick={() => setContributorToRemove(null)}>
+                  Cancel
+                </button>
+                <button className={styles.removeBtnConfirm} onClick={handleRemoveConfirm}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
+  // ─── Modal mode (default): overlay + modal chrome ───
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={stopPropagation}>
@@ -375,9 +571,7 @@ export default function SpaceSettings({ space, getApi, onClose, onSave }) {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════
-          REMOVE CONTRIBUTOR CONFIRMATION
-          ═══════════════════════════════════════ */}
+      {/* ─── Remove contributor confirmation ─── */}
       {contributorToRemove && (
         <div className={styles.confirmOverlay} onClick={() => setContributorToRemove(null)}>
           <div className={styles.confirmModal} onClick={stopPropagation}>
