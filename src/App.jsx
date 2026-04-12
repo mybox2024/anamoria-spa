@@ -1,5 +1,11 @@
 // App.jsx — Anamoria SPA
-// v1.3 — April 7, 2026
+// v1.4 — April 11, 2026
+// Changes from v1.3:
+//   - Bootstrap refactored: GET /pilot/me replaces POST /pilot/activate
+//     (Identity Bootstrap Plan v1.0)
+//   - New user flow: 404 from /me → POST /pilot/join (if groupId in sessionStorage)
+//   - localStorage no longer read or written for identity keys
+//   - sessionStorage used for groupId/groupName (survives Auth0 redirect, cleared after join)
 // Changes from v1.2:
 //   - Added Settings shell route (/settings)
 //   - Added B1 Pricing route (/settings/upgrade)
@@ -12,12 +18,10 @@
 //
 // Boot sequence (runs after every Auth0 login):
 //   1. Auth0 checks session → isAuthenticated
-//   2. POST /pilot/activate (groupId from localStorage) → userId, isNewUser, pilotRole
-//   3. GET /spaces → spaces[]
-//   4. Route:
-//      - no consent yet (isNewUser) → /consent
-//      - no spaces            → /spaces/new
-//      - has space            → /spaces/:id
+//   2. GET /pilot/me → 200 (returning user) or 404 (new user)
+//   3. If 200: GET /spaces → route normally
+//   4. If 404 + groupId in sessionStorage: POST /pilot/join → /consent
+//   5. If 404 + no groupId: redirect to /join
 //
 // AppState stored in React context so all pages can read userId, currentSpace, etc.
 
@@ -71,12 +75,16 @@ function PlaceholderPage({ name }) {
 
 // ─── Session bootstrap ────────────────────────────────────────────────────
 // Runs once after Auth0 confirms the user is authenticated.
-// Calls activate + spaces, then navigates to the correct screen.
+// Identity Bootstrap Plan v1.0:
+//   - GET /pilot/me first (DB is source of truth)
+//   - 200 = returning user → set appState, load spaces, route
+//   - 404 = new user → check sessionStorage for groupId → POST /pilot/join
+//   - localStorage is never read or written for identity keys
 
 function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User) {
   const navigate = useNavigate();
   const [appState, setAppState] = useState({
-    bootstrapped: false,   // true after activate + spaces calls complete
+    bootstrapped: false,   // true after /me + spaces calls complete
     bootstrapError: null,  // error message if bootstrap fails
     userId: null,
     pilotRole: null,
@@ -89,20 +97,11 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
   const bootstrap = useCallback(async () => {
     const api = createApiClient(getAccessTokenSilently);
 
-    // Read groupId stored by JoinPage before Auth0 redirect
-    const groupId = localStorage.getItem('ana_groupId');
-    const groupName = localStorage.getItem('ana_groupName');
-
     try {
-      // Step 1: activate — creates or links user in DB
-      const activateBody = {
-        groupId,
-        displayName: auth0User?.name || auth0User?.nickname || '',
-        email: auth0User?.email || '',
-      };
-      const activateData = await api.post('/pilot/activate', activateBody);
+      // Step 1: GET /pilot/me — identity lookup by auth0_sub
+      const meData = await api.get('/pilot/me');
 
-      // Step 2: list spaces
+      // Step 2: returning user — load spaces
       const spacesData = await api.get('/spaces');
       const spaces = spacesData.spaces || [];
       const currentSpace = spaces[0] || null;
@@ -110,18 +109,16 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
       setAppState({
         bootstrapped: true,
         bootstrapError: null,
-        userId: activateData.userId,
-        pilotRole: activateData.pilotRole,
-        groupId: activateData.groupId,
-        groupName: activateData.groupName || groupName,
+        userId: meData.userId,
+        pilotRole: meData.pilotRole,
+        groupId: meData.groupId,
+        groupName: meData.groupName,
         spaces,
         currentSpace,
       });
 
       // Step 3: route based on state
-      if (activateData.isNewUser) {
-        navigate('/consent', { replace: true });
-      } else if (spaces.length === 0) {
+      if (spaces.length === 0) {
         navigate('/spaces/new', { replace: true });
       } else {
         navigate(`/spaces/${currentSpace.id}`, { replace: true });
@@ -130,33 +127,57 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     } catch (err) {
       console.error('Bootstrap error:', err);
 
-      // If activate fails because no groupId (returning user direct login),
-      // still try to load spaces and route accordingly
-      if (err.error === 'MISSING_GROUP_ID' || !groupId) {
-        try {
-          const spacesData = await api.get('/spaces');
-          const spaces = spacesData.spaces || [];
-          const currentSpace = spaces[0] || null;
+      // 404 from GET /pilot/me = new user
+      if (err.status === 404 && err.error === 'USER_NOT_FOUND') {
+        // Check sessionStorage for groupId from validate-code flow
+        const groupId = sessionStorage.getItem('ana_groupId');
+        const groupName = sessionStorage.getItem('ana_groupName');
 
+        if (!groupId) {
+          // No groupId — user reached app without completing access code flow
+          navigate('/join', { replace: true });
+          setAppState(prev => ({ ...prev, bootstrapped: true }));
+          return;
+        }
+
+        // New user with groupId — register via POST /pilot/join
+        try {
+          const joinData = await api.post('/pilot/join', {
+            groupId,
+            email: auth0User?.email || '',
+            displayName: auth0User?.name || auth0User?.nickname || '',
+          });
+
+          // Clear sessionStorage after successful join
+          sessionStorage.removeItem('ana_groupId');
+          sessionStorage.removeItem('ana_groupName');
+
+          setAppState({
+            bootstrapped: true,
+            bootstrapError: null,
+            userId: joinData.userId,
+            pilotRole: joinData.pilotRole,
+            groupId: joinData.groupId,
+            groupName: joinData.groupName,
+            spaces: [],
+            currentSpace: null,
+          });
+
+          // New user always goes to consent
+          navigate('/consent', { replace: true });
+          return;
+        } catch (joinErr) {
+          console.error('Join error:', joinErr);
           setAppState(prev => ({
             ...prev,
             bootstrapped: true,
-            bootstrapError: null,
-            spaces,
-            currentSpace,
+            bootstrapError: joinErr.error || 'JOIN_FAILED',
           }));
-
-          if (spaces.length === 0) {
-            navigate('/spaces/new', { replace: true });
-          } else {
-            navigate(`/spaces/${currentSpace.id}`, { replace: true });
-          }
           return;
-        } catch (spacesErr) {
-          console.error('Spaces fallback error:', spacesErr);
         }
       }
 
+      // Any other error (500, network failure) — show error screen
       setAppState(prev => ({
         ...prev,
         bootstrapped: true,

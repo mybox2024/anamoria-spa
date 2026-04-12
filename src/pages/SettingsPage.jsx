@@ -1,16 +1,26 @@
 // pages/SettingsPage.jsx — Anamoria SPA
-// v1.4 — Clean up dead code (April 8, 2026)
-// Changes from v1.3:
-//   - onClose no-op on inline SpaceSettings replaced with noop function + comment
-//   - TODO flag added: assess SpaceSettings modal retention for in-feed quick-edit
+// v2.0 — SpaceSettings split into 4 independent panels (April 11, 2026)
+// Changes from v1.4:
+//   - Replaced monolithic <SpaceSettings inline /> with 4 extracted panel components
+//   - Added space name back link at top of left nav (Option B — Notion pattern)
+//   - Added "SPACE" section header in nav for 4 space sub-items
+//   - Nav order: Account → Plan & Billing → SPACE items (account-level grouped at top)
+//   - Each panel saves independently (PATCH /spaces/:id with own fields)
+//   - Inline "Saved ✓" fade confirmation per panel
+//   - Backward-compatible: ?section=space maps to 'space-info'
+//   - Removed SpaceSettings import (file preserved for modal assessment)
+//   - Removed onClose no-op (panels don't have close behavior)
 //
-// URL: /settings?from={spaceId}
+// URL: /settings?from={spaceId}&section={sectionId}
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
-import SpaceSettings from '../components/SpaceSettings';
+import SpaceInfoPanel from '../components/settings/SpaceInfoPanel';
+import ContributorsPanel from '../components/settings/ContributorsPanel';
+import RemindersPanel from '../components/settings/RemindersPanel';
+import NeedHelpPanel from '../components/settings/NeedHelpPanel';
 import styles from './SettingsPage.module.css';
 
 /* ─── Icons ─── */
@@ -40,6 +50,39 @@ function SpaceIcon() {
       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
+function ContributorsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function ReminderIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
 }
@@ -125,6 +168,17 @@ function BillingPanel({ spaceId, navigate }) {
 }
 
 /* ═══════════════════════════════════════
+   SECTION PARAM MAPPING (backward compat)
+   ═══════════════════════════════════════ */
+
+function resolveInitialSection(sectionParam, hasSpaceId) {
+  // Backward compatibility: ?section=space → space-info
+  if (sectionParam === 'space') return 'space-info';
+  if (sectionParam) return sectionParam;
+  return hasSpaceId ? 'space-info' : 'account';
+}
+
+/* ═══════════════════════════════════════
    SETTINGS PAGE
    ═══════════════════════════════════════ */
 
@@ -139,9 +193,9 @@ export default function SettingsPage() {
     [getAccessTokenSilently]
   );
 
-  /* ─── Active nav section — driven by ?section= param, then spaceId, then account ─── */
+  /* ─── Active nav section ─── */
   const [activeSection, setActiveSection] = useState(
-    searchParams.get('section') || (spaceId ? 'space' : 'account')
+    resolveInitialSection(searchParams.get('section'), !!spaceId)
   );
 
   /* ─── Space data ─── */
@@ -165,7 +219,8 @@ export default function SettingsPage() {
     loadSpace();
   }, [spaceId, getApi]);
 
-  const handleSpaceSettingsSave = useCallback((updatedSpace) => {
+  /* ─── Shared save handler — merges updated space from any panel ─── */
+  const handlePanelSave = useCallback((updatedSpace) => {
     setSpace((prev) => ({ ...prev, ...updatedSpace }));
   }, []);
 
@@ -176,51 +231,94 @@ export default function SettingsPage() {
     else navigate('/spaces');
   }
 
-  /* ─── Nav items (Space Settings only shown if spaceId present) ─── */
+  function goToSpace() {
+    if (spaceId) navigate(`/spaces/${spaceId}`);
+  }
+
+  /* ─── Nav items ─── */
+
+  // Space sub-items (only shown when spaceId present)
+  const spaceNavItems = spaceId ? [
+    { id: 'space-info',    label: 'Space',        icon: <SpaceIcon /> },
+    { id: 'contributors',  label: 'Contributors', icon: <ContributorsIcon /> },
+    { id: 'reminders',     label: 'Reminders',    icon: <ReminderIcon /> },
+    { id: 'need-help',     label: 'Need Help',    icon: <HelpIcon /> },
+  ] : [];
+
   const navItems = [
-    { id: 'account', label: 'Account',        icon: <AccountIcon /> },
-    ...(spaceId
-      ? [{ id: 'space', label: 'Space Settings', icon: <SpaceIcon /> }]
-      : []),
+    { id: 'account', label: 'Account', icon: <AccountIcon /> },
     { id: 'billing', label: 'Plan & Billing', icon: <BillingIcon /> },
+    ...spaceNavItems,
   ];
 
   /* ─── Right panel content ─── */
 
   function renderPanel() {
+    // Space panels need loaded space data
+    const isSpacePanel = ['space-info', 'contributors', 'reminders', 'need-help'].includes(activeSection);
+
+    if (isSpacePanel) {
+      if (loadingSpace) {
+        return (
+          <div className={styles.panel}>
+            <p className={styles.panelLoading}>Loading…</p>
+          </div>
+        );
+      }
+      if (!space) {
+        return (
+          <div className={styles.panel}>
+            <p className={styles.panelLoading}>Could not load space.</p>
+          </div>
+        );
+      }
+    }
+
     switch (activeSection) {
       case 'account':
         return <AccountPanel user={user} />;
 
-      case 'space':
-        if (loadingSpace) {
-          return (
-            <div className={styles.panel}>
-              <h2 className={styles.panelTitle}>Space Settings</h2>
-              <p className={styles.panelLoading}>Loading…</p>
-            </div>
-          );
-        }
-        if (!space) {
-          return (
-            <div className={styles.panel}>
-              <h2 className={styles.panelTitle}>Space Settings</h2>
-              <p className={styles.panelLoading}>Could not load space.</p>
-            </div>
-          );
-        }
+      case 'space-info':
         return (
           <div className={styles.panel}>
-            <h2 className={styles.panelTitle}>Space Settings</h2>
-            {/* TODO: assess SpaceSettings modal retention for in-feed quick-edit use case
-                 before retiring SpaceSettings.jsx — modal is currently unused in routing */}
-            <SpaceSettings
+            <h2 className={styles.panelTitle}>Space</h2>
+            <SpaceInfoPanel
               space={space}
               getApi={getApi}
-              onClose={() => {/* no-op: inline mode has no close action */}}
-              onSave={handleSpaceSettingsSave}
-              inline
+              onSave={handlePanelSave}
             />
+          </div>
+        );
+
+      case 'contributors':
+        return (
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>Contributors</h2>
+            <ContributorsPanel
+              space={space}
+              getApi={getApi}
+              onSave={handlePanelSave}
+            />
+          </div>
+        );
+
+      case 'reminders':
+        return (
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>Reminders</h2>
+            <RemindersPanel
+              space={space}
+              getApi={getApi}
+              onSave={handlePanelSave}
+            />
+          </div>
+        );
+
+      case 'need-help':
+        return (
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>Need Help</h2>
+            <NeedHelpPanel space={space} />
           </div>
         );
 
@@ -251,17 +349,34 @@ export default function SettingsPage() {
 
         {/* ─── Left nav ─── */}
         <nav className={styles.leftNav} aria-label="Settings sections">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`${styles.navItem} ${activeSection === item.id ? styles.navItemActive : ''}`}
-              onClick={() => setActiveSection(item.id)}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              <span className={styles.navLabel}>{item.label}</span>
-              <span className={styles.navChevron}><ChevronIcon /></span>
+
+          {/* ─── Space name back link (top of nav, only when spaceId present) ─── */}
+          {spaceId && space && (
+            <button className={styles.spaceBackLink} onClick={goToSpace}>
+              <span className={styles.spaceBackArrow}>←</span>
+              <span className={styles.spaceBackName}>{space.name}</span>
             </button>
-          ))}
+          )}
+
+          {navItems.map((item, index) => {
+            // Insert SPACE section label before first space nav item
+            const isFirstSpaceItem = item.id === 'space-info';
+            return (
+              <div key={item.id}>
+                {isFirstSpaceItem && (
+                  <div className={styles.navSectionLabel}>SPACE</div>
+                )}
+                <button
+                  className={`${styles.navItem} ${activeSection === item.id ? styles.navItemActive : ''}`}
+                  onClick={() => setActiveSection(item.id)}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  <span className={styles.navLabel}>{item.label}</span>
+                  <span className={styles.navChevron}><ChevronIcon /></span>
+                </button>
+              </div>
+            );
+          })}
         </nav>
 
         {/* ─── Right content panel ─── */}

@@ -1,4 +1,9 @@
 // pages/JoinPage.jsx — Anamoria SPA
+// v1.1 — April 11, 2026
+// Changes from v1.0:
+//   - localStorage.setItem → sessionStorage.setItem for ana_groupId and ana_groupName
+//     (Identity Bootstrap Plan v1.0: sessionStorage survives Auth0 redirect,
+//      cleared when tab closes, and explicitly cleared after successful join)
 // Route: /join (public — no JWT, uses API key)
 
 import { useState } from 'react';
@@ -27,8 +32,8 @@ export default function JoinPage() {
         accessCode: trimmed,
       });
 
-      localStorage.setItem('ana_groupId', data.groupId);
-      localStorage.setItem('ana_groupName', data.groupName);
+      sessionStorage.setItem('ana_groupId', data.groupId);
+      sessionStorage.setItem('ana_groupName', data.groupName);
 
       await loginWithRedirect({
         appState: { returnTo: '/' },

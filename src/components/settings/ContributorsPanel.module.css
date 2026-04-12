@@ -1,0 +1,207 @@
+/* components/settings/ContributorsPanel.module.css
+   v1.0 — Contributor list + remove confirmation (April 11, 2026)
+   
+   Panel-specific styles only. Shared primitives (toggle, section, save)
+   imported from settingsShared.module.css in the JSX.
+   
+   Source: SpaceSettings.module.css v1.0 (contributors + confirm sections)
+*/
+
+/* ═══════════════════════════════════════
+   CONTRIBUTORS LIST
+   ═══════════════════════════════════════ */
+
+.contributorList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.contributorItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+  gap: 10px;
+}
+
+.contributorItem:last-child {
+  border-bottom: none;
+}
+
+.contributorInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.contributorName {
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  font-size: 15px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.contributorDetails {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  flex: 1;
+  min-width: 120px;
+}
+
+.contributorEmail {
+  font-size: 12px;
+  color: #737373;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contributorMemories {
+  font-size: 12px;
+  color: #737373;
+}
+
+/* ─── Status badges ─── */
+
+.statusPending {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(212, 136, 15, 0.094);
+  color: #d4880f;
+  border-radius: 10px;
+}
+
+.statusActive {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(91, 122, 101, 0.094);
+  color: #5b7a65;
+  border-radius: 10px;
+}
+
+/* ─── Remove button ─── */
+
+.removeBtn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1.5px solid #b85450;
+  color: #b85450;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.removeBtn:hover {
+  background: rgba(184, 84, 80, 0.1);
+}
+
+/* ─── Empty state ─── */
+
+.noContributors {
+  text-align: center;
+  color: var(--color-text-subtle, #737373);
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════
+   REMOVE CONTRIBUTOR CONFIRMATION DIALOG
+   ═══════════════════════════════════════ */
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  padding: 24px;
+}
+
+.confirmModal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-width: 380px;
+  width: 100%;
+  padding: 28px;
+  text-align: center;
+}
+
+.confirmTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 12px;
+}
+
+.confirmMessage {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirmCancelBtn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  color: #737373;
+  border: 1.5px solid #e0ddd8;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.confirmCancelBtn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.confirmRemoveBtn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #b85450;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.confirmRemoveBtn:hover {
+  background: #a04440;
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .removeBtn,
+  .confirmCancelBtn,
+  .confirmRemoveBtn {
+    transition: none !important;
+  }
+}

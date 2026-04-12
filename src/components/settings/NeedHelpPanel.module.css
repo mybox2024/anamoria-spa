@@ -1,0 +1,50 @@
+/* components/settings/NeedHelpPanel.module.css
+   v1.0 — Support link styles for NeedHelpPanel (April 11, 2026)
+   
+   Panel-specific styles only. Shared primitives (section, hint)
+   imported from settingsShared.module.css in the JSX.
+   
+   Source: SpaceSettings.module.css v1.0 (need help section)
+*/
+
+/* ═══════════════════════════════════════
+   SUPPORT / DELETION LINK
+   ═══════════════════════════════════════ */
+
+.supportLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-primary, #2d3436);
+  padding: 14px 0;
+  width: 100%;
+  text-align: left;
+  font-size: 15px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.supportLink:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.supportIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .supportLink {
+    transition: none !important;
+  }
+}

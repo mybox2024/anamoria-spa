@@ -1,0 +1,175 @@
+/* components/settings/SpaceInfoPanel.module.css
+   v1.0 — Theme picker styles for SpaceInfoPanel (April 11, 2026)
+   
+   Panel-specific styles only. Shared primitives (section, inputs, save)
+   imported from settingsShared.module.css in the JSX.
+   
+   Source: SpaceSettings.module.css v1.0 (theme picker section)
+*/
+
+/* ═══════════════════════════════════════
+   VOICE CARD THEME PICKER
+   ═══════════════════════════════════════ */
+
+.themePicker {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.themeOption {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.themeOption:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.themeOption:focus-visible {
+  outline: 2px solid var(--color-sage-dark, #5b7a65);
+  outline-offset: 2px;
+}
+
+.themeSelected {
+  border-color: var(--color-sage-dark, #5b7a65);
+  background: rgba(91, 122, 101, 0.06);
+}
+
+.themePickerName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-body, #3d4a3f);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.themeSelected .themePickerName {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+/* ─── Theme preview thumbnails ─── */
+
+.themePreview {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.themePreviewInner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.themePreviewLabel {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.themePreviewWaveform {
+  height: 12px;
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+/* Warm */
+.themePreview_warm {
+  background: #fdf6e3;
+  border: 1px solid #f0e8c0;
+}
+
+.themePreview_warm .themePreviewLabel {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.themePreview_warm .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Story */
+.themePreview_story {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+}
+
+.themePreview_story .themePreviewLabel {
+  color: var(--color-text-subtle, #737373);
+}
+
+.themePreview_story .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Sage */
+.themePreview_sage {
+  background: var(--color-sage-light, #e8f0eb);
+  border: 1px solid #d0e0d5;
+}
+
+.themePreview_sage .themePreviewLabel {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.themePreview_sage .themePreviewWaveform {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Clean */
+.themePreview_clean {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+}
+
+.themePreview_clean .themePreviewLabel {
+  color: var(--color-text-subtle, #737373);
+  font-size: 7px;
+}
+
+.themePreview_clean .themePreviewWaveform {
+  background: var(--color-border-light, #edebe7);
+}
+
+/* ═══════════════════════════════════════
+   MOBILE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .themePicker {
+    flex-wrap: wrap;
+  }
+
+  .themeOption {
+    flex: 0 0 calc(50% - 6px);
+  }
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .themeOption {
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .themeOption {
+    border-width: 3px;
+  }
+}

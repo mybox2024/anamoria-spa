@@ -1,5 +1,9 @@
 /* pages/SettingsPage.module.css
-   v1.2 — Two-panel layout (April 7, 2026)
+   v1.3 — SpaceSettings split + space back link (April 11, 2026)
+   Changes from v1.2:
+     - Added .spaceBackLink (space name nav link at top of left nav)
+     - Added .navSectionLabel (SPACE section header in nav)
+     - Mobile: shortened labels handled in JSX, tab strip scrolls with overflow-x
    Tokens: variables.css
 */
 
@@ -91,6 +95,58 @@
   overflow-y: auto;
   gap: 2px;
 }
+
+/* ─── Space name back link (top of nav) ─── */
+
+.spaceBackLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--transition-fast, 0.15s ease);
+  color: var(--color-text-subtle, #737373);
+}
+
+.spaceBackLink:hover {
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.spaceBackArrow {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.spaceBackName {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Nav section label (SPACE) ─── */
+
+.navSectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-text-subtle, #737373);
+  padding: 16px 12px 6px;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+
+/* ─── Nav items ─── */
 
 .navItem {
   display: flex;
@@ -322,9 +378,26 @@
     border-right: none;
     border-bottom: 1px solid var(--color-border-light, #edebe7);
     flex-direction: row;
+    flex-wrap: nowrap;
     padding: 8px;
     gap: 4px;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .leftNav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  /* Hide space back link on mobile — header back button is sufficient */
+  .spaceBackLink {
+    display: none;
+  }
+
+  /* Hide section labels on mobile tab strip */
+  .navSectionLabel {
+    display: none;
   }
 
   .navItem {
@@ -352,7 +425,8 @@
 @media (prefers-reduced-motion: reduce) {
   .navItem,
   .backBtn,
-  .upgradeBtn {
+  .upgradeBtn,
+  .spaceBackLink {
     transition: none !important;
   }
 }

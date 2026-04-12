@@ -1,0 +1,267 @@
+/* components/settings/settingsShared.module.css
+   v1.0 — Shared UI primitives for settings panels (April 11, 2026)
+   
+   Extracted from SpaceSettings.module.css v1.0 to provide a single
+   source of truth for toggles, form inputs, section containers, and
+   save/feedback states. Each panel imports this alongside its own module.
+   
+   Tokens: variables.css
+*/
+
+/* ═══════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════ */
+
+.section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0 0 16px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+/* ═══════════════════════════════════════
+   FORM INPUTS
+   ═══════════════════════════════════════ */
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  margin-bottom: 6px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.formInput {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e0ddd8;
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--color-bg-white, #ffffff);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.formInput:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+.formSelect {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e0ddd8;
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--color-bg-white, #ffffff);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+  appearance: auto;
+}
+
+.formSelect:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+/* ═══════════════════════════════════════
+   TOGGLE SWITCH
+   Source: axr_MemoryVaultV2.css .modal-toggle-track
+   ═══════════════════════════════════════ */
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.toggleRowLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.toggleLabel {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.toggleDesc {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  line-height: 1.4;
+}
+
+.toggleTrack {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  background-color: #e0ddd8;
+}
+
+.toggleOn {
+  background-color: var(--color-sage-dark, #5b7a65);
+}
+
+.toggleKnob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: margin-left 0.2s ease;
+}
+
+.toggleOn .toggleKnob {
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════
+   ACTION BUTTONS
+   ═══════════════════════════════════════ */
+
+.saveBtn {
+  padding: 10px 28px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--color-sage-dark, #5b7a65);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.saveBtn:hover {
+  background: #4a6654;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════
+   FEEDBACK MESSAGES
+   ═══════════════════════════════════════ */
+
+.errorMsg {
+  font-size: 13px;
+  color: #b85450;
+  margin: 12px 0 0;
+}
+
+.successMsg {
+  font-size: 13px;
+  color: var(--color-sage-dark, #5b7a65);
+  margin: 12px 0 0;
+}
+
+/* ─── Inline "Saved ✓" fade animation ─── */
+
+.savedFade {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-sage-dark, #5b7a65);
+  margin-left: 12px;
+  animation: fadeInOut 2s ease forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════
+   PANEL FOOTER (save row)
+   ═══════════════════════════════════════ */
+
+.panelFooter {
+  display: flex;
+  align-items: center;
+  padding: 16px 0 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border-light, #edebe7);
+}
+
+/* ═══════════════════════════════════════
+   LOADING
+   ═══════════════════════════════════════ */
+
+.loadingText {
+  text-align: center;
+  color: var(--color-text-subtle, #737373);
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .toggleTrack,
+  .toggleKnob,
+  .formInput,
+  .formSelect,
+  .saveBtn {
+    transition: none !important;
+  }
+
+  .savedFade {
+    animation: none !important;
+    opacity: 1;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .toggleTrack {
+    border: 2px solid currentColor;
+  }
+}
