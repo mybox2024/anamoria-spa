@@ -1,14 +1,16 @@
 // pages/SettingsPage.jsx — Anamoria SPA
-// v2.1 — BillingPanel wired to live billing API (April 14, 2026)
-// Changes from v2.0:
-//   - BillingPanel now calls GET /billing/subscription on mount
-//   - BillingPanel calls GET /billing/invoices when tier !== 'free'
-//   - Renders 5 states: loading, error, free, premium, forever
-//   - Shows card info, renewal date, cancel/pause status, invoices
-//   - Management links (change plan, update card, pause, cancel) render as
-//     disabled placeholders — wired in Session B (B5/B6/B11)
-//   - Payment failed yellow warning banner
-//   - Uses shared useBillingStatus hook + getPlanLabel utility
+// v2.2 — B4 management links enabled, modals wired (April 14, 2026)
+// Changes from v2.1:
+//   - BillingPanel: added modal state (showUpdatePayment, showCancel, showPause, showSwitchPlan)
+//   - BillingPanel: management links now active with onClick handlers (no longer disabled)
+//   - BillingPanel: Reactivate button wired to POST /billing/subscription/reactivate
+//   - BillingPanel: Resume Early button wired to DELETE /billing/subscription/pause
+//   - BillingPanel: Update Card in warning banner wired to open UpdatePaymentModal
+//   - BillingPanel: removed "These options will be available soon" hint
+//   - BillingPanel: B6→B11 coordination (CancelModal opens PauseModal with preselectedMonths)
+//   - BillingPanel: renders UpdatePaymentModal, CancelModal, PauseModal, SwitchPlanModal
+//   - Free tier planLimits text updated from "5 memories" to "15 memories"
+//   - Import 4 new modal components from components/billing
 //   - All other panels (Account, SpaceInfo, Contributors, Reminders, NeedHelp) UNCHANGED
 //
 // URL: /settings?from={spaceId}&section={sectionId}
@@ -22,6 +24,10 @@ import SpaceInfoPanel from '../components/settings/SpaceInfoPanel';
 import ContributorsPanel from '../components/settings/ContributorsPanel';
 import RemindersPanel from '../components/settings/RemindersPanel';
 import NeedHelpPanel from '../components/settings/NeedHelpPanel';
+import UpdatePaymentModal from '../components/billing/UpdatePaymentModal';
+import CancelModal from '../components/billing/CancelModal';
+import PauseModal from '../components/billing/PauseModal';
+import SwitchPlanModal from '../components/billing/SwitchPlanModal';
 import styles from './SettingsPage.module.css';
 
 /* ─── Icons (unchanged from v2.0) ─── */
@@ -148,13 +154,24 @@ function AccountPanel({ user }) {
 }
 
 /* ═══════════════════════════════════════
-   BILLING PANEL — v2.1 (live API)
+   BILLING PANEL — v2.2 (management links enabled, modals wired)
    ═══════════════════════════════════════ */
 
 function BillingPanel({ spaceId, navigate, getApi }) {
   const { billing, loading, error, refetch } = useBillingStatus(getApi);
   const [invoices, setInvoices]   = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+
+  // v2.2: Modal visibility state
+  const [showUpdatePayment, setShowUpdatePayment] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [showPause, setShowPause] = useState(false);
+  const [showSwitchPlan, setShowSwitchPlan] = useState(false);
+  const [pausePreselectedMonths, setPausePreselectedMonths] = useState(null);
+
+  // v2.2: Reactivate / Resume loading states
+  const [reactivating, setReactivating] = useState(false);
+  const [resuming, setResuming] = useState(false);
 
   // Fetch invoices when billing loads and tier is not free
   useEffect(() => {
@@ -196,6 +213,40 @@ function BillingPanel({ spaceId, navigate, getApi }) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
+  // v2.2: Reactivate handler
+  async function handleReactivate() {
+    setReactivating(true);
+    try {
+      const api = getApi();
+      await api.post('/billing/subscription/reactivate');
+      refetch();
+    } catch (err) {
+      console.error('Reactivate error:', err);
+    } finally {
+      setReactivating(false);
+    }
+  }
+
+  // v2.2: Resume Early handler
+  async function handleResumeEarly() {
+    setResuming(true);
+    try {
+      const api = getApi();
+      await api.delete('/billing/subscription/pause');
+      refetch();
+    } catch (err) {
+      console.error('Resume early error:', err);
+    } finally {
+      setResuming(false);
+    }
+  }
+
+  // v2.2: B6→B11 coordination — CancelModal opens PauseModal with preselected duration
+  function handleOpenPauseFromCancel(months) {
+    setPausePreselectedMonths(months);
+    setShowPause(true);
+  }
+
   // ─── Loading state ───
   if (loading) {
     return (
@@ -222,7 +273,7 @@ function BillingPanel({ spaceId, navigate, getApi }) {
   const tier = billing?.tier || 'free';
   const planLabel = getPlanLabel(billing);
 
-  // ─── Free tier ───
+  // ─── Free tier (v2.2: updated limits text) ───
   if (tier === 'free') {
     return (
       <div className={styles.panel}>
@@ -231,7 +282,7 @@ function BillingPanel({ spaceId, navigate, getApi }) {
         <div className={styles.planCard}>
           <div className={styles.planCardLeft}>
             <span className={styles.planName}>{planLabel}</span>
-            <span className={styles.planLimits}>Up to 5 memories · 1 space</span>
+            <span className={styles.planLimits}>Up to 15 memories · 1 space</span>
           </div>
           <button className={styles.upgradeBtn} onClick={goUpgrade}>
             Upgrade
@@ -292,7 +343,7 @@ function BillingPanel({ spaceId, navigate, getApi }) {
     );
   }
 
-  // ─── Premium tier ───
+  // ─── Premium tier (v2.2: management links enabled, modals wired) ───
   return (
     <div className={styles.panel}>
       <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
@@ -303,8 +354,8 @@ function BillingPanel({ spaceId, navigate, getApi }) {
           <p className={styles.warningText}>
             There's a problem with your payment — update your card to keep your access.
           </p>
-          {/* B5 modal trigger — Session B */}
-          <button className={styles.warningAction} disabled>
+          {/* v2.2: enabled — opens UpdatePaymentModal */}
+          <button className={styles.warningAction} onClick={() => setShowUpdatePayment(true)}>
             Update card
           </button>
         </div>
@@ -316,9 +367,13 @@ function BillingPanel({ spaceId, navigate, getApi }) {
           <p className={styles.cancelNoticeText}>
             Your plan cancels on {formatDate(billing.currentPeriodEnd)}. You'll move to the Free plan after that date.
           </p>
-          {/* Reactivate — Session B */}
-          <button className={styles.cancelNoticeAction} disabled>
-            Reactivate
+          {/* v2.2: enabled — calls reactivate API */}
+          <button
+            className={styles.cancelNoticeAction}
+            onClick={handleReactivate}
+            disabled={reactivating}
+          >
+            {reactivating ? 'Reactivating…' : 'Reactivate'}
           </button>
         </div>
       )}
@@ -329,9 +384,13 @@ function BillingPanel({ spaceId, navigate, getApi }) {
           <p className={styles.pauseNoticeText}>
             Billing paused until {formatDate(billing.pauseCollectionUntil)}. Your memories stay accessible.
           </p>
-          {/* Resume early — Session B */}
-          <button className={styles.pauseNoticeAction} disabled>
-            Resume early
+          {/* v2.2: enabled — calls resume API */}
+          <button
+            className={styles.pauseNoticeAction}
+            onClick={handleResumeEarly}
+            disabled={resuming}
+          >
+            {resuming ? 'Resuming…' : 'Resume early'}
           </button>
         </div>
       )}
@@ -360,34 +419,32 @@ function BillingPanel({ spaceId, navigate, getApi }) {
         </div>
       )}
 
-      {/* Management links */}
+      {/* Management links — v2.2: all enabled with onClick handlers */}
       <div className={styles.billingSection}>
         <h3 className={styles.billingSectionTitle}>Manage subscription</h3>
         <div className={styles.managementLinks}>
-          {/* Update payment method — B5, Session B */}
-          <button className={styles.managementLink} disabled>
+          {/* Update payment method — B5 */}
+          <button className={styles.managementLink} onClick={() => setShowUpdatePayment(true)}>
             Update payment method
           </button>
-          {/* Switch billing period — Session B */}
-          <button className={styles.managementLink} disabled>
+          {/* Switch billing period */}
+          <button className={styles.managementLink} onClick={() => setShowSwitchPlan(true)}>
             Switch to {billing.billingPeriod === 'monthly' ? 'Annual' : 'Monthly'}
           </button>
-          {/* Pause — B11, Session B */}
+          {/* Pause — B11 */}
           {!billing.pauseCollectionUntil && !billing.cancelAtPeriodEnd && (
-            <button className={styles.managementLink} disabled>
+            <button className={styles.managementLink} onClick={() => { setPausePreselectedMonths(null); setShowPause(true); }}>
               Pause subscription
             </button>
           )}
-          {/* Cancel — B6, Session B */}
+          {/* Cancel — B6 */}
           {!billing.cancelAtPeriodEnd && (
-            <button className={styles.managementLink} disabled>
+            <button className={styles.managementLink} onClick={() => setShowCancel(true)}>
               Cancel subscription
             </button>
           )}
         </div>
-        <p className={styles.managementHint}>
-          These options will be available soon.
-        </p>
+        {/* v2.2: removed "These options will be available soon" hint */}
       </div>
 
       {/* Invoices */}
@@ -424,6 +481,51 @@ function BillingPanel({ spaceId, navigate, getApi }) {
       <p className={styles.panelHint}>
         Your memories are always kept, whatever plan you're on.
       </p>
+
+      {/* ═══════════════════════════════════════
+          MODALS (v2.2)
+          ═══════════════════════════════════════ */}
+
+      {showUpdatePayment && (
+        <UpdatePaymentModal
+          isOpen
+          onClose={() => setShowUpdatePayment(false)}
+          getApi={getApi}
+          onSuccess={refetch}
+        />
+      )}
+
+      {showCancel && (
+        <CancelModal
+          isOpen
+          onClose={() => setShowCancel(false)}
+          billing={billing}
+          getApi={getApi}
+          onSuccess={refetch}
+          onOpenPause={handleOpenPauseFromCancel}
+        />
+      )}
+
+      {showPause && (
+        <PauseModal
+          isOpen
+          onClose={() => { setShowPause(false); setPausePreselectedMonths(null); }}
+          getApi={getApi}
+          onSuccess={refetch}
+          preselectedMonths={pausePreselectedMonths}
+        />
+      )}
+
+      {showSwitchPlan && (
+        <SwitchPlanModal
+          isOpen
+          onClose={() => setShowSwitchPlan(false)}
+          billing={billing}
+          getApi={getApi}
+          onSuccess={refetch}
+        />
+      )}
+
     </div>
   );
 }

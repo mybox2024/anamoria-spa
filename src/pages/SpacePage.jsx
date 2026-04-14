@@ -1,29 +1,19 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.8 — Live tier badge from billing API (April 14, 2026)
-// Changes from v2.7:
-//   - Profile menu tier badge now fetched from GET /billing/subscription
-//   - Uses shared useBillingStatus hook + getPlanLabel utility
-//   - "Upgrade →" link hidden when user is Premium or Forever
-//   - Removed hardcoded "Free plan" strings (2 locations)
+// v2.9 — B7 Soft Gate integration (April 14, 2026)
+// Changes from v2.8:
+//   - Import SoftGateModal from components/billing
+//   - Added state: showSoftGate, softGateResource
+//   - handleRecord: checks memoryCount vs billing.limits.memoriesPerSpace before navigate
+//   - handleCreateSpace: checks spaces.length vs billing.limits.spaces before opening modal
+//   - Renders SoftGateModal at bottom of JSX (before closing </div>)
+//   - All other code UNCHANGED from v2.8
+//
 // Route: /spaces/:spaceId (protected — JWT required)
 //
-// Changes from v2.2:
-//   - sidebarUser block is now an interactive button
-//   - Clicking profile shows a menu: name, plan, Settings, Sign out
-//   - Settings navigates to /settings?from={spaceId}
-//   - Sign out calls Auth0 logout()
-//   - TODO: replace static "Free plan" with live tier from GET /billing/subscription
-//
-// Changes from v2.1:
-//   - Dashboard link in sidebar only visible when pilotRole === 'leader'
-//   - Added useAppContext import for role check
-//
-// Features:
-//   - Header bar: hamburger, avatar, space name, "Shared · N memories", + button
-//   - Sidebar drawer: space list, Space Settings, Group Dashboard, user info
-//   - Full-width masonry feed (MemoryFeed v2)
-//   - Prompt card or standalone record CTA
-//   - Space Settings modal (name, theme, reminders, contributors)
+// Previous changes (v2.8):
+//   - Profile menu tier badge from GET /billing/subscription
+//   - Uses shared useBillingStatus hook + getPlanLabel utility
+//   - "Upgrade →" link hidden when Premium or Forever
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -35,6 +25,7 @@ import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
 import CreateSpaceModal from '../components/CreateSpaceModal';
+import SoftGateModal from '../components/billing/SoftGateModal';
 import styles from './SpacePage.module.css';
 
 /* ─── Inline SVG icons ─── */
@@ -51,7 +42,7 @@ function HamburgerIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
@@ -60,28 +51,9 @@ function PlusIcon() {
 
 function CloseIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function DashboardIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10" />
-      <line x1="12" y1="20" x2="12" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   );
 }
@@ -90,6 +62,26 @@ function ChevronUpIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 15l-6-6-6 6" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function DashboardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
     </svg>
   );
 }
@@ -120,7 +112,7 @@ export default function SpacePage() {
     [getAccessTokenSilently]
   );
 
-  // Billing status — drives profile menu tier badge
+  // Billing status — drives profile menu tier badge + B7 soft gate
   const { billing } = useBillingStatus(getApi);
   const planLabel = getPlanLabel(billing);
   const showUpgradeLink = !billing || billing.tier === 'free';
@@ -141,6 +133,10 @@ export default function SpacePage() {
 
   // Profile / user menu inside sidebar
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // v2.9: B7 Soft Gate state
+  const [showSoftGate, setShowSoftGate] = useState(false);
+  const [softGateResource, setSoftGateResource] = useState('memories');
 
   /* ─── Load space + prompt ─── */
 
@@ -201,9 +197,17 @@ export default function SpacePage() {
     navigate(`/spaces/${id}`);
   }, [navigate, closeSidebar]);
 
-  /* ─── Record ─── */
+  /* ─── Record (v2.9: B7 soft gate check) ─── */
 
   function handleRecord() {
+    // B7: Check free tier memory limit before navigating to record
+    if (billing?.tier === 'free' && billing?.limits?.memoriesPerSpace) {
+      if (memoryCount >= billing.limits.memoriesPerSpace) {
+        setSoftGateResource('memories');
+        setShowSoftGate(true);
+        return;
+      }
+    }
     navigate(`/spaces/${spaceId}/record`, {
       state: { promptId: prompt?.promptId || null },
     });
@@ -223,9 +227,17 @@ export default function SpacePage() {
     }
   }, [getApi, spaceId]);
 
-  /* ─── Create new space (modal) ─── */
+  /* ─── Create new space (v2.9: B7 soft gate check) ─── */
 
   function handleCreateSpace() {
+    // B7: Check free tier space limit before opening create modal
+    if (billing?.tier === 'free' && billing?.limits?.spaces) {
+      if (spaces.length >= billing.limits.spaces) {
+        setSoftGateResource('spaces');
+        setShowSoftGate(true);
+        return;
+      }
+    }
     setShowCreateModal(true);
   }
 
@@ -507,6 +519,19 @@ export default function SpacePage() {
         <CreateSpaceModal
           getApi={getApi}
           onClose={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════
+          B7 SOFT GATE MODAL (v2.9)
+          ═══════════════════════════════════════ */}
+      {showSoftGate && (
+        <SoftGateModal
+          isOpen={showSoftGate}
+          onClose={() => setShowSoftGate(false)}
+          resource={softGateResource}
+          billing={billing}
+          spaceId={spaceId}
         />
       )}
 

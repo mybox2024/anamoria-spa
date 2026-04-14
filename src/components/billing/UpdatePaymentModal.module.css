@@ -1,0 +1,159 @@
+/* components/billing/UpdatePaymentModal.module.css
+   v1.0 — B5 Update Payment Method modal styles (April 14, 2026)
+   Tokens: variables.css
+*/
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: fadeInUp 0.2s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 20px;
+  font-family: var(--font-sans);
+}
+
+.loading {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  margin: 0 0 20px;
+}
+
+/* ─── Stripe Element container ─── */
+
+.stripeElement {
+  margin-bottom: 20px;
+  min-height: 100px;
+}
+
+/* ─── Error ─── */
+
+.error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #991b1b;
+  font-family: var(--font-sans);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.retryLink {
+  display: inline;
+  background: none;
+  border: none;
+  color: #991b1b;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  padding: 0;
+  margin-left: 4px;
+}
+
+/* ─── Actions ─── */
+
+.submitBtn {
+  display: block;
+  width: 100%;
+  padding: 13px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--color-sage-dark, #5b7a65);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+  margin-bottom: 8px;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #4a6654;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelLink {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle, #737373);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: color var(--transition-fast, 0.15s ease);
+}
+
+.cancelLink:hover:not(:disabled) {
+  color: var(--color-text-primary, #2d3436);
+}
+
+.cancelLink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Security note ─── */
+
+.secureNote {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  margin: 12px 0 0;
+  justify-content: center;
+}
+
+/* ─── Mobile ─── */
+
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 16px;
+    align-items: flex-end;
+  }
+  .modal {
+    border-radius: 20px 20px 16px 16px;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none; }
+}

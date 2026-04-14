@@ -1,16 +1,11 @@
 /* pages/SettingsPage.module.css
-   v1.4 — BillingPanel wired to live API (April 14, 2026)
-   Changes from v1.3:
-     - Added billing section styles: .billingSection, .billingSectionTitle
-     - Added card info styles: .cardInfo, .cardBrand, .cardLast4
-     - Added invoice list styles: .invoiceList, .invoiceRow, .invoiceDate, etc.
-     - Added warning banner: .warningBanner, .warningBannerUrgent, .warningText, .warningAction
-     - Added cancel/pause notices: .cancelNotice, .pauseNotice
-     - Added management links: .managementLinks, .managementLink, .managementHint
-     - Added error/retry: .billingError, .retryBtn
-   Previous from v1.3:
-     - .spaceBackLink (space name nav link at top of left nav)
-     - .navSectionLabel (SPACE section header in nav)
+   v1.5 — Management links enabled, modals wired (April 14, 2026)
+   Changes from v1.4:
+     - Removed .managementHint (italic "available soon" text — no longer needed)
+     - Added cursor: pointer to .warningAction, .cancelNoticeAction, .pauseNoticeAction
+       (these were only styled for :disabled state; now they're active buttons)
+   Previous from v1.4:
+     - Billing section styles, card info, invoice list, warning/cancel/pause banners
    Tokens: variables.css
 */
 
@@ -542,6 +537,11 @@
   font-family: var(--font-sans);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.warningAction:hover:not(:disabled) {
+  background: #d97706;
 }
 
 .warningAction:disabled {
@@ -579,9 +579,15 @@
   background: #f97316;
   color: #ffffff;
   border: none;
+  cursor: pointer;
   font-family: var(--font-sans);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.cancelNoticeAction:hover:not(:disabled) {
+  background: #ea580c;
 }
 
 .cancelNoticeAction:disabled {
@@ -619,9 +625,15 @@
   background: #3b82f6;
   color: #ffffff;
   border: none;
+  cursor: pointer;
   font-family: var(--font-sans);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.pauseNoticeAction:hover:not(:disabled) {
+  background: #2563eb;
 }
 
 .pauseNoticeAction:disabled {
@@ -663,13 +675,7 @@
   opacity: 0.6;
 }
 
-.managementHint {
-  font-size: 12px;
-  color: var(--color-text-subtle, #737373);
-  margin: 8px 0 0;
-  font-family: var(--font-sans);
-  font-style: italic;
-}
+/* .managementHint removed in v1.5 — management links now active */
 
 /* ═══════════════════════════════════════
    MOBILE — stacked layout

@@ -1,0 +1,126 @@
+/* components/billing/SoftGateModal.module.css
+   v1.0 — B7 Soft Gate modal styles (April 14, 2026)
+   Tokens: variables.css
+*/
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 20px;
+  padding: 36px 28px 28px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: fadeInUp 0.2s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.iconWrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--color-sage-light, #e8f0eb);
+  color: var(--color-sage-dark, #5b7a65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 12px;
+  font-family: var(--font-sans);
+  line-height: 1.3;
+}
+
+.body {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0 0 24px;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+.upgradeBtn {
+  display: block;
+  width: 100%;
+  padding: 13px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--color-sage-dark, #5b7a65);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+  margin-bottom: 10px;
+}
+
+.upgradeBtn:hover {
+  background: #4a6654;
+}
+
+.dismissBtn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle, #737373);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: color var(--transition-fast, 0.15s ease);
+}
+
+.dismissBtn:hover {
+  color: var(--color-text-primary, #2d3436);
+}
+
+/* ─── Mobile ─── */
+
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 16px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    border-radius: 20px 20px 16px 16px;
+    max-width: none;
+  }
+}
+
+/* ─── Reduced motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  .modal {
+    animation: none;
+  }
+}
