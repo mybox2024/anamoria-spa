@@ -1,24 +1,27 @@
 // pages/UpgradePage.jsx — Anamoria SPA
-// v1.1 — Monthly/Yearly toggle, Claude-style card layout (April 7, 2026)
+// v1.2 — Live tier detection from billing API (April 14, 2026)
 //
-// Changes from v1.0:
-//   - Monthly / Annual toggle at top (single toggle, not per-card)
-//   - Three cards: Free | Premium | Lifetime
-//   - Premium price updates with toggle ($12.99/mo or $99.99/yr)
-//   - CTA above features list (Claude pattern)
-//   - Features use "Everything in [previous] and:" hierarchy
-//   - planId passed to checkout: 'monthly' or 'annual' based on toggle
+// Changes from v1.1:
+//   - On mount, calls GET /billing/subscription to get current tier
+//   - Marks actual current plan (not always Free)
+//   - Premium users see "Switch to Annual/Monthly" instead of "Choose"
+//   - Forever users see "Lifetime Member" message, all CTAs disabled
+//   - Loading state while fetching tier
+//   - Uses shared useBillingStatus hook
 //
 // URL: /settings/upgrade?from={spaceId}
 //
 // ⚠️  PLACEHOLDER: Feature lists and limits are indicative.
 //     Confirm against billing spec before launch.
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
+import { createApiClient } from '../api/client';
+import { useBillingStatus } from '../hooks/useBillingStatus';
 import styles from './UpgradePage.module.css';
 
-/* ─── Icons ─── */
+/* ─── Icons (unchanged) ─── */
 
 function BackIcon() {
   return (
@@ -38,8 +41,7 @@ function CheckIcon() {
   );
 }
 
-/* ─── Plan definitions ─── */
-// ⚠️ Confirm limits with product before launch.
+/* ─── Plan definitions (unchanged) ─── */
 
 const FREE_FEATURES = [
   'Up to 5 memories',
@@ -64,7 +66,7 @@ const FOREVER_FEATURES = [
 ];
 
 /* ═══════════════════════════════════════
-   BILLING TOGGLE
+   BILLING TOGGLE (unchanged)
    ═══════════════════════════════════════ */
 
 function BillingToggle({ isAnnual, onChange }) {
@@ -88,7 +90,7 @@ function BillingToggle({ isAnnual, onChange }) {
 }
 
 /* ═══════════════════════════════════════
-   PLAN CARD
+   PLAN CARD (unchanged)
    ═══════════════════════════════════════ */
 
 function PlanCard({ plan, onSelect }) {
@@ -108,13 +110,11 @@ function PlanCard({ plan, onSelect }) {
         </span>
       )}
 
-      {/* Name + tagline */}
       <div className={styles.cardTop}>
         <h2 className={styles.planName}>{plan.label}</h2>
         <p className={styles.planTagline}>{plan.tagline}</p>
       </div>
 
-      {/* Price */}
       <div className={styles.priceBlock}>
         <div className={styles.priceRow}>
           <span className={styles.price}>{plan.price}</span>
@@ -125,10 +125,9 @@ function PlanCard({ plan, onSelect }) {
         )}
       </div>
 
-      {/* CTA — above features, per Claude pattern */}
       <button
         className={
-          plan.isFree     ? styles.ctaCurrent  :
+          plan.isCurrent  ? styles.ctaCurrent  :
           plan.isForever  ? styles.ctaForever  :
                             styles.ctaPrimary
         }
@@ -141,10 +140,8 @@ function PlanCard({ plan, onSelect }) {
         <p className={styles.ctaNote}>{plan.ctaNote}</p>
       )}
 
-      {/* Divider */}
       <div className={styles.featureDivider} />
 
-      {/* Features */}
       <ul className={styles.features}>
         {plan.features.map((f, i) => (
           <li key={i} className={`${styles.feature} ${f.startsWith('Everything') ? styles.featureHeading : ''}`}>
@@ -168,7 +165,15 @@ export default function UpgradePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const spaceId = searchParams.get('from');
-  const [isAnnual, setIsAnnual] = useState(true); // default to annual (best value)
+  const { getAccessTokenSilently } = useAuth0();
+  const [isAnnual, setIsAnnual] = useState(true);
+
+  const getApi = useCallback(
+    () => createApiClient(getAccessTokenSilently),
+    [getAccessTokenSilently]
+  );
+
+  const { billing, loading } = useBillingStatus(getApi);
 
   function goBack() {
     const q = spaceId ? `?from=${spaceId}` : '';
@@ -180,12 +185,62 @@ export default function UpgradePage() {
     navigate(`/settings/upgrade/checkout?plan=${planId}${fromParam}`);
   }
 
-  /* ─── Build plan list from toggle state ─── */
+  // ─── Derive current plan state from billing ───
+
+  const currentTier = billing?.tier || 'free';
+  const currentPeriod = billing?.billingPeriod || null;
+
+  // ─── Build plan list from toggle state + billing ───
 
   const premiumId    = isAnnual ? 'annual' : 'monthly';
   const premiumPrice = isAnnual ? '$99.99' : '$12.99';
   const premiumPeriod = isAnnual ? '/ year' : '/ month';
   const premiumNote  = isAnnual ? '$8.33 / month · billed annually' : 'Billed monthly';
+
+  // Determine CTA text and disabled state based on current tier
+  function getFreePlanState() {
+    const isCurrent = currentTier === 'free';
+    return {
+      cta: isCurrent ? 'Current plan' : 'Downgrade',
+      disabled: true, // Can't select Free from upgrade page
+      isCurrent,
+    };
+  }
+
+  function getPremiumPlanState() {
+    if (currentTier === 'forever') {
+      return { cta: 'You have Lifetime', disabled: true, isCurrent: false };
+    }
+    if (currentTier === 'premium') {
+      const isCurrentPeriod = currentPeriod === premiumId;
+      if (isCurrentPeriod) {
+        return { cta: 'Current plan', disabled: true, isCurrent: true };
+      }
+      // User is on the other period — show switch CTA
+      return {
+        cta: `Switch to ${isAnnual ? 'Annual' : 'Monthly'}`,
+        disabled: false,
+        isCurrent: false,
+      };
+    }
+    // Free tier — standard upgrade
+    return {
+      cta: `Choose ${isAnnual ? 'Annual' : 'Monthly'}`,
+      disabled: false,
+      isCurrent: false,
+    };
+  }
+
+  function getForeverPlanState() {
+    if (currentTier === 'forever') {
+      return { cta: 'Current plan', disabled: true, isCurrent: true };
+    }
+    return { cta: 'Choose Lifetime', disabled: false, isCurrent: false };
+  }
+
+  const freePlan = getFreePlanState();
+  const premiumPlan = getPremiumPlanState();
+  const foreverPlan = getForeverPlanState();
 
   const PLANS = [
     {
@@ -197,10 +252,11 @@ export default function UpgradePage() {
       priceNote: 'Always free',
       badge: null,
       features: FREE_FEATURES,
-      cta: 'Current plan',
+      cta: freePlan.cta,
       ctaNote: null,
-      disabled: true,
+      disabled: freePlan.disabled,
       isFree: true,
+      isCurrent: freePlan.isCurrent,
       highlighted: false,
       isForever: false,
     },
@@ -213,11 +269,12 @@ export default function UpgradePage() {
       priceNote: premiumNote,
       badge: isAnnual ? 'Best value' : null,
       features: PREMIUM_FEATURES,
-      cta: `Choose ${isAnnual ? 'Annual' : 'Monthly'}`,
-      ctaNote: 'Cancel any time',
-      disabled: false,
+      cta: premiumPlan.cta,
+      ctaNote: premiumPlan.disabled ? null : 'Cancel any time',
+      disabled: premiumPlan.disabled,
       isFree: false,
-      highlighted: true,
+      isCurrent: premiumPlan.isCurrent,
+      highlighted: !premiumPlan.isCurrent && currentTier !== 'forever',
       isForever: false,
     },
     {
@@ -229,10 +286,11 @@ export default function UpgradePage() {
       priceNote: 'One-time payment',
       badge: 'Forever',
       features: FOREVER_FEATURES,
-      cta: 'Choose Lifetime',
+      cta: foreverPlan.cta,
       ctaNote: null,
-      disabled: false,
+      disabled: foreverPlan.disabled,
       isFree: false,
+      isCurrent: foreverPlan.isCurrent,
       highlighted: false,
       isForever: true,
     },
@@ -252,21 +310,43 @@ export default function UpgradePage() {
         </div>
       </header>
 
-      {/* ─── Billing period toggle ─── */}
-      <div className={styles.toggleArea}>
-        <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
-      </div>
+      {/* ─── Loading state ─── */}
+      {loading ? (
+        <div className={styles.toggleArea}>
+          <p style={{ textAlign: 'center', color: '#737373', fontSize: 14, fontFamily: 'var(--font-sans)' }}>
+            Loading your plan…
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ─── Forever member message ─── */}
+          {currentTier === 'forever' && (
+            <div className={styles.toggleArea}>
+              <p style={{ textAlign: 'center', color: '#5b7a65', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
+                You're a Lifetime Member — no further upgrades needed.
+              </p>
+            </div>
+          )}
 
-      {/* ─── Plan cards ─── */}
-      <div className={styles.cards}>
-        {PLANS.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} onSelect={handleSelect} />
-        ))}
-      </div>
+          {/* ─── Billing period toggle ─── */}
+          {currentTier !== 'forever' && (
+            <div className={styles.toggleArea}>
+              <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
+            </div>
+          )}
 
-      <p className={styles.footerNote}>
-        Cancel or change your plan any time. Memories are never deleted on downgrade.
-      </p>
+          {/* ─── Plan cards ─── */}
+          <div className={styles.cards}>
+            {PLANS.map((plan) => (
+              <PlanCard key={plan.id} plan={plan} onSelect={handleSelect} />
+            ))}
+          </div>
+
+          <p className={styles.footerNote}>
+            Cancel or change your plan any time. Memories are never deleted on downgrade.
+          </p>
+        </>
+      )}
 
     </div>
   );

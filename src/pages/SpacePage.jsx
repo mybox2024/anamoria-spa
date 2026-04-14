@@ -1,8 +1,10 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.7 — Upgrade shortcut goes directly to plan page (April 8, 2026)
-// Changes from v2.6:
-//   - Profile menu "Upgrade →" reverted to /settings/upgrade?from=spaceId
-//   - Settings nav item still goes to /settings?from=spaceId (unchanged)
+// v2.8 — Live tier badge from billing API (April 14, 2026)
+// Changes from v2.7:
+//   - Profile menu tier badge now fetched from GET /billing/subscription
+//   - Uses shared useBillingStatus hook + getPlanLabel utility
+//   - "Upgrade →" link hidden when user is Premium or Forever
+//   - Removed hardcoded "Free plan" strings (2 locations)
 // Route: /spaces/:spaceId (protected — JWT required)
 //
 // Changes from v2.2:
@@ -28,6 +30,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import { useAppContext } from '../App';
+import { useBillingStatus, getPlanLabel } from '../hooks/useBillingStatus';
 import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
@@ -116,6 +119,11 @@ export default function SpacePage() {
     () => createApiClient(getAccessTokenSilently),
     [getAccessTokenSilently]
   );
+
+  // Billing status — drives profile menu tier badge
+  const { billing } = useBillingStatus(getApi);
+  const planLabel = getPlanLabel(billing);
+  const showUpgradeLink = !billing || billing.tier === 'free';
 
   const [space, setSpace] = useState(null);
   const [prompt, setPrompt] = useState(null);
@@ -424,19 +432,20 @@ export default function SpacePage() {
                 {showUserMenu && (
                   <div className={styles.userMenu}>
 
-                    {/* Plan badge */}
-                    {/* TODO: replace static copy with live tier from GET /billing/subscription */}
+                    {/* Plan badge — driven by GET /billing/subscription */}
                     <div className={styles.userMenuPlan}>
-                      <span className={styles.userMenuPlanBadge}>Free plan</span>
-                      <button
-                        className={styles.userMenuUpgradeLink}
-                        onClick={() => {
-                          closeSidebar();
-                          navigate(`/settings/upgrade?from=${spaceId}`);
-                        }}
-                      >
-                        Upgrade →
-                      </button>
+                      <span className={styles.userMenuPlanBadge}>{planLabel}</span>
+                      {showUpgradeLink && (
+                        <button
+                          className={styles.userMenuUpgradeLink}
+                          onClick={() => {
+                            closeSidebar();
+                            navigate(`/settings/upgrade?from=${spaceId}`);
+                          }}
+                        >
+                          Upgrade →
+                        </button>
+                      )}
                     </div>
 
                     <div className={styles.userMenuDivider} />
@@ -477,8 +486,8 @@ export default function SpacePage() {
                   </div>
                   <div className={styles.sidebarUserInfo}>
                     <span className={styles.sidebarUserName}>{user.name || 'User'}</span>
-                    {/* TODO: replace with live tier from GET /billing/subscription */}
-                    <span className={styles.sidebarUserEmail}>Free plan</span>
+                    {/* Plan label — driven by GET /billing/subscription */}
+                    <span className={styles.sidebarUserEmail}>{planLabel}</span>
                   </div>
                   <span className={`${styles.sidebarUserChevron} ${showUserMenu ? styles.sidebarUserChevronUp : ''}`}>
                     <ChevronUpIcon />

@@ -1,15 +1,15 @@
 // pages/SettingsPage.jsx — Anamoria SPA
-// v2.0 — SpaceSettings split into 4 independent panels (April 11, 2026)
-// Changes from v1.4:
-//   - Replaced monolithic <SpaceSettings inline /> with 4 extracted panel components
-//   - Added space name back link at top of left nav (Option B — Notion pattern)
-//   - Added "SPACE" section header in nav for 4 space sub-items
-//   - Nav order: Account → Plan & Billing → SPACE items (account-level grouped at top)
-//   - Each panel saves independently (PATCH /spaces/:id with own fields)
-//   - Inline "Saved ✓" fade confirmation per panel
-//   - Backward-compatible: ?section=space maps to 'space-info'
-//   - Removed SpaceSettings import (file preserved for modal assessment)
-//   - Removed onClose no-op (panels don't have close behavior)
+// v2.1 — BillingPanel wired to live billing API (April 14, 2026)
+// Changes from v2.0:
+//   - BillingPanel now calls GET /billing/subscription on mount
+//   - BillingPanel calls GET /billing/invoices when tier !== 'free'
+//   - Renders 5 states: loading, error, free, premium, forever
+//   - Shows card info, renewal date, cancel/pause status, invoices
+//   - Management links (change plan, update card, pause, cancel) render as
+//     disabled placeholders — wired in Session B (B5/B6/B11)
+//   - Payment failed yellow warning banner
+//   - Uses shared useBillingStatus hook + getPlanLabel utility
+//   - All other panels (Account, SpaceInfo, Contributors, Reminders, NeedHelp) UNCHANGED
 //
 // URL: /settings?from={spaceId}&section={sectionId}
 
@@ -17,13 +17,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useBillingStatus, getPlanLabel } from '../hooks/useBillingStatus';
 import SpaceInfoPanel from '../components/settings/SpaceInfoPanel';
 import ContributorsPanel from '../components/settings/ContributorsPanel';
 import RemindersPanel from '../components/settings/RemindersPanel';
 import NeedHelpPanel from '../components/settings/NeedHelpPanel';
 import styles from './SettingsPage.module.css';
 
-/* ─── Icons ─── */
+/* ─── Icons (unchanged from v2.0) ─── */
 
 function BackIcon() {
   return (
@@ -106,8 +107,19 @@ function ChevronIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════
-   ACCOUNT PANEL
+   ACCOUNT PANEL (unchanged from v2.0)
    ═══════════════════════════════════════ */
 
 function AccountPanel({ user }) {
@@ -136,29 +148,278 @@ function AccountPanel({ user }) {
 }
 
 /* ═══════════════════════════════════════
-   BILLING PANEL
+   BILLING PANEL — v2.1 (live API)
    ═══════════════════════════════════════ */
 
-function BillingPanel({ spaceId, navigate }) {
+function BillingPanel({ spaceId, navigate, getApi }) {
+  const { billing, loading, error, refetch } = useBillingStatus(getApi);
+  const [invoices, setInvoices]   = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+
+  // Fetch invoices when billing loads and tier is not free
+  useEffect(() => {
+    if (!billing || billing.tier === 'free') return;
+    async function loadInvoices() {
+      setInvoicesLoading(true);
+      try {
+        const api = getApi();
+        const data = await api.get('/billing/invoices');
+        setInvoices(data.invoices || []);
+      } catch (err) {
+        console.error('BillingPanel: invoices fetch failed:', err);
+      } finally {
+        setInvoicesLoading(false);
+      }
+    }
+    loadInvoices();
+  }, [billing, getApi]);
+
   function goUpgrade() {
     const q = spaceId ? `?from=${spaceId}` : '';
     navigate(`/settings/upgrade${q}`);
   }
 
+  function formatDate(isoString) {
+    if (!isoString) return '—';
+    return new Date(isoString).toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+  }
+
+  function formatAmount(cents) {
+    if (cents == null) return '—';
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  function capitalizeFirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  // ─── Loading state ───
+  if (loading) {
+    return (
+      <div className={styles.panel}>
+        <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
+        <p className={styles.panelLoading}>Loading billing info…</p>
+      </div>
+    );
+  }
+
+  // ─── Error state ───
+  if (error) {
+    return (
+      <div className={styles.panel}>
+        <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
+        <div className={styles.billingError}>
+          <p>Couldn't load billing information.</p>
+          <button className={styles.retryBtn} onClick={refetch}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  const tier = billing?.tier || 'free';
+  const planLabel = getPlanLabel(billing);
+
+  // ─── Free tier ───
+  if (tier === 'free') {
+    return (
+      <div className={styles.panel}>
+        <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
+
+        <div className={styles.planCard}>
+          <div className={styles.planCardLeft}>
+            <span className={styles.planName}>{planLabel}</span>
+            <span className={styles.planLimits}>Up to 5 memories · 1 space</span>
+          </div>
+          <button className={styles.upgradeBtn} onClick={goUpgrade}>
+            Upgrade
+          </button>
+        </div>
+
+        <p className={styles.panelHint}>
+          Your memories are always kept, whatever plan you're on.
+        </p>
+      </div>
+    );
+  }
+
+  // ─── Forever tier ───
+  if (tier === 'forever') {
+    return (
+      <div className={styles.panel}>
+        <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
+
+        <div className={styles.planCard}>
+          <div className={styles.planCardLeft}>
+            <span className={styles.planName}>Lifetime Member ♾</span>
+            <span className={styles.planLimits}>
+              Member since {formatDate(billing.foreverPurchasedAt)}
+            </span>
+          </div>
+        </div>
+
+        {/* Invoices */}
+        {invoices.length > 0 && (
+          <div className={styles.billingSection}>
+            <h3 className={styles.billingSectionTitle}>Your invoice</h3>
+            <div className={styles.invoiceList}>
+              {invoices.slice(0, 1).map((inv) => (
+                <div key={inv.id} className={styles.invoiceRow}>
+                  <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                  <span className={styles.invoiceAmount}>{formatAmount(inv.amount)}</span>
+                  {inv.pdfUrl && (
+                    <a
+                      href={inv.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.invoiceLink}
+                    >
+                      <DownloadIcon /> PDF
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className={styles.panelHint}>
+          You have lifetime access to Anamoria. No recurring charges.
+        </p>
+      </div>
+    );
+  }
+
+  // ─── Premium tier ───
   return (
     <div className={styles.panel}>
       <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
 
+      {/* Payment failed warning banner */}
+      {billing.paymentFailed && (
+        <div className={`${styles.warningBanner} ${billing.paymentFailedUrgent ? styles.warningBannerUrgent : ''}`}>
+          <p className={styles.warningText}>
+            There's a problem with your payment — update your card to keep your access.
+          </p>
+          {/* B5 modal trigger — Session B */}
+          <button className={styles.warningAction} disabled>
+            Update card
+          </button>
+        </div>
+      )}
+
+      {/* Cancel at period end notice */}
+      {billing.cancelAtPeriodEnd && (
+        <div className={styles.cancelNotice}>
+          <p className={styles.cancelNoticeText}>
+            Your plan cancels on {formatDate(billing.currentPeriodEnd)}. You'll move to the Free plan after that date.
+          </p>
+          {/* Reactivate — Session B */}
+          <button className={styles.cancelNoticeAction} disabled>
+            Reactivate
+          </button>
+        </div>
+      )}
+
+      {/* Pause notice */}
+      {billing.pauseCollectionUntil && (
+        <div className={styles.pauseNotice}>
+          <p className={styles.pauseNoticeText}>
+            Billing paused until {formatDate(billing.pauseCollectionUntil)}. Your memories stay accessible.
+          </p>
+          {/* Resume early — Session B */}
+          <button className={styles.pauseNoticeAction} disabled>
+            Resume early
+          </button>
+        </div>
+      )}
+
+      {/* Plan card */}
       <div className={styles.planCard}>
         <div className={styles.planCardLeft}>
-          {/* TODO: replace static copy with live tier from GET /billing/subscription */}
-          <span className={styles.planName}>Free plan</span>
-          <span className={styles.planLimits}>Up to 5 memories · 1 space</span>
+          <span className={styles.planName}>{planLabel}</span>
+          <span className={styles.planLimits}>
+            {billing.cancelAtPeriodEnd
+              ? `Access until ${formatDate(billing.currentPeriodEnd)}`
+              : `Renews ${formatDate(billing.currentPeriodEnd)}`
+            }
+          </span>
         </div>
-        <button className={styles.upgradeBtn} onClick={goUpgrade}>
-          Upgrade
-        </button>
       </div>
+
+      {/* Card info */}
+      {billing.cardBrand && billing.cardLast4 && (
+        <div className={styles.billingSection}>
+          <h3 className={styles.billingSectionTitle}>Payment method</h3>
+          <div className={styles.cardInfo}>
+            <span className={styles.cardBrand}>{capitalizeFirst(billing.cardBrand)}</span>
+            <span className={styles.cardLast4}>ending in {billing.cardLast4}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Management links */}
+      <div className={styles.billingSection}>
+        <h3 className={styles.billingSectionTitle}>Manage subscription</h3>
+        <div className={styles.managementLinks}>
+          {/* Update payment method — B5, Session B */}
+          <button className={styles.managementLink} disabled>
+            Update payment method
+          </button>
+          {/* Switch billing period — Session B */}
+          <button className={styles.managementLink} disabled>
+            Switch to {billing.billingPeriod === 'monthly' ? 'Annual' : 'Monthly'}
+          </button>
+          {/* Pause — B11, Session B */}
+          {!billing.pauseCollectionUntil && !billing.cancelAtPeriodEnd && (
+            <button className={styles.managementLink} disabled>
+              Pause subscription
+            </button>
+          )}
+          {/* Cancel — B6, Session B */}
+          {!billing.cancelAtPeriodEnd && (
+            <button className={styles.managementLink} disabled>
+              Cancel subscription
+            </button>
+          )}
+        </div>
+        <p className={styles.managementHint}>
+          These options will be available soon.
+        </p>
+      </div>
+
+      {/* Invoices */}
+      {invoicesLoading ? (
+        <div className={styles.billingSection}>
+          <h3 className={styles.billingSectionTitle}>Your invoices</h3>
+          <p className={styles.panelLoading}>Loading invoices…</p>
+        </div>
+      ) : invoices.length > 0 ? (
+        <div className={styles.billingSection}>
+          <h3 className={styles.billingSectionTitle}>Your invoices</h3>
+          <div className={styles.invoiceList}>
+            {invoices.map((inv) => (
+              <div key={inv.id} className={styles.invoiceRow}>
+                <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                <span className={styles.invoiceAmount}>{formatAmount(inv.amount)}</span>
+                <span className={styles.invoiceStatus}>{inv.status}</span>
+                {inv.pdfUrl && (
+                  <a
+                    href={inv.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.invoiceLink}
+                  >
+                    <DownloadIcon /> PDF
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <p className={styles.panelHint}>
         Your memories are always kept, whatever plan you're on.
@@ -168,11 +429,10 @@ function BillingPanel({ spaceId, navigate }) {
 }
 
 /* ═══════════════════════════════════════
-   SECTION PARAM MAPPING (backward compat)
+   SECTION PARAM MAPPING (backward compat — unchanged)
    ═══════════════════════════════════════ */
 
 function resolveInitialSection(sectionParam, hasSpaceId) {
-  // Backward compatibility: ?section=space → space-info
   if (sectionParam === 'space') return 'space-info';
   if (sectionParam) return sectionParam;
   return hasSpaceId ? 'space-info' : 'account';
@@ -237,7 +497,6 @@ export default function SettingsPage() {
 
   /* ─── Nav items ─── */
 
-  // Space sub-items (only shown when spaceId present)
   const spaceNavItems = spaceId ? [
     { id: 'space-info',    label: 'Space',        icon: <SpaceIcon /> },
     { id: 'contributors',  label: 'Contributors', icon: <ContributorsIcon /> },
@@ -254,7 +513,6 @@ export default function SettingsPage() {
   /* ─── Right panel content ─── */
 
   function renderPanel() {
-    // Space panels need loaded space data
     const isSpacePanel = ['space-info', 'contributors', 'reminders', 'need-help'].includes(activeSection);
 
     if (isSpacePanel) {
@@ -323,14 +581,14 @@ export default function SettingsPage() {
         );
 
       case 'billing':
-        return <BillingPanel spaceId={spaceId} navigate={navigate} />;
+        return <BillingPanel spaceId={spaceId} navigate={navigate} getApi={getApi} />;
 
       default:
         return null;
     }
   }
 
-  /* ─── Render ─── */
+  /* ─── Render (unchanged from v2.0) ─── */
 
   return (
     <div className={styles.page}>
@@ -350,7 +608,6 @@ export default function SettingsPage() {
         {/* ─── Left nav ─── */}
         <nav className={styles.leftNav} aria-label="Settings sections">
 
-          {/* ─── Space name back link (top of nav, only when spaceId present) ─── */}
           {spaceId && space && (
             <button className={styles.spaceBackLink} onClick={goToSpace}>
               <span className={styles.spaceBackArrow}>←</span>
@@ -358,8 +615,7 @@ export default function SettingsPage() {
             </button>
           )}
 
-          {navItems.map((item, index) => {
-            // Insert SPACE section label before first space nav item
+          {navItems.map((item) => {
             const isFirstSpaceItem = item.id === 'space-info';
             return (
               <div key={item.id}>

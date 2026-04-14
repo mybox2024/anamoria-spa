@@ -1,9 +1,16 @@
 /* pages/SettingsPage.module.css
-   v1.3 — SpaceSettings split + space back link (April 11, 2026)
-   Changes from v1.2:
-     - Added .spaceBackLink (space name nav link at top of left nav)
-     - Added .navSectionLabel (SPACE section header in nav)
-     - Mobile: shortened labels handled in JSX, tab strip scrolls with overflow-x
+   v1.4 — BillingPanel wired to live API (April 14, 2026)
+   Changes from v1.3:
+     - Added billing section styles: .billingSection, .billingSectionTitle
+     - Added card info styles: .cardInfo, .cardBrand, .cardLast4
+     - Added invoice list styles: .invoiceList, .invoiceRow, .invoiceDate, etc.
+     - Added warning banner: .warningBanner, .warningBannerUrgent, .warningText, .warningAction
+     - Added cancel/pause notices: .cancelNotice, .pauseNotice
+     - Added management links: .managementLinks, .managementLink, .managementHint
+     - Added error/retry: .billingError, .retryBtn
+   Previous from v1.3:
+     - .spaceBackLink (space name nav link at top of left nav)
+     - .navSectionLabel (SPACE section header in nav)
    Tokens: variables.css
 */
 
@@ -355,6 +362,313 @@
 
 .upgradeBtn:hover {
   background: #4a6654;
+}
+
+/* ═══════════════════════════════════════
+   BILLING PANEL — v1.4 additions
+   ═══════════════════════════════════════ */
+
+/* ─── Billing sections ─── */
+
+.billingSection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-light, #edebe7);
+}
+
+.billingSectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 12px;
+  font-family: var(--font-sans);
+}
+
+/* ─── Error / Retry ─── */
+
+.billingError {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.billingError p {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  margin: 0 0 12px;
+  font-family: var(--font-sans);
+}
+
+.retryBtn {
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--color-bg-warm, #f5f5f4);
+  color: var(--color-text-primary, #2d3436);
+  border: 1px solid var(--color-border-light, #edebe7);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.retryBtn:hover {
+  background: var(--color-border-light, #edebe7);
+}
+
+/* ─── Card info ─── */
+
+.cardInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 10px;
+}
+
+.cardBrand {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+}
+
+.cardLast4 {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+}
+
+/* ─── Invoice list ─── */
+
+.invoiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.invoiceRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 8px;
+}
+
+.invoiceDate {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  min-width: 110px;
+}
+
+.invoiceAmount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+  min-width: 60px;
+}
+
+.invoiceStatus {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  flex: 1;
+}
+
+.invoiceLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-sage-dark, #5b7a65);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast, 0.15s ease);
+}
+
+.invoiceLink:hover {
+  opacity: 0.8;
+}
+
+/* ─── Warning banner (payment failed) ─── */
+
+.warningBanner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warningBannerUrgent {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.warningText {
+  font-size: 13px;
+  color: #92400e;
+  font-family: var(--font-sans);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.warningBannerUrgent .warningText {
+  color: #991b1b;
+}
+
+.warningAction {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.warningAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Cancel notice ─── */
+
+.cancelNotice {
+  background: #fff7ed;
+  border: 1px solid #f97316;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cancelNoticeText {
+  font-size: 13px;
+  color: #9a3412;
+  font-family: var(--font-sans);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.cancelNoticeAction {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f97316;
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cancelNoticeAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Pause notice ─── */
+
+.pauseNotice {
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pauseNoticeText {
+  font-size: 13px;
+  color: #1e40af;
+  font-family: var(--font-sans);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.pauseNoticeAction {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pauseNoticeAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Management links ─── */
+
+.managementLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.managementLink {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-sage-dark, #5b7a65);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.managementLink:hover:not(:disabled) {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.managementLink:disabled {
+  color: var(--color-text-subtle, #737373);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.managementHint {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-style: italic;
 }
 
 /* ═══════════════════════════════════════

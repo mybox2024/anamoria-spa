@@ -1,4 +1,9 @@
 // api/client.js — Anamoria SPA
+// v1.1 — April 14, 2026
+// Changes from v1.0:
+//   - Added put() method for authenticated JSON PUT requests
+//     (needed for PUT /billing/subscription and PUT /billing/payment-method)
+//
 // Fetch wrapper that handles:
 //   - Authenticated requests: injects JWT from Auth0 via getAccessToken()
 //   - Unauthenticated requests: injects x-api-key header
@@ -10,6 +15,7 @@
 //   const api = createApiClient(getAccessTokenSilently);
 //   const data = await api.get('/spaces');
 //   const result = await api.post('/spaces', { name: 'Grandma Rose' });
+//   const result = await api.put('/billing/subscription', { priceId: 'price_xxx' });
 //   const result = await api.postPublic('/pilot/validate-code', { accessCode: 'ABC123' });
 
 import config from '../config';
@@ -77,6 +83,14 @@ export function createApiClient(getAccessTokenSilently) {
     post(path, body) {
       return authFetch(path, {
         method: 'POST',
+        body: JSON.stringify(body),
+      });
+    },
+
+    /** PUT with JWT */
+    put(path, body) {
+      return authFetch(path, {
+        method: 'PUT',
         body: JSON.stringify(body),
       });
     },

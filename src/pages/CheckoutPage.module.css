@@ -1,5 +1,10 @@
 /* pages/CheckoutPage.module.css
-   v1.0 — B2: Checkout / Payment screen (April 6, 2026)
+   v1.1 — Real Stripe Payment Element (April 14, 2026)
+   Changes from v1.0:
+     - Removed mock-specific classes: .stripeLabel, .field, .fieldRow, .fieldLabel,
+       .fieldInput, .mockNote (no longer referenced after MockPaymentElement removal)
+     - Added .errorMessage for payment error display
+     - .stripeElement retained as wrapper for <PaymentElement />
    Tokens: variables.css
 */
 
@@ -105,7 +110,7 @@
 }
 
 /* ═══════════════════════════════════════
-   MOCK STRIPE ELEMENT
+   STRIPE PAYMENT ELEMENT WRAPPER
    ═══════════════════════════════════════ */
 
 .stripeElement {
@@ -113,76 +118,21 @@
   border: 1.5px solid var(--color-border, #e0ddd8);
   border-radius: 16px;
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
-.stripeLabel {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--color-text-subtle, #737373);
-  margin: 0;
-  font-family: var(--font-sans);
-}
+/* ═══════════════════════════════════════
+   ERROR MESSAGE
+   ═══════════════════════════════════════ */
 
-/* ─── Individual fields ─── */
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-
-.fieldRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.fieldLabel {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-subtle, #737373);
-  font-family: var(--font-sans);
-}
-
-.fieldInput {
-  padding: 11px 13px;
-  border: 1.5px solid var(--color-border, #e0ddd8);
+.errorMessage {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
   border-radius: 10px;
-  font-size: 15px;
-  background: var(--color-bg-white, #ffffff);
-  font-family: var(--font-sans);
-  color: var(--color-text-primary, #2d3436);
-  outline: none;
-  transition: border-color var(--transition-fast, 0.15s ease);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.fieldInput:focus {
-  border-color: var(--color-sage-dark, #5b7a65);
-}
-
-.fieldInput::placeholder {
-  color: var(--color-text-placeholder, #b2bec3);
-}
-
-/* ─── Mock badge ─── */
-
-.mockNote {
-  font-size: 11px;
-  color: var(--color-amber, #d4880f);
-  margin: 0;
-  font-family: var(--font-sans);
-  text-align: center;
-  background: rgba(212, 136, 15, 0.08);
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #991b1b;
+  line-height: 1.4;
+  font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 /* ═══════════════════════════════════════
