@@ -1,6 +1,13 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.11 — Owner-only memory count for soft gate (April 15, 2026)
-// Changes from v2.10:
+// v2.12 — Sidebar display name from appState (April 15, 2026)
+// Changes from v2.11:
+//   - Sidebar profile button now reads displayName from appState (DB source of truth)
+//     instead of user.name from Auth0 SDK (which shows email for passwordless OTP users).
+//   - Fallback chain: appState.displayName → user.name → user.email → 'User'
+//   - Avatar initial uses the same fallback chain.
+//   - All other code UNCHANGED from v2.11
+//
+// Previous changes (v2.11):
 //   - Fix 5: B7 soft gate now uses ownerMemoryCount (from GET /spaces/:id/memories/count)
 //     instead of total memoryCount (from MemoryFeed callback).
 //     The existing endpoint counts owner-created memories only (WHERE creator_user_id = $2),
@@ -506,10 +513,11 @@ export default function SpacePage() {
                       Settings
                     </button>
 
-                    {/* Sign out */}
+                    {/* Sign out — v2.12: returnTo uses origin only (Auth0 requires exact match).
+                         App.jsx fallback route redirects to /join automatically. */}
                     <button
                       className={`${styles.userMenuItem} ${styles.userMenuItemSignOut}`}
-                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin + '/join' } })}
+                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                     >
                       <SignOutIcon />
                       Sign out
@@ -526,10 +534,10 @@ export default function SpacePage() {
                   aria-label="Profile and settings"
                 >
                   <div className={styles.sidebarUserAvatar}>
-                    {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                    {(appState?.displayName || user.name || user.email || '?').charAt(0).toUpperCase()}
                   </div>
                   <div className={styles.sidebarUserInfo}>
-                    <span className={styles.sidebarUserName}>{user.name || 'User'}</span>
+                    <span className={styles.sidebarUserName}>{appState?.displayName || user.name || 'User'}</span>
                     {/* Plan label — driven by GET /billing/subscription */}
                     <span className={styles.sidebarUserEmail}>{planLabel}</span>
                   </div>

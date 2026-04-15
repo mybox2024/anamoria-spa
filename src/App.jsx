@@ -1,6 +1,21 @@
 // App.jsx — Anamoria SPA
-// v1.5 — Lazy-load CheckoutPage to scope Stripe (April 15, 2026)
-// Changes from v1.4:
+// v1.7 — Read ana_displayName from sessionStorage for new user join (April 15, 2026)
+// Changes from v1.6:
+//   - New user join now reads ana_displayName from sessionStorage (set by JoinPage v1.3
+//     name collection step) and uses it as the displayName for POST /pilot/join.
+//     Fallback: if ana_displayName is absent (e.g. user skipped name step), falls back
+//     to auth0User.name || auth0User.nickname (previous behavior).
+//   - ana_displayName cleared from sessionStorage alongside ana_groupId and ana_groupName.
+//   - No route changes. No returning-user flow changes.
+//
+// Previous changes (v1.6):
+//   - Added displayName and email to appState shape.
+//     GET /pilot/me and POST /pilot/join both return these fields but they
+//     were not being captured in appState. SpacePage and SettingsPage now
+//     read appState.displayName for the sidebar/account display name
+//     (fixes Auth0 passwordless OTP showing email instead of name).
+//
+// Previous changes (v1.5):
 //   - Fix 4: CheckoutPage is now lazy-loaded via React.lazy() + Suspense.
 //     Previously, importing CheckoutPage at the top of App.jsx caused the
 //     @stripe/stripe-js module to evaluate on app startup, which injected
@@ -98,6 +113,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     bootstrapped: false,   // true after /me + spaces calls complete
     bootstrapError: null,  // error message if bootstrap fails
     userId: null,
+    displayName: null,     // v1.6: from GET /pilot/me or POST /pilot/join (DB source of truth)
+    email: null,           // v1.6: from GET /pilot/me or POST /pilot/join
     pilotRole: null,
     groupId: null,
     groupName: null,
@@ -121,6 +138,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         bootstrapped: true,
         bootstrapError: null,
         userId: meData.userId,
+        displayName: meData.displayName || null,  // v1.6
+        email: meData.email || null,              // v1.6
         pilotRole: meData.pilotRole,
         groupId: meData.groupId,
         groupName: meData.groupName,
@@ -143,6 +162,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         // Check sessionStorage for groupId from validate-code flow
         const groupId = sessionStorage.getItem('ana_groupId');
         const groupName = sessionStorage.getItem('ana_groupName');
+        // v1.7: Read display name collected by JoinPage v1.3 name step
+        const collectedName = sessionStorage.getItem('ana_displayName');
 
         if (!groupId) {
           // No groupId — user reached app without completing access code flow
@@ -156,17 +177,21 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
           const joinData = await api.post('/pilot/join', {
             groupId,
             email: auth0User?.email || '',
-            displayName: auth0User?.name || auth0User?.nickname || '',
+            // v1.7: Prefer name from JoinPage step 2, fall back to Auth0 profile
+            displayName: collectedName || auth0User?.name || auth0User?.nickname || '',
           });
 
           // Clear sessionStorage after successful join
           sessionStorage.removeItem('ana_groupId');
           sessionStorage.removeItem('ana_groupName');
+          sessionStorage.removeItem('ana_displayName');  // v1.7
 
           setAppState({
             bootstrapped: true,
             bootstrapError: null,
             userId: joinData.userId,
+            displayName: joinData.displayName || null,  // v1.6
+            email: joinData.email || null,              // v1.6
             pilotRole: joinData.pilotRole,
             groupId: joinData.groupId,
             groupName: joinData.groupName,

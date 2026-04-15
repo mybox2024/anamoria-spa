@@ -1,6 +1,14 @@
 // pages/SettingsPage.jsx — Anamoria SPA
-// v2.4 — Auto-open CancelModal from URL param (April 15, 2026)
-// Changes from v2.3:
+// v2.5 — Account display name from appState (April 15, 2026)
+// Changes from v2.4:
+//   - AccountPanel now reads displayName from appState (DB source of truth)
+//     instead of user.name from Auth0 SDK (which shows email for passwordless OTP users).
+//   - Added useAppContext import and appState destructuring.
+//   - AccountPanel receives appState as a prop.
+//   - Fallback chain: appState.displayName → user.name → 'Your account'
+//   - All other panels, modals, handlers, and wiring UNCHANGED.
+//
+// Previous changes (v2.4):
 //   - Fix 1: BillingPanel reads ?action=cancel from URL params.
 //     When present, auto-opens CancelModal (B6) on mount.
 //     Used by UpgradePage "Downgrade" button to route Premium→Free
@@ -21,6 +29,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useAppContext } from '../App';                    // v2.5
 import { useBillingStatus, getPlanLabel } from '../hooks/useBillingStatus';
 import SpaceInfoPanel from '../components/settings/SpaceInfoPanel';
 import ContributorsPanel from '../components/settings/ContributorsPanel';
@@ -130,9 +139,9 @@ function DownloadIcon() {
    ACCOUNT PANEL (unchanged from v2.0)
    ═══════════════════════════════════════ */
 
-function AccountPanel({ user }) {
-  const userName  = user?.name  || 'Your account';
-  const userEmail = user?.email || '';
+function AccountPanel({ user, appState }) {
+  const userName  = appState?.displayName || user?.name  || 'Your account';  // v2.5: DB first
+  const userEmail = appState?.email || user?.email || '';                     // v2.5: DB first
 
   return (
     <div className={styles.panel}>
@@ -574,6 +583,7 @@ export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const spaceId = searchParams.get('from');
   const { getAccessTokenSilently, user } = useAuth0();
+  const appState = useAppContext();                        // v2.5
 
   const getApi = useCallback(
     () => createApiClient(getAccessTokenSilently),
@@ -679,7 +689,7 @@ export default function SettingsPage() {
 
     switch (activeSection) {
       case 'account':
-        return <AccountPanel user={user} />;
+        return <AccountPanel user={user} appState={appState} />;  {/* v2.5 */}
 
       case 'space-info':
         return (
