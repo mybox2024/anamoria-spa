@@ -1,20 +1,21 @@
 // App.jsx — Anamoria SPA
-// v1.4 — April 11, 2026
-// Changes from v1.3:
+// v1.5 — Lazy-load CheckoutPage to scope Stripe (April 15, 2026)
+// Changes from v1.4:
+//   - Fix 4: CheckoutPage is now lazy-loaded via React.lazy() + Suspense.
+//     Previously, importing CheckoutPage at the top of App.jsx caused the
+//     @stripe/stripe-js module to evaluate on app startup, which injected
+//     Stripe's global badge element ("Powered by Stripe") into the DOM on
+//     every page — not just the checkout page. Lazy-loading defers the
+//     module evaluation until the user navigates to /settings/upgrade/checkout.
+//   - Added React.lazy and Suspense imports
+//   - Added LoadingFallback component for Suspense boundary
+//   - All routes and route paths UNCHANGED
+//   - Boot sequence, AppContext, and all other components UNCHANGED
+//
+// Previous changes (v1.4):
 //   - Bootstrap refactored: GET /pilot/me replaces POST /pilot/activate
-//     (Identity Bootstrap Plan v1.0)
 //   - New user flow: 404 from /me → POST /pilot/join (if groupId in sessionStorage)
-//   - localStorage no longer read or written for identity keys
-//   - sessionStorage used for groupId/groupName (survives Auth0 redirect, cleared after join)
-// Changes from v1.2:
-//   - Added Settings shell route (/settings)
-//   - Added B1 Pricing route (/settings/upgrade)
-//   - Added B2 Checkout route (/settings/upgrade/checkout)
-//   - Added B3 Success route (/settings/upgrade/success)
-// Changes from v1.1:
-//   - Bootstrap passes Auth0 user.email + user.name to POST /pilot/activate
-//   - Fixes blank email/display_name bug in users table
-// Added in v1.1: /leader route for pilot group leaders
+//   - sessionStorage used for groupId/groupName
 //
 // Boot sequence (runs after every Auth0 login):
 //   1. Auth0 checks session → isAuthenticated
@@ -22,10 +23,8 @@
 //   3. If 200: GET /spaces → route normally
 //   4. If 404 + groupId in sessionStorage: POST /pilot/join → /consent
 //   5. If 404 + no groupId: redirect to /join
-//
-// AppState stored in React context so all pages can read userId, currentSpace, etc.
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -47,7 +46,9 @@ import ContributorFeedPage from './pages/ContributorFeedPage';
 import LeaderPage from './pages/LeaderPage';
 import SettingsPage from './pages/SettingsPage';
 import UpgradePage from './pages/UpgradePage';
-import CheckoutPage from './pages/CheckoutPage';
+// v1.5 (Fix 4): CheckoutPage lazy-loaded to prevent Stripe.js from evaluating
+// on app startup. This scopes the Stripe badge to the checkout route only.
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
 // ─── App context — shared state across all pages ──────────────────────────
@@ -69,6 +70,16 @@ function PlaceholderPage({ name }) {
       <p style={{ marginTop: 8, fontSize: 14, color: '#737373' }}>
         This screen is built in a later step.
       </p>
+    </div>
+  );
+}
+
+// v1.5: Loading fallback for lazy-loaded components (Suspense boundary)
+function LoadingFallback() {
+  return (
+    <div className="app-loading">
+      <span className="app-loading-logo">Anamoria</span>
+      <div className="app-loading-spinner" aria-label="Loading" />
     </div>
   );
 }
@@ -239,125 +250,129 @@ function AppRoutes() {
 
   return (
     <AppContext.Provider value={appState}>
-      <Routes>
-        {/* ── Public ───────────────────────────────────────────── */}
-        <Route path="/join" element={<JoinPage />} />
+      {/* v1.5: Suspense boundary wraps Routes for lazy-loaded CheckoutPage */}
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* ── Public ───────────────────────────────────────────── */}
+          <Route path="/join" element={<JoinPage />} />
 
-        {/* ── Protected ─────────────────────────────────────────── */}
-        <Route
-          path="/consent"
-          element={
-            <ProtectedRoute>
-              <ConsentPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/new"
-          element={
-            <ProtectedRoute>
-              <CreateSpacePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId"
-          element={
-            <ProtectedRoute>
-              <SpacePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId/record"
-          element={
-            <ProtectedRoute>
-              <RecordPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId/write"
-          element={
-            <ProtectedRoute>
-              <WritePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId/photo"
-          element={
-            <ProtectedRoute>
-              <PhotoPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId/memories/:memId"
-          element={
-            <ProtectedRoute>
-              <MemoryDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/spaces/:spaceId/invite"
-          element={
-            <ProtectedRoute>
-              <InvitePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/leader"
-          element={
-            <ProtectedRoute>
-              <LeaderPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* ── Protected ─────────────────────────────────────────── */}
+          <Route
+            path="/consent"
+            element={
+              <ProtectedRoute>
+                <ConsentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/new"
+            element={
+              <ProtectedRoute>
+                <CreateSpacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId"
+            element={
+              <ProtectedRoute>
+                <SpacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId/record"
+            element={
+              <ProtectedRoute>
+                <RecordPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId/write"
+            element={
+              <ProtectedRoute>
+                <WritePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId/photo"
+            element={
+              <ProtectedRoute>
+                <PhotoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId/memories/:memId"
+            element={
+              <ProtectedRoute>
+                <MemoryDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spaces/:spaceId/invite"
+            element={
+              <ProtectedRoute>
+                <InvitePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leader"
+            element={
+              <ProtectedRoute>
+                <LeaderPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* ── Public (no auth) ────────────────────────────────── */}
-        <Route path="/invite/:token" element={<ContributorLandingPage />} />
-        <Route path="/contribute/:spaceId" element={<ContributorFeedPage />} />
+          {/* ── Public (no auth) ────────────────────────────────── */}
+          <Route path="/invite/:token" element={<ContributorLandingPage />} />
+          <Route path="/contribute/:spaceId" element={<ContributorFeedPage />} />
 
-        {/* ── Settings + Billing (B1–B3) ───────────────────────── */}
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings/upgrade"
-          element={
-            <ProtectedRoute>
-              <UpgradePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings/upgrade/checkout"
-          element={
-            <ProtectedRoute>
-              <CheckoutPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings/upgrade/success"
-          element={
-            <ProtectedRoute>
-              <UpgradeSuccessPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* ── Settings + Billing (B1–B3) ───────────────────────── */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/upgrade"
+            element={
+              <ProtectedRoute>
+                <UpgradePage />
+              </ProtectedRoute>
+            }
+          />
+          {/* v1.5: CheckoutPage is lazy-loaded — Suspense boundary above handles fallback */}
+          <Route
+            path="/settings/upgrade/checkout"
+            element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/upgrade/success"
+            element={
+              <ProtectedRoute>
+                <UpgradeSuccessPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* ── Fallback ──────────────────────────────────────────── */}
-        <Route path="*" element={<Navigate to="/join" replace />} />
-      </Routes>
+          {/* ── Fallback ──────────────────────────────────────────── */}
+          <Route path="*" element={<Navigate to="/join" replace />} />
+        </Routes>
+      </Suspense>
     </AppContext.Provider>
   );
 }

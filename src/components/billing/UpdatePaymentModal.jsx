@@ -1,14 +1,22 @@
 // components/billing/UpdatePaymentModal.jsx — Anamoria SPA
-// v1.0 — B5 Update Payment Method modal (April 14, 2026)
+// v1.1 — Stripe DOM cleanup on modal close (April 15, 2026)
+//
+// Changes from v1.0:
+//   - Added Stripe DOM cleanup when modal closes. Uses shared cleanupStripeDom
+//     utility (utils/stripeCleanup.js) to remove all Stripe-injected iframes,
+//     script tags, and floating UI elements (badge, Link popup) from the DOM.
+//     Same pattern as CheckoutPage.jsx v1.3.
+//   - Cleanup fires in the isOpen useEffect when isOpen transitions to false,
+//     and also on component unmount. This covers both normal close and
+//     parent unmount scenarios.
+//   - All other behavior UNCHANGED from v1.0.
 //
 // Flow:
 //   1. Modal opens → POST /billing/setup-intent → receive clientSecret
 //   2. Render Stripe <Elements mode="setup"> wrapping <PaymentElement>
 //   3. User enters new card → submit → stripe.confirmSetup({ redirect: 'if_required' })
 //   4. On success: PUT /billing/payment-method with { paymentMethodId }
-//   5. Close modal, refetch billing (card info updates in B4)
-//
-// Stripe pattern mirrors CheckoutPage.jsx v1.1 but uses SetupIntent instead of PaymentIntent.
+//   5. Close modal → cleanup Stripe DOM → refetch billing (card info updates in B4)
 //
 // Props:
 //   isOpen    — boolean
@@ -19,6 +27,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { cleanupStripeDom } from '../../utils/stripeCleanup';
 import config from '../../config';
 import styles from './UpdatePaymentModal.module.css';
 
@@ -125,11 +134,15 @@ export default function UpdatePaymentModal({ isOpen, onClose, getApi, onSuccess 
   const [loading, setLoading] = useState(false);
   const [initError, setInitError] = useState(null);
 
-  // Create SetupIntent when modal opens
+  // Create SetupIntent when modal opens; cleanup Stripe DOM when modal closes.
   useEffect(() => {
     if (!isOpen) {
       setClientSecret(null);
       setInitError(null);
+
+      // v1.1: Clean up Stripe DOM artifacts when the modal closes.
+      // This removes the persistent badge/iframes that Stripe injects.
+      cleanupStripeDom(() => { stripePromise = null; });
       return;
     }
     setLoading(true);
@@ -148,6 +161,11 @@ export default function UpdatePaymentModal({ isOpen, onClose, getApi, onSuccess 
       }
     }
     createSetupIntent();
+
+    // v1.1: Also cleanup on unmount (covers parent component unmounting while modal is open)
+    return () => {
+      cleanupStripeDom(() => { stripePromise = null; });
+    };
   }, [isOpen, getApi]);
 
   // Close on Escape (only when not in Stripe form submission)

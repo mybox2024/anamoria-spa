@@ -1,12 +1,25 @@
 // pages/UpgradePage.jsx — Anamoria SPA
-// v1.2 — Live tier detection from billing API (April 14, 2026)
+// v1.4 — Downgrade routing + billing-aware toggle default (April 15, 2026)
 //
-// Changes from v1.1:
-//   - On mount, calls GET /billing/subscription to get current tier
+// Changes from v1.3:
+//   - Fix 1: Free card "Downgrade" button now navigates to Settings billing panel
+//     with ?action=cancel to auto-open CancelModal (B6). Previously was always
+//     disabled with hardcoded `disabled: true`. Uses existing cancel flow
+//     (pause-first → confirm) — industry standard for SaaS downgrades.
+//   - Fix 2: BillingToggle defaults to user's current billing period instead of
+//     always defaulting to Annual. Monthly subscribers land on Monthly tab and see
+//     "Current plan" immediately. Free/Forever/Annual users still default to Annual
+//     (best-value conversion view). Uses useEffect sync after billing loads.
+//
+// Previous changes (v1.3):
+//   - goBack() uses navigate(-1) to return to actual previous page
+//   - Fallback to /settings if no history (direct URL visit)
+//
+// Previous changes (v1.2):
+//   - Live tier detection from billing API
 //   - Marks actual current plan (not always Free)
 //   - Premium users see "Switch to Annual/Monthly" instead of "Choose"
 //   - Forever users see "Lifetime Member" message, all CTAs disabled
-//   - Loading state while fetching tier
 //   - Uses shared useBillingStatus hook
 //
 // URL: /settings/upgrade?from={spaceId}
@@ -14,7 +27,7 @@
 // ⚠️  PLACEHOLDER: Feature lists and limits are indicative.
 //     Confirm against billing spec before launch.
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
@@ -166,6 +179,8 @@ export default function UpgradePage() {
   const [searchParams] = useSearchParams();
   const spaceId = searchParams.get('from');
   const { getAccessTokenSilently } = useAuth0();
+
+  // v1.4: Default to annual; sync to user's billing period once loaded (Fix 2)
   const [isAnnual, setIsAnnual] = useState(true);
 
   const getApi = useCallback(
@@ -175,12 +190,39 @@ export default function UpgradePage() {
 
   const { billing, loading } = useBillingStatus(getApi);
 
+  // v1.4 (Fix 2): Sync toggle to user's actual billing period once billing loads.
+  // Monthly subscribers land on the Monthly tab and see "Current plan" in focus.
+  // Free/Forever/Annual users keep the Annual default (best-value conversion view).
+  // Runs once when billingPeriod first becomes available — does not override
+  // subsequent user interaction with the toggle.
+  useEffect(() => {
+    if (billing?.billingPeriod === 'monthly') {
+      setIsAnnual(false);
+    }
+  }, [billing?.billingPeriod]);
+
+  // v1.3: Use browser history so back returns to actual previous page
   function goBack() {
-    const q = spaceId ? `?from=${spaceId}` : '';
-    navigate(`/settings${q}`);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // Fallback for direct URL visit — no history to go back to
+      const q = spaceId ? `?from=${spaceId}&section=billing` : '?section=billing';
+      navigate(`/settings${q}`);
+    }
   }
 
   function handleSelect(planId) {
+    // v1.4 (Fix 1): "Downgrade" (free card) routes to Settings with action=cancel
+    // to auto-open the CancelModal (B6), which uses the existing pause-first → cancel flow.
+    if (planId === 'free') {
+      const q = spaceId
+        ? `?from=${spaceId}&section=billing&action=cancel`
+        : '?section=billing&action=cancel';
+      navigate(`/settings${q}`);
+      return;
+    }
+
     const fromParam = spaceId ? `&from=${spaceId}` : '';
     navigate(`/settings/upgrade/checkout?plan=${planId}${fromParam}`);
   }
@@ -197,14 +239,20 @@ export default function UpgradePage() {
   const premiumPeriod = isAnnual ? '/ year' : '/ month';
   const premiumNote  = isAnnual ? '$8.33 / month · billed annually' : 'Billed monthly';
 
-  // Determine CTA text and disabled state based on current tier
+  // v1.4 (Fix 1): Determine CTA text and state for the Free card.
+  // Premium/Forever users see a "Downgrade" button that routes to the cancel flow.
+  // Free users see "Current plan" (disabled). No user can "select" Free as a checkout.
   function getFreePlanState() {
     const isCurrent = currentTier === 'free';
-    return {
-      cta: isCurrent ? 'Current plan' : 'Downgrade',
-      disabled: true, // Can't select Free from upgrade page
-      isCurrent,
-    };
+    if (isCurrent) {
+      return { cta: 'Current plan', disabled: true, isCurrent: true };
+    }
+    if (currentTier === 'forever') {
+      // Forever users can't downgrade — they have lifetime access
+      return { cta: 'You have Lifetime', disabled: true, isCurrent: false };
+    }
+    // Premium user — "Downgrade" routes to cancel flow via handleSelect('free')
+    return { cta: 'Downgrade', disabled: false, isCurrent: false };
   }
 
   function getPremiumPlanState() {

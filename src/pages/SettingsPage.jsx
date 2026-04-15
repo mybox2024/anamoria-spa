@@ -1,19 +1,21 @@
 // pages/SettingsPage.jsx — Anamoria SPA
-// v2.2 — B4 management links enabled, modals wired (April 14, 2026)
-// Changes from v2.1:
-//   - BillingPanel: added modal state (showUpdatePayment, showCancel, showPause, showSwitchPlan)
-//   - BillingPanel: management links now active with onClick handlers (no longer disabled)
-//   - BillingPanel: Reactivate button wired to POST /billing/subscription/reactivate
-//   - BillingPanel: Resume Early button wired to DELETE /billing/subscription/pause
-//   - BillingPanel: Update Card in warning banner wired to open UpdatePaymentModal
-//   - BillingPanel: removed "These options will be available soon" hint
-//   - BillingPanel: B6→B11 coordination (CancelModal opens PauseModal with preselectedMonths)
-//   - BillingPanel: renders UpdatePaymentModal, CancelModal, PauseModal, SwitchPlanModal
-//   - Free tier planLimits text updated from "5 memories" to "15 memories"
-//   - Import 4 new modal components from components/billing
+// v2.4 — Auto-open CancelModal from URL param (April 15, 2026)
+// Changes from v2.3:
+//   - Fix 1: BillingPanel reads ?action=cancel from URL params.
+//     When present, auto-opens CancelModal (B6) on mount.
+//     Used by UpgradePage "Downgrade" button to route Premium→Free
+//     through the existing cancel flow (pause-first → confirm).
+//     Clears the param from URL after reading to prevent re-trigger on refresh.
 //   - All other panels (Account, SpaceInfo, Contributors, Reminders, NeedHelp) UNCHANGED
+//   - All modal components, handlers, and wiring UNCHANGED
 //
-// URL: /settings?from={spaceId}&section={sectionId}
+// Previous changes (v2.3):
+//   - Premium plan card: added "Change plan" text link → /settings/upgrade
+//   - "Update payment method" moved from Manage subscription to Payment method section
+//   - Manage subscription section now contains only: Switch, Pause, Cancel
+//   - goUpgrade: replaces history entry with section=billing before navigating
+//
+// URL: /settings?from={spaceId}&section={sectionId}&action={action}
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -98,8 +100,8 @@ function AccountIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }
@@ -154,10 +156,10 @@ function AccountPanel({ user }) {
 }
 
 /* ═══════════════════════════════════════
-   BILLING PANEL — v2.2 (management links enabled, modals wired)
+   BILLING PANEL — v2.4 (auto-open CancelModal from URL param)
    ═══════════════════════════════════════ */
 
-function BillingPanel({ spaceId, navigate, getApi }) {
+function BillingPanel({ spaceId, navigate, getApi, initialAction }) {
   const { billing, loading, error, refetch } = useBillingStatus(getApi);
   const [invoices, setInvoices]   = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
@@ -172,6 +174,18 @@ function BillingPanel({ spaceId, navigate, getApi }) {
   // v2.2: Reactivate / Resume loading states
   const [reactivating, setReactivating] = useState(false);
   const [resuming, setResuming] = useState(false);
+
+  // v2.4 (Fix 1): Auto-open CancelModal when ?action=cancel is present.
+  // This is triggered by UpgradePage "Downgrade" button routing here.
+  // Only fires once — when billing data first loads and tier is premium.
+  // Does not fire for free or forever users (nothing to cancel).
+  useEffect(() => {
+    if (initialAction === 'cancel' && billing && !loading) {
+      if (billing.tier === 'premium' && !billing.cancelAtPeriodEnd) {
+        setShowCancel(true);
+      }
+    }
+  }, [initialAction, billing, loading]);
 
   // Fetch invoices when billing loads and tier is not free
   useEffect(() => {
@@ -191,7 +205,13 @@ function BillingPanel({ spaceId, navigate, getApi }) {
     loadInvoices();
   }, [billing, getApi]);
 
+  // v2.3: Replace current history entry with billing-anchored URL before navigating
+  // so that browser back from UpgradePage returns to Plan & Billing panel
   function goUpgrade() {
+    const billingUrl = spaceId
+      ? `/settings?from=${spaceId}&section=billing`
+      : '/settings?section=billing';
+    window.history.replaceState(null, '', billingUrl);
     const q = spaceId ? `?from=${spaceId}` : '';
     navigate(`/settings/upgrade${q}`);
   }
@@ -395,7 +415,7 @@ function BillingPanel({ spaceId, navigate, getApi }) {
         </div>
       )}
 
-      {/* Plan card */}
+      {/* Plan card — v2.3: added Change plan link */}
       <div className={styles.planCard}>
         <div className={styles.planCardLeft}>
           <span className={styles.planName}>{planLabel}</span>
@@ -406,27 +426,32 @@ function BillingPanel({ spaceId, navigate, getApi }) {
             }
           </span>
         </div>
+        <button className={styles.changePlanLink} onClick={goUpgrade}>
+          Change plan
+        </button>
       </div>
 
-      {/* Card info */}
+      {/* Card info — v2.3: Update payment method moved here from Manage subscription */}
       {billing.cardBrand && billing.cardLast4 && (
         <div className={styles.billingSection}>
           <h3 className={styles.billingSectionTitle}>Payment method</h3>
           <div className={styles.cardInfo}>
             <span className={styles.cardBrand}>{capitalizeFirst(billing.cardBrand)}</span>
             <span className={styles.cardLast4}>ending in {billing.cardLast4}</span>
+            <button
+              className={styles.cardUpdateLink}
+              onClick={() => setShowUpdatePayment(true)}
+            >
+              Update
+            </button>
           </div>
         </div>
       )}
 
-      {/* Management links — v2.2: all enabled with onClick handlers */}
+      {/* Management links — v2.3: Update payment method removed (moved to Payment method section) */}
       <div className={styles.billingSection}>
         <h3 className={styles.billingSectionTitle}>Manage subscription</h3>
         <div className={styles.managementLinks}>
-          {/* Update payment method — B5 */}
-          <button className={styles.managementLink} onClick={() => setShowUpdatePayment(true)}>
-            Update payment method
-          </button>
           {/* Switch billing period */}
           <button className={styles.managementLink} onClick={() => setShowSwitchPlan(true)}>
             Switch to {billing.billingPeriod === 'monthly' ? 'Annual' : 'Monthly'}
@@ -560,6 +585,24 @@ export default function SettingsPage() {
     resolveInitialSection(searchParams.get('section'), !!spaceId)
   );
 
+  // v2.4 (Fix 1): Read ?action= param and clear it from URL to prevent re-trigger.
+  // The action param is a one-time trigger (e.g., action=cancel from UpgradePage "Downgrade").
+  // We read it once, store it in state, and strip it from the URL.
+  const [initialAction] = useState(() => {
+    const action = searchParams.get('action');
+    if (action) {
+      // Strip action param from URL to prevent re-trigger on refresh.
+      // Uses replaceState so it doesn't create a new history entry.
+      const cleanParams = new URLSearchParams(searchParams);
+      cleanParams.delete('action');
+      const cleanUrl = cleanParams.toString()
+        ? `${window.location.pathname}?${cleanParams.toString()}`
+        : window.location.pathname;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+    return action;
+  });
+
   /* ─── Space data ─── */
   const [space, setSpace]               = useState(null);
   const [loadingSpace, setLoadingSpace] = useState(false);
@@ -683,7 +726,8 @@ export default function SettingsPage() {
         );
 
       case 'billing':
-        return <BillingPanel spaceId={spaceId} navigate={navigate} getApi={getApi} />;
+        // v2.4: Pass initialAction to BillingPanel for auto-open CancelModal
+        return <BillingPanel spaceId={spaceId} navigate={navigate} getApi={getApi} initialAction={initialAction} />;
 
       default:
         return null;

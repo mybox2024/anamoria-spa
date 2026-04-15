@@ -1,19 +1,26 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.9 — B7 Soft Gate integration (April 14, 2026)
-// Changes from v2.8:
-//   - Import SoftGateModal from components/billing
-//   - Added state: showSoftGate, softGateResource
-//   - handleRecord: checks memoryCount vs billing.limits.memoriesPerSpace before navigate
-//   - handleCreateSpace: checks spaces.length vs billing.limits.spaces before opening modal
-//   - Renders SoftGateModal at bottom of JSX (before closing </div>)
-//   - All other code UNCHANGED from v2.8
+// v2.11 — Owner-only memory count for soft gate (April 15, 2026)
+// Changes from v2.10:
+//   - Fix 5: B7 soft gate now uses ownerMemoryCount (from GET /spaces/:id/memories/count)
+//     instead of total memoryCount (from MemoryFeed callback).
+//     The existing endpoint counts owner-created memories only (WHERE creator_user_id = $2),
+//     matching the backend enforcement logic exactly.
+//     Previously, total feed count was used as a heuristic, which caused false positives:
+//     e.g., 10 owner + 5 contributor = 15 total → gate fires, but owner is only at 10/15.
+//   - Added ownerMemoryCount state variable
+//   - Added GET /spaces/:id/memories/count to the mount-time Promise.all
+//   - handleRecord() checks ownerMemoryCount instead of memoryCount
+//   - memoryCount (total feed count) remains unchanged — still drives header display
+//   - All other code UNCHANGED from v2.10
 //
 // Route: /spaces/:spaceId (protected — JWT required)
 //
+// Previous changes (v2.10):
+//   - Tier-aware sidebar plan link (Upgrade / Change Plan / My Plan)
+// Previous changes (v2.9):
+//   - B7 Soft Gate integration (SoftGateModal, limit checks)
 // Previous changes (v2.8):
 //   - Profile menu tier badge from GET /billing/subscription
-//   - Uses shared useBillingStatus hook + getPlanLabel utility
-//   - "Upgrade →" link hidden when Premium or Forever
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -115,13 +122,30 @@ export default function SpacePage() {
   // Billing status — drives profile menu tier badge + B7 soft gate
   const { billing } = useBillingStatus(getApi);
   const planLabel = getPlanLabel(billing);
-  const showUpgradeLink = !billing || billing.tier === 'free';
+
+  // v2.10: Tier-aware sidebar plan link (replaces showUpgradeLink boolean)
+  const currentTier = billing?.tier || 'free';
+  const planLink = (() => {
+    if (currentTier === 'forever') {
+      return { label: 'My Plan →', route: `/settings?from=${spaceId}&section=billing` };
+    }
+    if (currentTier === 'premium') {
+      return { label: 'Change Plan →', route: `/settings/upgrade?from=${spaceId}` };
+    }
+    // free (or unknown/loading)
+    return { label: 'Upgrade →', route: `/settings/upgrade?from=${spaceId}` };
+  })();
 
   const [space, setSpace] = useState(null);
   const [prompt, setPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [memoryCount, setMemoryCount] = useState(0);
+
+  // v2.11 (Fix 5): Owner-only memory count for B7 soft gate.
+  // Separate from memoryCount (total feed count used in header display).
+  // Fetched from GET /spaces/:id/memories/count which counts WHERE creator_user_id = owner.
+  const [ownerMemoryCount, setOwnerMemoryCount] = useState(0);
 
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -138,7 +162,7 @@ export default function SpacePage() {
   const [showSoftGate, setShowSoftGate] = useState(false);
   const [softGateResource, setSoftGateResource] = useState('memories');
 
-  /* ─── Load space + prompt ─── */
+  /* ─── Load space + prompt + owner memory count ─── */
 
   useEffect(() => {
     async function load() {
@@ -146,12 +170,18 @@ export default function SpacePage() {
       setError('');
       try {
         const api = getApi();
-        const [spaceData, promptData] = await Promise.all([
+        const [spaceData, promptData, countData] = await Promise.all([
           api.get(`/spaces/${spaceId}`),
           api.get(`/spaces/${spaceId}/prompt`).catch(() => null),
+          // v2.11: Fetch owner-only memory count for B7 soft gate.
+          // This endpoint returns COUNT(*) WHERE creator_user_id = authenticated user.
+          // Runs in parallel with space + prompt — no extra round trip.
+          api.get(`/spaces/${spaceId}/memories/count`).catch(() => ({ count: 0 })),
         ]);
         setSpace(spaceData);
         setPrompt(promptData);
+        // v2.11: Store owner-only count. API returns { count: N }.
+        setOwnerMemoryCount(countData?.count ?? 0);
       } catch (err) {
         console.error('SpacePage load error:', err);
         setError('Could not load this space.');
@@ -197,12 +227,14 @@ export default function SpacePage() {
     navigate(`/spaces/${id}`);
   }, [navigate, closeSidebar]);
 
-  /* ─── Record (v2.9: B7 soft gate check) ─── */
+  /* ─── Record (v2.11: B7 soft gate uses ownerMemoryCount) ─── */
 
   function handleRecord() {
-    // B7: Check free tier memory limit before navigating to record
+    // B7: Check free tier memory limit before navigating to record.
+    // v2.11: Uses ownerMemoryCount (owner-created only) instead of memoryCount (total feed).
+    // This matches the backend enforcement which counts WHERE creator_user_id = owner.
     if (billing?.tier === 'free' && billing?.limits?.memoriesPerSpace) {
-      if (memoryCount >= billing.limits.memoriesPerSpace) {
+      if (ownerMemoryCount >= billing.limits.memoriesPerSpace) {
         setSoftGateResource('memories');
         setShowSoftGate(true);
         return;
@@ -227,7 +259,7 @@ export default function SpacePage() {
     }
   }, [getApi, spaceId]);
 
-  /* ─── Create new space (v2.9: B7 soft gate check) ─── */
+  /* ─── Create new space (v2.9: B7 soft gate check — unchanged) ─── */
 
   function handleCreateSpace() {
     // B7: Check free tier space limit before opening create modal
@@ -241,7 +273,7 @@ export default function SpacePage() {
     setShowCreateModal(true);
   }
 
-  /* ─── Memory count callback ─── */
+  /* ─── Memory count callback (total feed count — unchanged, drives header display) ─── */
 
   const handleMemoryCount = useCallback((count) => {
     setMemoryCount(count);
@@ -319,6 +351,7 @@ export default function SpacePage() {
                   {' '}Private
                 </>
               )}
+              {/* Header still shows total memoryCount (all creators) — unchanged */}
               {' · '}{memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}
             </p>
           </div>
@@ -447,17 +480,16 @@ export default function SpacePage() {
                     {/* Plan badge — driven by GET /billing/subscription */}
                     <div className={styles.userMenuPlan}>
                       <span className={styles.userMenuPlanBadge}>{planLabel}</span>
-                      {showUpgradeLink && (
-                        <button
-                          className={styles.userMenuUpgradeLink}
-                          onClick={() => {
-                            closeSidebar();
-                            navigate(`/settings/upgrade?from=${spaceId}`);
-                          }}
-                        >
-                          Upgrade →
-                        </button>
-                      )}
+                      {/* v2.10: Always visible, label and route vary by tier */}
+                      <button
+                        className={styles.userMenuUpgradeLink}
+                        onClick={() => {
+                          closeSidebar();
+                          navigate(planLink.route);
+                        }}
+                      >
+                        {planLink.label}
+                      </button>
                     </div>
 
                     <div className={styles.userMenuDivider} />

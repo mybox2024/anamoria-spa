@@ -1,7 +1,22 @@
 // pages/CheckoutPage.jsx — Anamoria SPA
-// v1.1 — Real Stripe Payment Element integration (April 14, 2026)
+// v1.3 — Back navigation fix + Stripe DOM cleanup (April 15, 2026)
 //
-// Changes from v1.0:
+// Changes from v1.1:
+//   - Fix 3: goBack() now uses navigate(-1) instead of navigate('/settings/upgrade').
+//     The previous implementation pushed a new history entry on every back click,
+//     creating an infinite loop between CheckoutPage and UpgradePage.
+//     Now uses the same navigate(-1) pattern as UpgradePage v1.3.
+//     Fallback to /settings/upgrade for direct URL visits with no history.
+//   - Both the back button and "Cancel and go back" link use the same goBack().
+//   - Fix 4b: Stripe DOM cleanup on unmount. When the user navigates away from
+//     checkout, a useEffect cleanup removes all Stripe-injected iframes, script tags,
+//     and floating UI elements (badge/Link popup) from the DOM. Resets stripePromise
+//     singleton so a fresh instance is created if the user returns to checkout.
+//     This is the established SPA best practice — Stripe does not provide an official
+//     teardown API (see: github.com/stripe/react-stripe-js/issues/28).
+//     Cleanup only fires after unmount — no risk to in-progress payments.
+//
+// Previous changes (v1.1):
 //   - Removed MockPaymentElement entirely
 //   - Integrated @stripe/react-stripe-js with PaymentElement
 //   - On submit: createPaymentMethod → POST /billing/subscribe → handle 3DS
@@ -12,12 +27,13 @@
 //
 // URL: /settings/upgrade/checkout?plan={monthly|annual|forever}&from={spaceId}
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createApiClient } from '../api/client';
+import { cleanupStripeDom } from '../utils/stripeCleanup';
 import config from '../config';
 import styles from './CheckoutPage.module.css';
 
@@ -52,7 +68,7 @@ function LockIcon() {
   );
 }
 
-/* ─── Plan meta + price ID mapping ─── */
+/* ─── Plan meta + price ID mapping (unchanged) ─── */
 
 const PLAN_META = {
   monthly: {
@@ -96,9 +112,17 @@ function CheckoutForm({ plan, planId, spaceId }) {
     [getAccessTokenSilently]
   );
 
+  // v1.2 (Fix 3): Use navigate(-1) to pop the history entry instead of pushing
+  // a new entry to /settings/upgrade. This prevents the infinite loop where
+  // CheckoutPage → back → UpgradePage → back → CheckoutPage kept cycling.
+  // Fallback to /settings/upgrade for direct URL visits (no history to pop).
   function goBack() {
-    const q = spaceId ? `?from=${spaceId}` : '';
-    navigate(`/settings/upgrade${q}`);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      const q = spaceId ? `?from=${spaceId}` : '';
+      navigate(`/settings/upgrade${q}`);
+    }
   }
 
   async function handleSubmit(e) {
@@ -258,6 +282,15 @@ export default function CheckoutPage() {
   const spaceId = searchParams.get('from');
 
   const plan = PLAN_META[planId] || PLAN_META.monthly;
+
+  // v1.3 (Fix 4b): Clean up Stripe DOM artifacts when the user leaves checkout.
+  // Uses shared cleanupStripeDom utility (utils/stripeCleanup.js).
+  // Only fires on unmount — no effect on in-progress payments.
+  useEffect(() => {
+    return () => {
+      cleanupStripeDom(() => { stripePromise = null; });
+    };
+  }, []);
 
   // Stripe Elements configuration
   // mode: 'subscription' for recurring, 'payment' for one-time

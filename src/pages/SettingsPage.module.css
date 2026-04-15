@@ -1,11 +1,11 @@
 /* pages/SettingsPage.module.css
-   v1.5 — Management links enabled, modals wired (April 14, 2026)
-   Changes from v1.4:
-     - Removed .managementHint (italic "available soon" text — no longer needed)
-     - Added cursor: pointer to .warningAction, .cancelNoticeAction, .pauseNoticeAction
-       (these were only styled for :disabled state; now they're active buttons)
-   Previous from v1.4:
-     - Billing section styles, card info, invoice list, warning/cancel/pause banners
+   v1.6 — B4 layout improvements (April 14, 2026)
+   Changes from v1.5:
+     - Added .changePlanLink — sage text link for premium plan card
+     - Added .cardUpdateLink — inline "Update" link within cardInfo row
+     - cardInfo updated to include flex space-between for update link
+   Previous from v1.5:
+     - Management links enabled, modals wired
    Tokens: variables.css
 */
 
@@ -359,6 +359,24 @@
   background: #4a6654;
 }
 
+/* v1.6: Change plan text link — sage green, right-aligned in plan card */
+.changePlanLink {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-sage-dark, #5b7a65);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  transition: color var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+}
+
+.changePlanLink:hover {
+  color: var(--color-sage, #7c9885);
+}
+
 /* ═══════════════════════════════════════
    BILLING PANEL — v1.4 additions
    ═══════════════════════════════════════ */
@@ -436,6 +454,25 @@
   font-size: 14px;
   color: var(--color-text-subtle, #737373);
   font-family: var(--font-sans);
+}
+
+/* v1.6: Inline "Update" link within card info row */
+.cardUpdateLink {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-sage-dark, #5b7a65);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-family: var(--font-sans);
+  transition: color var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+}
+
+.cardUpdateLink:hover {
+  color: var(--color-sage, #7c9885);
 }
 
 /* ─── Invoice list ─── */
