@@ -1,6 +1,12 @@
 // components/PromptCard.jsx — Anamoria SPA
-// v2.0 — Faithful port from LWC axr_MemoryVaultV2 prompt-card
-// April 1, 2026
+// v2.1 — Fix field name mismatch with API response (April 15, 2026)
+//
+// Changes from v2.0:
+//   - Fixed: prompt.text and prompt.title now read correctly from API response.
+//     The anamoria-prompts Lambda returns { text, title, category, promptId }.
+//     v2.0 expected { promptText, promptTitle } (legacy LWC PromptWrapper naming).
+//     Both field names are supported for backward compatibility.
+//   - No other changes.
 //
 // LWC source: axr_MemoryVaultV2.html (prompt-card-wrapper) +
 //             axr_MemoryVaultV2.css (.prompt-card, .prompt-label, .prompt-text, .prompt-actions)
@@ -24,8 +30,9 @@ export default function PromptCard({ prompt, spaceName, onRecord, onSkip }) {
 
   if (!prompt) return null;
 
-  const title = prompt.promptTitle || 'Today\u2019s Remembrance';
-  const text = prompt.promptText || 'What do you wish you could tell them today?';
+  // v2.1: Support both API field names (text, title) and legacy LWC names (promptText, promptTitle)
+  const title = prompt.title || prompt.promptTitle || 'Today\u2019s Remembrance';
+  const text = prompt.text || prompt.promptText || 'What do you wish you could tell them today?';
 
   return (
     <div className={styles.wrapper}>

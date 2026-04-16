@@ -1,43 +1,28 @@
 // App.jsx — Anamoria SPA
-// v1.7 — Read ana_displayName from sessionStorage for new user join (April 15, 2026)
-// Changes from v1.6:
-//   - New user join now reads ana_displayName from sessionStorage (set by JoinPage v1.3
-//     name collection step) and uses it as the displayName for POST /pilot/join.
-//     Fallback: if ana_displayName is absent (e.g. user skipped name step), falls back
-//     to auth0User.name || auth0User.nickname (previous behavior).
-//   - ana_displayName cleared from sessionStorage alongside ana_groupId and ana_groupName.
-//   - No route changes. No returning-user flow changes.
+// v1.8 — Butterfly loader replaces generic spinner on full-page loads (April 15, 2026)
+// Changes from v1.7:
+//   - Imported new ButterflyLoader shared component
+//   - Replaced the 3 full-page loading states (Auth0 init, bootstrap pending,
+//     Suspense LoadingFallback) with <ButterflyLoader />
+//   - Removed the now-unused text "Anamoria" + CSS spinner markup from all
+//     3 spots. Old `app-loading-*` CSS classes are left untouched — they may
+//     still be referenced by other files.
+//   - No route changes, no logic changes, no bootstrap changes.
+//
+// Previous changes (v1.7):
+//   - New user join now reads ana_displayName from sessionStorage (set by
+//     JoinPage v1.3 name collection step) and uses it as the displayName
+//     for POST /pilot/join. Fallback to auth0User.name || auth0User.nickname.
 //
 // Previous changes (v1.6):
 //   - Added displayName and email to appState shape.
-//     GET /pilot/me and POST /pilot/join both return these fields but they
-//     were not being captured in appState. SpacePage and SettingsPage now
-//     read appState.displayName for the sidebar/account display name
-//     (fixes Auth0 passwordless OTP showing email instead of name).
 //
 // Previous changes (v1.5):
-//   - Fix 4: CheckoutPage is now lazy-loaded via React.lazy() + Suspense.
-//     Previously, importing CheckoutPage at the top of App.jsx caused the
-//     @stripe/stripe-js module to evaluate on app startup, which injected
-//     Stripe's global badge element ("Powered by Stripe") into the DOM on
-//     every page — not just the checkout page. Lazy-loading defers the
-//     module evaluation until the user navigates to /settings/upgrade/checkout.
-//   - Added React.lazy and Suspense imports
-//   - Added LoadingFallback component for Suspense boundary
-//   - All routes and route paths UNCHANGED
-//   - Boot sequence, AppContext, and all other components UNCHANGED
+//   - CheckoutPage lazy-loaded via React.lazy() + Suspense to scope Stripe.js
+//     evaluation to the checkout route only.
 //
 // Previous changes (v1.4):
 //   - Bootstrap refactored: GET /pilot/me replaces POST /pilot/activate
-//   - New user flow: 404 from /me → POST /pilot/join (if groupId in sessionStorage)
-//   - sessionStorage used for groupId/groupName
-//
-// Boot sequence (runs after every Auth0 login):
-//   1. Auth0 checks session → isAuthenticated
-//   2. GET /pilot/me → 200 (returning user) or 404 (new user)
-//   3. If 200: GET /spaces → route normally
-//   4. If 404 + groupId in sessionStorage: POST /pilot/join → /consent
-//   5. If 404 + no groupId: redirect to /join
 
 import { createContext, useContext, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
@@ -66,6 +51,9 @@ import UpgradePage from './pages/UpgradePage';
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
+// v1.8: Shared butterfly loader for full-page brand loading moments
+import ButterflyLoader from './components/ButterflyLoader';
+
 // ─── App context — shared state across all pages ──────────────────────────
 
 const AppContext = createContext(null);
@@ -89,14 +77,10 @@ function PlaceholderPage({ name }) {
   );
 }
 
-// v1.5: Loading fallback for lazy-loaded components (Suspense boundary)
+// v1.8: Loading fallback for lazy-loaded components (Suspense boundary)
+// Replaces previous text + spinner with the butterfly brand loader.
 function LoadingFallback() {
-  return (
-    <div className="app-loading">
-      <span className="app-loading-logo">Anamoria</span>
-      <div className="app-loading-spinner" aria-label="Loading" />
-    </div>
-  );
+  return <ButterflyLoader />;
 }
 
 // ─── Session bootstrap ────────────────────────────────────────────────────
@@ -237,24 +221,14 @@ function AppRoutes() {
   const { isLoading, isAuthenticated, getAccessTokenSilently, user } = useAuth0();
   const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
 
-  // Auth0 initializing
+  // v1.8: Auth0 initializing — butterfly loader
   if (isLoading) {
-    return (
-      <div className="app-loading">
-        <span className="app-loading-logo">Anamoria</span>
-        <div className="app-loading-spinner" aria-label="Loading" />
-      </div>
-    );
+    return <ButterflyLoader />;
   }
 
-  // Authenticated but bootstrap not yet complete — show loading
+  // v1.8: Authenticated but bootstrap not yet complete — butterfly loader
   if (isAuthenticated && !appState.bootstrapped) {
-    return (
-      <div className="app-loading">
-        <span className="app-loading-logo">Anamoria</span>
-        <div className="app-loading-spinner" aria-label="Loading" />
-      </div>
-    );
+    return <ButterflyLoader />;
   }
 
   // Bootstrap failed

@@ -1,0 +1,68 @@
+/* components/ButterflyLoader.module.css
+   v1.2 — April 16, 2026
+   Changes from v1.1:
+     - Added fade-in animation on the overlay (fadeIn 0.3s ease-out)
+       so the loader appears softly instead of popping in instantly.
+       No fade-out on unmount (React removes the DOM immediately when
+       the parent stops rendering the component).
+
+   Changes from v1.0:
+     - v1.1: Fixed @keyframes breathe to match exact LWC values
+       (scale 1→1.3, opacity 0.15→0.35).
+
+   Source: LWC axr_MemoryVaultV2.css @keyframes breathe definition.
+
+   Full-page cream background, 160px butterfly, breathe animation (2s cycle).
+   Fade-in on mount (0.3s). Respects prefers-reduced-motion.
+*/
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #faf9f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  /* v1.2: Soft fade-in on mount — avoids the "pop-in" feel. */
+  animation: fadeIn 0.3s ease-out;
+}
+
+.logo {
+  width: 160px;
+  height: 160px;
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.logo svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* v1.2: Overlay entrance — opacity 0 → 1 over 0.3s */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* v1.1: Exact LWC keyframes — scale 1→1.3, opacity 0.15→0.35 */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+  .logo {
+    animation: none;
+  }
+}

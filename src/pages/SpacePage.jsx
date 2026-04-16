@@ -1,33 +1,33 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.12 — Sidebar display name from appState (April 15, 2026)
-// Changes from v2.11:
-//   - Sidebar profile button now reads displayName from appState (DB source of truth)
-//     instead of user.name from Auth0 SDK (which shows email for passwordless OTP users).
-//   - Fallback chain: appState.displayName → user.name → user.email → 'User'
-//   - Avatar initial uses the same fallback chain.
-//   - All other code UNCHANGED from v2.11
+// v2.14 — Butterfly reserved for entry-point states (April 16, 2026)
+// Changes from v2.13:
+//   - Removed ButterflyLoader import and usage from the page-level loading state.
+//     Per best-practice and LWC behaviour: the butterfly is an entry-point
+//     indicator (after login / bootstrap), not an intra-app navigation
+//     indicator. SpacePage loads are typically fast; a full-page butterfly
+//     on every sidebar click or return-from-action was disproportionate.
+//   - Loading render path now returns null while `loading && !error`.
+//     React Router keeps the previous page mounted during the brief
+//     transition, so the user sees their prior screen until SpacePage
+//     has data. Error state split out to avoid flashing the error UI
+//     while space data is still being fetched.
+//   - Sidebar inline spinner unchanged (component-level wait, not brand moment).
+//
+// Previous changes (v2.13):
+//   - Imported ButterflyLoader and replaced page-level loading state.
+//     (Reverted in v2.14 — see above.)
+//
+// Previous changes (v2.12):
+//   - Sidebar profile button reads displayName from appState (DB source of truth).
 //
 // Previous changes (v2.11):
-//   - Fix 5: B7 soft gate now uses ownerMemoryCount (from GET /spaces/:id/memories/count)
-//     instead of total memoryCount (from MemoryFeed callback).
-//     The existing endpoint counts owner-created memories only (WHERE creator_user_id = $2),
-//     matching the backend enforcement logic exactly.
-//     Previously, total feed count was used as a heuristic, which caused false positives:
-//     e.g., 10 owner + 5 contributor = 15 total → gate fires, but owner is only at 10/15.
-//   - Added ownerMemoryCount state variable
-//   - Added GET /spaces/:id/memories/count to the mount-time Promise.all
-//   - handleRecord() checks ownerMemoryCount instead of memoryCount
-//   - memoryCount (total feed count) remains unchanged — still drives header display
-//   - All other code UNCHANGED from v2.10
+//   - Fix 5: B7 soft gate uses ownerMemoryCount (from GET /spaces/:id/memories/count).
 //
 // Route: /spaces/:spaceId (protected — JWT required)
 //
-// Previous changes (v2.10):
-//   - Tier-aware sidebar plan link (Upgrade / Change Plan / My Plan)
-// Previous changes (v2.9):
-//   - B7 Soft Gate integration (SoftGateModal, limit checks)
-// Previous changes (v2.8):
-//   - Profile menu tier badge from GET /billing/subscription
+// Previous changes (v2.10): Tier-aware sidebar plan link.
+// Previous changes (v2.9): B7 Soft Gate integration.
+// Previous changes (v2.8): Profile menu tier badge from GET /billing/subscription.
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -286,28 +286,27 @@ export default function SpacePage() {
     setMemoryCount(count);
   }, []);
 
-  /* ─── Loading state ─── */
+  /* ─── Error state (v2.14: error takes priority over loading) ─── */
 
-  if (loading) {
-    return (
-      <div className={styles.loadingPage}>
-        <div className="app-loading-spinner" />
-      </div>
-    );
-  }
-
-  /* ─── Error state ─── */
-
-  if (error || !space) {
+  if (error) {
     return (
       <div className="app-error">
         <h2>Something went wrong</h2>
-        <p>{error || 'Space not found.'}</p>
+        <p>{error}</p>
         <button className="app-error-btn" onClick={() => window.location.reload()}>
           Retry
         </button>
       </div>
     );
+  }
+
+  /* ─── Loading state (v2.14: render nothing during intra-app nav) ─── */
+  // Previous page stays visible via React Router while SpacePage fetches.
+  // Butterfly is reserved for entry-point states in App.jsx (after login /
+  // bootstrap), not intra-app navigation.
+
+  if (loading || !space) {
+    return null;
   }
 
   const isShared = space.privacyMode === 'shared';
@@ -437,6 +436,7 @@ export default function SpacePage() {
 
               {loadingSpaces && (
                 <div className={styles.sidebarLoading}>
+                  {/* Small inline spinner — component-level wait, not brand moment. */}
                   <div className="app-loading-spinner" />
                 </div>
               )}

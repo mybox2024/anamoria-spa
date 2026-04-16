@@ -6,6 +6,3 @@ dist/
 *.local
 .vite/
 .DS_Store
-
-# Salesforce CLI cache (auto-created by VS Code SF extension)
-.sfdx/

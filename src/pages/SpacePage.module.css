@@ -1,7 +1,15 @@
 /* pages/SpacePage.module.css
-   v2.1 — Profile menu styles (April 7, 2026)
+   v2.2 — Whitespace and sidebar border fixes (April 15, 2026)
+   Changes from v2.1:
+     - Fix 2: Removed top padding from .main (kept bottom + sides) so the
+       prompt area sits flush against the header border. All breakpoints updated.
+     - Fix 4: Removed border-top from .sidebarFooterNav to eliminate double
+       border with .sidebarUserWrapper at the bottom of the sidebar.
+
+   Previous changes (v2.1): Profile menu styles (April 7, 2026) —
+   sidebarUser → interactive button; userMenu panel added.
+
    Sources: axr_MemoryVaultV2.css (sidebar, header), LWC screenshots
-   Changes from v2.0: sidebarUser → interactive button; userMenu panel added
 */
 
 /* ═══════════════════════════════════════
@@ -128,6 +136,8 @@
 /* ═══════════════════════════════════════
    MAIN CONTENT
    Full width for masonry — prompt area centered
+   v2.2: Top padding removed so prompt area sits flush against header.
+   Bottom + side padding retained.
    ═══════════════════════════════════════ */
 
 .main {
@@ -135,23 +145,24 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 0 20px 16px 20px;
   width: 100%;
   box-sizing: border-box;
 }
 
 /* Responsive feed padding — matches LWC --feed-pad token */
+/* v2.2: Top padding = 0 at all breakpoints */
 @media (min-width: 640px) {
-  .main { padding: 16px 24px; }
+  .main { padding: 0 24px 16px 24px; }
 }
 @media (min-width: 900px) {
-  .main { padding: 20px 32px; }
+  .main { padding: 0 32px 20px 32px; }
 }
 @media (min-width: 1280px) {
-  .main { padding: 20px 48px; }
+  .main { padding: 0 48px 20px 48px; }
 }
 @media (min-width: 1600px) {
-  .main { padding: 24px 56px; }
+  .main { padding: 0 56px 24px 56px; }
 }
 
 /* Prompt area — full-width sage background stretches edge-to-edge */
@@ -402,8 +413,10 @@
 }
 
 /* Footer nav (Settings, Dashboard) */
+/* v2.2: border-top removed — .sidebarUserWrapper provides the separator.
+   Previously, both elements had border-top, creating a visible double line
+   when the footer nav contained items. */
 .sidebarFooterNav {
-  border-top: 1px solid var(--color-border-light, #edebe7);
   padding: 8px 12px;
   flex-shrink: 0;
 }
