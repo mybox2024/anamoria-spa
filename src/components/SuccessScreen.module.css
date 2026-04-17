@@ -1,0 +1,225 @@
+/* components/SuccessScreen.module.css
+   v1.0 — Shared success-screen styles (April 16, 2026)
+
+   Lifted exactly from RecordPage.module.css v5.0 lines 500–655.
+   Class renames for semantic clarity:
+     .saveBtn     → .primaryBtn
+     .reRecordBtn → .secondaryBtn
+     .viewAllBtn  → .tertiaryBtn
+   All CSS property values are byte-for-byte identical to the source.
+
+   New additions in this module:
+     .page       — page shell flex column (matches RecordPage .page)
+     .primaryIcon — 20x20 wrapper for Brand Sage SVG in primary CTA
+                   (inherits currentColor from button text color for
+                    stroke; filled SVG elements use inline fill="currentColor")
+
+   No other styles differ from the voice success screen source.
+*/
+
+/* ═══════════════════════════════════════
+   PAGE SHELL
+   Matches RecordPage.module.css .page — flex column, min-height viewport,
+   reserves space for fixed BottomNav at bottom.
+   ═══════════════════════════════════════ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-bg, #faf9f7);
+  padding-top: var(--safe-area-top);
+  padding-bottom: calc(var(--bottom-nav-height, 64px) + var(--safe-area-bottom));
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════
+   SAVED BODY — layout wrapper
+   Lifted from RecordPage.module.css .savedBody
+   ═══════════════════════════════════════ */
+
+.savedBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px 64px;
+  gap: 28px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .savedBody { padding: 36px 24px 64px; }
+}
+@media (min-width: 900px) {
+  .savedBody { padding: 40px 32px 64px; }
+}
+
+/* ═══════════════════════════════════════
+   SAVED CARD WRAPPER + BADGE
+   Badge is absolutely positioned above the card, top-left.
+   ═══════════════════════════════════════ */
+
+.savedCardWrapper {
+  position: relative;
+  padding-top: 10px;
+}
+
+/* Badge — LWC reference: #b87356 terracotta pill */
+.savedBadge {
+  position: absolute;
+  top: 0;
+  left: 20px;
+  z-index: 1;
+  background-color: #b87356;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+/* Memory card — white bg, sage border, rounded */
+.savedCard {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 16px;
+  border: 2px solid var(--color-sage-dark, #5b7a65);
+  padding: 22px 20px;
+}
+
+/* Optional italic prompt header inside card */
+.savedPrompt {
+  font-size: 15px;
+  font-style: italic;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+
+/* ═══════════════════════════════════════
+   SAVED CARD FOOTER — privacy · time
+   ═══════════════════════════════════════ */
+
+.savedCardFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-light, #edebe7);
+}
+
+.savedPrivacy {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-sage, #7c9885);
+}
+
+.savedDot {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+}
+
+.savedTime {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   ACTIONS — stacked primary / secondary / tertiary
+   ═══════════════════════════════════════ */
+
+.savedActions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+/* Primary — sage pill (was .saveBtn) */
+.primaryBtn {
+  width: 100%;
+  height: 56px;
+  background: var(--color-sage-dark, #5b7a65);
+  color: var(--color-text-white, #ffffff);
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.primaryBtn:hover { background: #4a6954; }
+
+/* Primary icon wrapper — inherits currentColor from button text (white)
+   which drives both outlined (stroke) and filled (inline fill="currentColor")
+   paths in the BrandIcons SVG. */
+.primaryIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+}
+
+.primaryIcon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.primaryIcon svg path,
+.primaryIcon svg circle,
+.primaryIcon svg rect,
+.primaryIcon svg line {
+  stroke: currentColor;
+}
+
+/* Secondary — outline button (was .reRecordBtn) */
+.secondaryBtn {
+  width: 100%;
+  height: 48px;
+  background: none;
+  color: var(--color-text-subtle, #737373);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid var(--color-border, #d4d0ca);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.secondaryBtn:hover {
+  border-color: var(--color-sage, #7c9885);
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+/* Tertiary — text link (was .viewAllBtn) */
+.tertiaryBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-body, #4a4a4a);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: center;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: color 0.15s ease;
+}
+
+.tertiaryBtn:hover {
+  color: var(--color-sage-dark, #5b7a65);
+}

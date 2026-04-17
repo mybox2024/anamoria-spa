@@ -1,14 +1,49 @@
 // components/BottomNav.jsx — Anamoria SPA
-// Brand Sage SVG icons per BottomNav_BrandSage_Implementation.md
+// v1.1 — Photo picker on-feed + BrandIcons extraction (April 16, 2026)
+//
+// Changes from v1.0 (unversioned prior):
+//   - Photo button now opens a file picker directly (hidden <input type="file">)
+//     instead of navigating to /spaces/:id/photo first. File selection triggers
+//     navigate(...) with the File passed via location.state, preserving the
+//     Safari user-gesture chain (WebKit requires .click() to be called in the
+//     same user-activation task — a route transition breaks that chain).
+//     Reference: MDN HTMLInputElement.click() user-activation requirement.
+//   - Inline SVG markup replaced with named imports from BrandIcons.jsx v1.0.
+//     Record/Write/Invite navigation behavior unchanged.
+//   - No change to .nav or styling — only the Photo button's click path and
+//     the SVG source changed.
+//
 // Props:
 //   spaceId   — current space UUID (used for navigation)
 //   activeTab — 'record' | 'write' | 'photo' | 'invite'
 
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { RecordIcon, WriteIcon, PhotoIcon, InviteIcon } from './BrandIcons';
 import styles from './BottomNav.module.css';
 
 export default function BottomNav({ spaceId, activeTab = 'record' }) {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  // ─── Photo picker handlers ─────────────────────────────────
+  // Button click: trigger file picker synchronously (user-gesture preserved).
+  // onChange: if a file was selected, navigate to the photo-save page with the
+  //           File in location.state. If user cancelled, onChange fires with
+  //           no file — stay on feed, no navigation.
+
+  function handlePhotoClick() {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';   // reset so re-selecting same file works
+      fileInputRef.current.click();
+    }
+  }
+
+  function handlePhotoFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;                   // cancel → stay on feed
+    navigate(`/spaces/${spaceId}/photo`, { state: { file } });
+  }
 
   return (
     <nav className={styles.nav} aria-label="Main navigation">
@@ -21,11 +56,7 @@ export default function BottomNav({ spaceId, activeTab = 'record' }) {
         aria-label="Record a voice note"
       >
         <span className={styles.icon}>
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-            <path className={styles.svgFill} d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-            <path d="M18 10.5v.5a6 6 0 0 1-12 0v-.5" strokeWidth="1.5"/>
-            <path d="M12 17v4" strokeWidth="1.5"/>
-          </svg>
+          <RecordIcon />
         </span>
         <span className={styles.label}>Record</span>
       </button>
@@ -38,31 +69,32 @@ export default function BottomNav({ spaceId, activeTab = 'record' }) {
         aria-label="Write a memory"
       >
         <span className={styles.icon}>
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 7l-3-3-12.5 12.5L3 21l4.5-1.5L20 7z" strokeWidth="1.5"/>
-            <path d="M15 6l3 3" strokeWidth="1.5"/>
-            <circle className={styles.svgFill} cx="18.5" cy="5.5" r="1"/>
-          </svg>
+          <WriteIcon />
         </span>
         <span className={styles.label}>Write</span>
       </button>
 
-      {/* Photo */}
+      {/* Photo — opens file picker in the same user-gesture task (Safari-safe) */}
       <button
         className={`${styles.btn} ${activeTab === 'photo' ? styles.active : ''}`}
-        onClick={() => navigate(`/spaces/${spaceId}/photo`)}
+        onClick={handlePhotoClick}
         title="Add a photo"
         aria-label="Add a photo"
       >
         <span className={styles.icon}>
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3" strokeWidth="1.5"/>
-            <circle className={styles.svgFill} cx="8.5" cy="8.5" r="1.5"/>
-            <path d="M21 15l-5-5-8 11" strokeWidth="1.5"/>
-          </svg>
+          <PhotoIcon />
         </span>
         <span className={styles.label}>Photo</span>
       </button>
+
+      {/* Hidden file input — clicked programmatically from Photo button above. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className={styles.fileInput}
+        onChange={handlePhotoFileChange}
+      />
 
       {/* Invite */}
       <button
@@ -72,13 +104,7 @@ export default function BottomNav({ spaceId, activeTab = 'record' }) {
         aria-label="Invite someone"
       >
         <span className={styles.icon}>
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="7" r="3.5" strokeWidth="1.5"/>
-            <circle className={styles.svgFill} cx="9" cy="7" r="1.5"/>
-            <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" strokeWidth="1.5"/>
-            <line x1="19" y1="8" x2="19" y2="14" strokeWidth="1.5"/>
-            <line x1="22" y1="11" x2="16" y2="11" strokeWidth="1.5"/>
-          </svg>
+          <InviteIcon />
         </span>
         <span className={styles.label}>Invite</span>
       </button>

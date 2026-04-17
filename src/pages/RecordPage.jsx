@@ -1,18 +1,34 @@
 // pages/RecordPage.jsx — Anamoria SPA
-// v5.0 — Edit mode for existing voice memories (April 3, 2026)
-// Route: /spaces/:spaceId/record (protected — JWT required)
+// v5.1 — Success screen extracted to shared <SuccessScreen> component (April 16, 2026)
 //
-// Screens: Record (5a) | Review (5b) | Success (5c) | Uploading
+// Changes from v5.0:
+//   - Success block (5c) now uses shared <SuccessScreen> component.
+//   - Primary CTA icon: emoji '🎤' replaced with <RecordIcon /> from BrandIcons
+//     (consistency with Write/Photo success screens in Phase 3; matches the
+//     Brand Sage SVGs used in BottomNav).
+//   - Voice-specific player body (play button + waveform + duration + hidden
+//     audio) extracted to local VoicePlayerBody component, passed to
+//     <SuccessScreen> via children slot.
+//   - Subtitle logic preserved exactly: `${memoryLabel} · Memory saved` when
+//     label is present, else `Memory saved` (V1+ decision).
+//   - No change to save flow, state management, handlers, Record screen (5a),
+//     Review screen (5b), Edit Review (5b-edit), loading, uploading, or the
+//     re-record confirmation modal.
 //
-// Edit mode (v5.0):
-//   - Nav state: { editMode: true, editMemory: {...} }
+// Regression-critical: VR-1 through VR-13 in Plan v1.4 must all pass.
+//
+// Previous changes (v5.0):
+//   - Edit mode: nav state { editMode: true, editMemory: {...} }
 //   - Lands on Review (5b) with existing audio playback, label, privacy
 //   - "Record new version" → Record (5a) → stop → Review (5b) with new blob → save
 //   - Save calls PATCH /memories/:id
 //   - Success (5c) after save
 //   - Cancel → back to feed
 //
-// Components: LovedOneBar, PromptBanner (fullWidth), BottomNav
+// Route: /spaces/:spaceId/record (protected — JWT required)
+// Screens: Record (5a) | Review (5b) | Success (5c via SuccessScreen) | Uploading
+// Components: LovedOneBar, PromptBanner (fullWidth), BottomNav, SuccessScreen,
+//             BrandIcons.RecordIcon
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -22,6 +38,8 @@ import { createApiClient } from '../api/client';
 import LovedOneBar from '../components/LovedOneBar';
 import PromptBanner from '../components/PromptBanner';
 import BottomNav from '../components/BottomNav';
+import SuccessScreen from '../components/SuccessScreen';
+import { RecordIcon } from '../components/BrandIcons';
 import styles from './RecordPage.module.css';
 
 /* ─── Helper ─── */
@@ -425,97 +443,80 @@ export default function RecordPage() {
   }
 
   // ─── 3. Success screen (5c) — after save (new or edit) ───
+  // v5.1: Uses shared <SuccessScreen>. Voice-specific player body is passed
+  //       as children. Subtitle and handler behavior unchanged from v5.0.
 
   if (saved) {
+    const subtitle = memoryLabel.trim()
+      ? `${memoryLabel.trim()} · Memory saved`
+      : 'Memory saved';
+
     return (
-      <div className={styles.page}>
-        <LovedOneBar
-          spaceName={spaceName}
-          spacePhotoUrl={spacePhotoUrl}
-          subtitle={memoryLabel.trim() ? `${memoryLabel.trim()} · Memory saved` : 'Memory saved'}
-          onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
-          backLabel="Back to feed"
-        />
+      <SuccessScreen
+        spaceName={spaceName}
+        spacePhotoUrl={spacePhotoUrl}
+        subtitle={subtitle}
+        onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+        backLabel="Back to feed"
+        badgeLabel={editMode ? 'UPDATED' : 'JUST ADDED'}
+        promptText={prompt?.text || null}
+        isPrivate={isPrivate}
+        primaryCta={{
+          icon: <RecordIcon />,
+          label: 'Record another',
+          onClick: handleRecordAnother,
+        }}
+        secondaryCta={{
+          label: 'Invite family to add memories',
+          onClick: () => navigate(`/spaces/${spaceId}/invite`),
+        }}
+        tertiaryCta={{
+          label: 'View all memories',
+          onClick: () => navigate(`/spaces/${spaceId}`, { replace: true }),
+        }}
+        spaceId={spaceId}
+        activeTab="record"
+      >
+        {/* Voice-specific preview body — play button, waveform, duration, hidden audio */}
+        <div className={styles.savedPlayerRow}>
+          <button
+            className={styles.playBtn}
+            onClick={togglePlayback}
+            aria-label={playing ? 'Pause playback' : 'Play recording'}
+          >
+            {playing ? (
+              <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                <rect x="0" y="0" width="4" height="14" rx="1" />
+                <rect x="8" y="0" width="4" height="14" rx="1" />
+              </svg>
+            ) : (
+              <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
+                <path d="M0 0l12 7-12 7V0z" />
+              </svg>
+            )}
+          </button>
 
-        <div className={styles.savedBody}>
-          {/* JUST ADDED card */}
-          <div className={styles.savedCardWrapper}>
-            <span className={styles.savedBadge}>{editMode ? 'UPDATED' : 'JUST ADDED'}</span>
-            <div className={styles.savedCard}>
-              {prompt && prompt.text && (
-                <p className={styles.savedPrompt}>{prompt.text}</p>
-              )}
-
-              <div className={styles.savedPlayerRow}>
-                <button
-                  className={styles.playBtn}
-                  onClick={togglePlayback}
-                  aria-label={playing ? 'Pause playback' : 'Play recording'}
-                >
-                  {playing ? (
-                    <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
-                      <rect x="0" y="0" width="4" height="14" rx="1" />
-                      <rect x="8" y="0" width="4" height="14" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg width="12" height="14" viewBox="0 0 12 14" fill="white">
-                      <path d="M0 0l12 7-12 7V0z" />
-                    </svg>
-                  )}
-                </button>
-
-                <div className={styles.waveform}>
-                  {[8,14,10,18,12,20,16,22,14,18,10,16,20,12,8,14,6,10].map((h, i) => (
-                    <span
-                      key={i}
-                      className={`${styles.waveBar} ${i >= 12 ? styles.waveBarLight : ''}`}
-                      style={{ height: `${h}px` }}
-                    />
-                  ))}
-                </div>
-
-                <span className={styles.playbackDuration}>{savedDuration}</span>
-              </div>
-
-              <div className={styles.savedCardFooter}>
-                <span className={styles.savedPrivacy}>
-                  {isPrivate ? '🔒 Private' : '🌐 Shared'}
-                </span>
-                <span className={styles.savedDot}>·</span>
-                <span className={styles.savedTime}>Just now</span>
-              </div>
-
-              {previewUrl && (
-                <audio ref={previewAudioRef} src={previewUrl} className={styles.hiddenAudio} />
-              )}
-              {/* If edit mode without re-record, use existing audio for playback */}
-              {!previewUrl && existingAudioUrl && (
-                <audio ref={previewAudioRef} src={existingAudioUrl} className={styles.hiddenAudio} />
-              )}
-            </div>
+          <div className={styles.waveform}>
+            {[8,14,10,18,12,20,16,22,14,18,10,16,20,12,8,14,6,10].map((h, i) => (
+              <span
+                key={i}
+                className={`${styles.waveBar} ${i >= 12 ? styles.waveBarLight : ''}`}
+                style={{ height: `${h}px` }}
+              />
+            ))}
           </div>
 
-          <div className={styles.savedActions}>
-            <button className={styles.saveBtn} onClick={handleRecordAnother}>
-              🎤 Record another
-            </button>
-            <button
-              className={styles.reRecordBtn}
-              onClick={() => navigate(`/spaces/${spaceId}/invite`)}
-            >
-              Invite family to add memories
-            </button>
-            <button
-              className={styles.viewAllBtn}
-              onClick={() => navigate(`/spaces/${spaceId}`, { replace: true })}
-            >
-              View all memories
-            </button>
-          </div>
+          <span className={styles.playbackDuration}>{savedDuration}</span>
         </div>
 
-        <BottomNav spaceId={spaceId} activeTab="record" />
-      </div>
+        {previewUrl && (
+          <audio ref={previewAudioRef} src={previewUrl} className={styles.hiddenAudio} />
+        )}
+        {/* If edit mode without re-record, use existing audio for playback */}
+        {!previewUrl && existingAudioUrl && (
+          <audio ref={previewAudioRef} src={existingAudioUrl} className={styles.hiddenAudio} />
+        )}
+      </SuccessScreen>
     );
   }
 

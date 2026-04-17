@@ -1,7 +1,21 @@
 /* pages/RecordPage.module.css
-   v5.0 — Edit mode support (April 3, 2026)
+   v5.1 — Success-screen classes moved to SuccessScreen.module.css (April 16, 2026)
 
-   Changes from v4.3:
+   Changes from v5.0:
+     - Removed classes now owned by SuccessScreen.module.css v1.0:
+         .savedBody, .savedCardWrapper, .savedBadge, .savedCard, .savedPrompt,
+         .savedCardFooter, .savedPrivacy, .savedDot, .savedTime,
+         .savedActions, .viewAllBtn
+     - Kept .savedPlayerRow — voice-specific child content rendered inside
+       the shared success card via <SuccessScreen> children slot.
+     - Kept .saveBtn, .reRecordBtn — still used by Review (5b) and
+       Edit Review (5b-edit) screens.
+     - Kept .playBtn, .waveform, .waveBar, .waveBarLight, .playbackDuration,
+       .hiddenAudio — all used by both Review and the voice player body
+       inside the success screen children slot.
+     - No style values changed. No rules edited. Rules were only deleted.
+
+   Previous changes (v5.0):
      - Added .recordNewVersionBtn for "Record new version" link in edit review
 
    Layout approach:
@@ -533,125 +547,19 @@
 }
 
 /* ═══════════════════════════════════════
-   SUCCESS SCREEN — after save
-   LWC: LovedOneBar + JUST ADDED card + actions
+   SUCCESS SCREEN — voice player body only
+   Shared layout (.savedBody, .savedCardWrapper, .savedBadge, .savedCard,
+   .savedPrompt, .savedCardFooter, .savedPrivacy, .savedDot, .savedTime,
+   .savedActions, .viewAllBtn) now lives in SuccessScreen.module.css v1.0.
+   This class remains because the voice player is voice-specific content
+   passed as children to <SuccessScreen>.
    ═══════════════════════════════════════ */
 
-.savedBody {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 32px 20px 64px;
-  gap: 28px;
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
-
-@media (min-width: 640px) {
-  .savedBody { padding: 36px 24px 64px; }
-}
-@media (min-width: 900px) {
-  .savedBody { padding: 40px 32px 64px; }
-}
-
-/* Card wrapper — positions the badge */
-.savedCardWrapper {
-  position: relative;
-  padding-top: 10px;
-}
-
-/* Badge — LWC: background-color: #b87356, color: #ffffff */
-.savedBadge {
-  position: absolute;
-  top: 0;
-  left: 20px;
-  z-index: 1;
-  background-color: #b87356;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 6px;
-  letter-spacing: 0.5px;
-}
-
-/* Memory card — white bg, sage border */
-.savedCard {
-  background: var(--color-bg-white, #ffffff);
-  border-radius: 16px;
-  border: 2px solid var(--color-sage-dark, #5b7a65);
-  padding: 22px 20px;
-}
-
-/* Prompt text inside saved card */
-.savedPrompt {
-  font-size: 15px;
-  font-style: italic;
-  color: var(--color-text-primary, #2d3436);
-  font-family: var(--font-serif, 'Lora', Georgia, serif);
-  margin: 0 0 14px;
-  line-height: 1.45;
-}
-
-/* Player row inside saved card */
+/* Player row inside saved card (voice-specific children content) */
 .savedPlayerRow {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-/* Card footer */
-.savedCardFooter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-border-light, #edebe7);
-}
-
-.savedPrivacy {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-sage, #7c9885);
-}
-
-.savedDot {
-  font-size: 12px;
-  color: var(--color-text-subtle, #737373);
-}
-
-.savedTime {
-  font-size: 12px;
-  color: var(--color-text-subtle, #737373);
-}
-
-/* Success action buttons */
-.savedActions {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 8px;
-}
-
-/* "View all memories" text link */
-.viewAllBtn {
-  background: none;
-  border: none;
-  color: var(--color-text-body, #4a4a4a);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 8px 0;
-  text-align: center;
-  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
-  transition: color 0.15s ease;
-}
-
-.viewAllBtn:hover {
-  color: var(--color-sage-dark, #5b7a65);
 }
 
 /* ═══════════════════════════════════════

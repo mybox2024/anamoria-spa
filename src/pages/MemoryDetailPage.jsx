@@ -1,4 +1,13 @@
 // MemoryDetailPage.jsx — /spaces/:spaceId/memories/:memId
+// v2.1 — Edit mode displays photo above caption field (April 16, 2026)
+//
+// Changes from v2.0:
+//   - In edit mode, when the memory is a photo and photoUrl has resolved,
+//     render the <img> above the caption field. Reuses existing .photoContainer
+//     and .photoImg classes from view mode — no new CSS required.
+//   - No other changes. View mode, edit mode for text memories, save logic,
+//     voice-redirect behavior all unchanged.
+//
 // v2.0 — Voice edit removed; voice memories now route to RecordPage (April 3, 2026)
 //
 // This page handles text and photo memory detail/edit only.
@@ -228,17 +237,32 @@ export default function MemoryDetailPage() {
 
           {/* Caption (photo memories) */}
           {isPhoto && (
-            <div className={styles.field}>
-              <label className={styles.fieldLabel}>Caption</label>
-              <textarea
-                className={styles.fieldTextarea}
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                placeholder="What's the story behind this photo?"
-                maxLength={2000}
-                rows={4}
-              />
-            </div>
+            <>
+              {/* v2.1: Show the photo above the caption field in edit mode.
+                  Reuses .photoContainer / .photoImg classes from view mode
+                  (no new CSS). photoUrl is fetched by the same useEffect
+                  that powers view mode, so it's available here too. */}
+              {photoUrl && (
+                <div className={styles.photoContainer}>
+                  <img
+                    src={photoUrl}
+                    alt={memory.title || 'Photo'}
+                    className={styles.photoImg}
+                  />
+                </div>
+              )}
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Caption</label>
+                <textarea
+                  className={styles.fieldTextarea}
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="What's the story behind this photo?"
+                  maxLength={2000}
+                  rows={4}
+                />
+              </div>
+            </>
           )}
 
           {/* Privacy toggle */}

@@ -1,4 +1,13 @@
 /* components/BottomNav.module.css
+   v1.1 — Added .fileInput visually-hidden class (April 16, 2026)
+
+   Changes from v1.0 (unversioned prior):
+     - Added .fileInput class for the hidden <input type="file"> in
+       BottomNav.jsx v1.1 Photo button. Uses standard visually-hidden
+       pattern so the input is clickable programmatically but invisible
+       in the layout flow.
+     - No other styles changed. No values edited. Rule was only added.
+
    Ported from axr_MemoryVaultV2.css bottom-nav styles.
    Brand Sage SVG icons per BottomNav_BrandSage_Implementation.md
 */
@@ -128,4 +137,24 @@
   font-weight: 500;
   line-height: 1.2;
   color: inherit;
+}
+
+/* ─── Hidden file input (v1.1) ───
+   Used by the Photo button to open the OS file picker without navigating
+   away from the feed. Visually-hidden pattern — element stays in the DOM
+   and receives programmatic .click() calls, but takes no layout space and
+   is invisible to sighted users. Accessibility: the input has no visible
+   label because it's never directly interacted with — the Photo button
+   above provides the accessible entry point (aria-label="Add a photo").
+*/
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
