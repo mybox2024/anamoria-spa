@@ -1,15 +1,42 @@
 // WritePage.jsx — /spaces/:id/write
-// Two sub-screens: compose → review → save
-// Ported from LWC currentStep === 'write' → 'writeReview'
+// v1.1 — Added SuccessScreen after save (parity with voice/photo). (April 17, 2026)
+//
+// Changes from v1.0:
+//   - Imports: SuccessScreen, WriteIcon.
+//   - State: added `saved` flag + `savedSnapshot` (captures title/note/isPrivate
+//     at save-time so the success card shows the saved memory, not a mutating
+//     form state — same approach as PhotoPage).
+//   - handleSave: on POST success, set saved=true instead of navigate().
+//   - handleWriteAnother: resets form state + returns to compose step
+//     (mirror of RecordPage.handleRecordAnother / PhotoPage.handleAddAnotherPhoto).
+//   - New render branch (top-priority): when `saved`, render <SuccessScreen>
+//     with `WRITTEN` label + title + note excerpt body.
+//
+// Intentionally UNTOUCHED from v1.0:
+//   - Compose screen layout, textarea, DictateButton, prompt banner, footer
+//   - Review screen layout, preview card, privacy toggle
+//   - All existing handlers (handleReview, handleBackToCompose, handleCancel,
+//     handleSkipPrompt, handleTextChange, handleTitleChange, handleDictation)
+//   - POST payload to /spaces/:id/memories
+//   - Prompt-respond side effect
+//   - Error banner rendering
+//   - Loading / error-screen branches
+//
+// Two sub-screens: compose → review → save → (v1.1) success
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import DictateButton from '../components/DictateButton';
+import SuccessScreen from '../components/SuccessScreen';
+import { WriteIcon } from '../components/BrandIcons';
 import styles from './WritePage.module.css';
 
 const MAX_CHARS = 10000;
+
+// v1.1: Max chars shown in success screen note excerpt before truncation.
+const EXCERPT_MAX = 200;
 
 export default function WritePage() {
   const { spaceId } = useParams();
@@ -28,6 +55,10 @@ export default function WritePage() {
   const [step, setStep] = useState('compose'); // 'compose' | 'review'
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // v1.1: Success screen state. savedSnapshot captures what was saved so the
+  // success card doesn't flicker if the form is reset before render completes.
+  const [saved, setSaved] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   const textareaRef = useRef(null);
 
@@ -140,14 +171,35 @@ export default function WritePage() {
         }
       }
 
-      // 3. Navigate back to space feed
-      navigate(`/spaces/${spaceId}`);
+      // 3. v1.1: Show success screen instead of navigating.
+      // Capture a snapshot so the success card reflects exactly what was saved,
+      // independent of any later form mutation by handleWriteAnother.
+      setSavedSnapshot({
+        title: title.trim(),
+        text: text.trim(),
+        isPrivate,
+        promptText: prompt?.text || null,
+      });
+      setSaved(true);
+      setSaving(false);
     } catch (err) {
       console.error('Save error:', err);
       setError("Something didn't save. Please try again.");
       setSaving(false);
     }
-  }, [saving, text, title, isPrivate, prompt, spaceId, getAccessTokenSilently, navigate]);
+  }, [saving, text, title, isPrivate, prompt, spaceId, getAccessTokenSilently]);
+
+  // v1.1: "Keep going — write another" — reset form, return to compose.
+  // Mirrors RecordPage.handleRecordAnother / PhotoPage.handleAddAnotherPhoto.
+  const handleWriteAnother = useCallback(() => {
+    setSaved(false);
+    setSavedSnapshot(null);
+    setTitle('');
+    setText('');
+    setIsPrivate(true);
+    setError(null);
+    setStep('compose');
+  }, []);
 
   // ─── Derived values ───
   const charCount = text.length;
@@ -174,6 +226,57 @@ export default function WritePage() {
           Go back
         </button>
       </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  SUCCESS SCREEN (v1.1) — after save
+  // ═══════════════════════════════════════════════════
+  if (saved && savedSnapshot) {
+    const subtitle = savedSnapshot.title
+      ? `${savedSnapshot.title} · Memory saved`
+      : 'Memory saved';
+
+    const excerpt =
+      savedSnapshot.text.length > EXCERPT_MAX
+        ? `${savedSnapshot.text.substring(0, EXCERPT_MAX).trimEnd()}…`
+        : savedSnapshot.text;
+
+    return (
+      <SuccessScreen
+        spaceName={space.name}
+        spacePhotoUrl={space.photoUrl}
+        subtitle={subtitle}
+        onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+        backLabel="Back to feed"
+        badgeLabel="JUST ADDED"
+        promptText={savedSnapshot.promptText}
+        isPrivate={savedSnapshot.isPrivate}
+        primaryCta={{
+          icon: <WriteIcon />,
+          label: 'Keep going — write another',
+          onClick: handleWriteAnother,
+        }}
+        secondaryCta={{
+          label: 'Invite family to add memories',
+          onClick: () => navigate(`/spaces/${spaceId}/invite`),
+        }}
+        tertiaryCta={{
+          label: 'View all memories',
+          onClick: () => navigate(`/spaces/${spaceId}`, { replace: true }),
+        }}
+        spaceId={spaceId}
+        activeTab="write"
+      >
+        {/* Text-specific preview body: WRITTEN label · title · note excerpt */}
+        <p className={styles.successLabel}>WRITTEN</p>
+        {savedSnapshot.title && (
+          <h3 className={styles.successTitle}>{savedSnapshot.title}</h3>
+        )}
+        {excerpt && (
+          <p className={styles.successExcerpt}>{excerpt}</p>
+        )}
+      </SuccessScreen>
     );
   }
 

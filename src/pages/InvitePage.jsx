@@ -1,12 +1,42 @@
 // InvitePage.jsx — /spaces/:spaceId/invite
-// Owner: send email invites, view contributor list
-// APIs: POST /spaces/:id/invite, GET /spaces/:id/contributors
+// v1.1 — Invite UX cleanup. (April 17, 2026)
+//
+// Changes from v1.0:
+//   - REMOVED: Inline "Invited (N)" contributor list JSX + associated
+//     `contributors` state + `GET /spaces/:id/contributors` fetch on mount
+//     + post-send list refresh. Reason: the list does not scale past a few
+//     rows (20, 200 contributors make the page unusable). The canonical
+//     contributor management view lives in Settings.
+//   - ADDED: "Manage contributors →" text link below Send invite button
+//     inside the form card. Deep-links to
+//     /settings?from={spaceId}&section=contributors per SettingsPage.jsx
+//     URL contract (searchParams `from` + `section`).
+//   - CHANGED: Success feedback moved from inline .successBanner to a
+//     transient bottom-center toast overlay. Auto-dismisses after 3s
+//     (Red Hat / Material Design 3 guidance for transient success toasts).
+//     `role="status"` + `aria-live="polite"` so screen readers announce it.
+//     Dismiss timer is cleared on unmount and on re-send (prevents
+//     setState-after-unmount and stacked timers).
+//
+// Intentionally UNTOUCHED from v1.0:
+//   - POST /spaces/:spaceId/invite request payload and error handling
+//     (ALREADY_INVITED → specific message, else generic)
+//   - Header + form fields (name, email, personal note) + Send button
+//   - Privacy note at the bottom
+//   - Loading state
+//
+// APIs: POST /spaces/:id/invite
+// (v1.0 called GET /spaces/:id/contributors — removed in v1.1)
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import styles from './InvitePage.module.css';
+
+// v1.1: Toast auto-dismiss duration — Red Hat / Material Design 3 guidance
+// for transient success confirmations.
+const TOAST_MS = 3000;
 
 export default function InvitePage() {
   const { spaceId } = useParams();
@@ -14,27 +44,28 @@ export default function InvitePage() {
   const { getAccessTokenSilently } = useAuth0();
 
   const [space, setSpace] = useState(null);
-  const [contributors, setContributors] = useState([]);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState(null);
+  const [toast, setToast] = useState(null); // v1.1: { text } | null
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // v1.1: Hold the toast auto-dismiss timer so we can cancel it on unmount
+  // or when a new toast replaces an existing one.
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
         const api = createApiClient(getAccessTokenSilently);
-        const [spaceData, contribData] = await Promise.all([
-          api.get(`/spaces/${spaceId}`),
-          api.get(`/spaces/${spaceId}/contributors`),
-        ]);
+        // v1.1: Only load the space. Contributor fetch removed — the list
+        // is no longer rendered on this page.
+        const spaceData = await api.get(`/spaces/${spaceId}`);
         if (cancelled) return;
         setSpace(spaceData);
-        setContributors(contribData.contributors || []);
       } catch (err) {
         console.error('Invite load error:', err);
       } finally {
@@ -45,25 +76,46 @@ export default function InvitePage() {
     return () => { cancelled = true; };
   }, [spaceId, getAccessTokenSilently]);
 
+  // v1.1: Clear toast timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // v1.1: Shared helper — set a toast that auto-dismisses. Cancels any
+  // prior pending dismiss so back-to-back sends don't stack timers.
+  const showToast = useCallback((text) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToast({ text });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, TOAST_MS);
+  }, []);
+
   const handleSend = useCallback(async () => {
     if (!email.trim() || !name.trim() || sending) return;
     setSending(true);
     setError(null);
-    setSuccess(null);
     try {
       const api = createApiClient(getAccessTokenSilently);
-      const result = await api.post(`/spaces/${spaceId}/invite`, {
+      await api.post(`/spaces/${spaceId}/invite`, {
         email: email.trim(),
         contributorName: name.trim(),
         message: message.trim() || null,
       });
-      setSuccess(`Invite sent to ${email.trim()}`);
+      // v1.1: Toast overlay replaces inline success banner.
+      showToast(`Invite sent to ${email.trim()}`);
       setEmail('');
       setName('');
       setMessage('');
-      // Refresh contributor list
-      const contribData = await api.get(`/spaces/${spaceId}/contributors`);
-      setContributors(contribData.contributors || []);
+      // v1.1: No post-send contributor refresh — list removed.
     } catch (err) {
       if (err.error === 'ALREADY_INVITED') {
         setError('This person has already been invited.');
@@ -73,7 +125,14 @@ export default function InvitePage() {
     } finally {
       setSending(false);
     }
-  }, [email, name, message, sending, spaceId, getAccessTokenSilently]);
+  }, [email, name, message, sending, spaceId, getAccessTokenSilently, showToast]);
+
+  // v1.1: Deep-link to the Contributors panel in Settings. Confirmed URL
+  // contract by inspecting SettingsPage.jsx (reads `from` + `section` via
+  // useSearchParams and resolveInitialSection).
+  const handleManageContributors = useCallback(() => {
+    navigate(`/settings?from=${spaceId}&section=contributors`);
+  }, [navigate, spaceId]);
 
   const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
 
@@ -138,7 +197,8 @@ export default function InvitePage() {
             />
           </div>
 
-          {success && <div className={styles.successBanner}>{success}</div>}
+          {/* v1.1: Inline success banner removed. Success surfaces as a
+              bottom-center toast overlay (rendered at screen-level below). */}
           {error && <div className={styles.errorBanner}>{error}</div>}
 
           <button
@@ -148,32 +208,41 @@ export default function InvitePage() {
           >
             {sending ? 'Sending...' : 'Send invite'}
           </button>
+
+          {/* v1.1: Manage contributors link — below Send, inside form card.
+              Deep-links to /settings?from=...&section=contributors per
+              SettingsPage URL contract. */}
+          <button
+            type="button"
+            className={styles.manageLink}
+            onClick={handleManageContributors}
+          >
+            Manage contributors →
+          </button>
         </div>
 
-        {/* Contributor list */}
-        {contributors.length > 0 && (
-          <div className={styles.listSection}>
-            <h3 className={styles.listTitle}>Invited ({contributors.length})</h3>
-            {contributors.map((c) => (
-              <div key={c.id} className={styles.contribRow}>
-                <div className={styles.contribInfo}>
-                  <span className={styles.contribName}>{c.contributor_name}</span>
-                  <span className={styles.contribEmail}>{c.email}</span>
-                </div>
-                <span className={`${styles.contribStatus} ${c.status === 'active' ? styles.statusActive : ''}`}>
-                  {c.status === 'active' ? 'Joined' : c.status === 'invited' ? 'Pending' : c.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Privacy note */}
+        {/* Privacy note — unchanged from v1.0 */}
         <div className={styles.privacyNote}>
           <span>🔒</span>
           <span>Contributors only see shared memories. They can never see your private memories.</span>
         </div>
       </div>
+
+      {/* v1.1: Bottom-center success toast — auto-dismisses after TOAST_MS.
+          Rendered at screen level so it overlays the content rather than
+          displacing form layout. */}
+      {toast && (
+        <div
+          className={styles.toastOverlay}
+          role="status"
+          aria-live="polite"
+        >
+          <div className={styles.toast}>
+            <span className={styles.toastIcon} aria-hidden="true">✓</span>
+            <span>{toast.text}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,13 @@
 /* WritePage.module.css
+   v1.1 — Added preview-body classes (.successLabel, .successTitle,
+          .successExcerpt) for the new post-save SuccessScreen integration
+          in WritePage.jsx v1.1. (April 17, 2026)
+   v1.0 — Initial (unversioned) file.
+
+   Changes in v1.1:
+     - New classes only: .successLabel, .successTitle, .successExcerpt.
+     - No existing class modified. Zero regression risk to pre-existing styles.
+
    Ported from axr_MemoryVaultV2.css:
    - .write-compose-screen / .write-compose-*
    - .write-review-screen / .write-review-*
@@ -635,4 +644,47 @@
   .footer {
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
+}
+
+/* ═══════════════════════════════════════
+   SUCCESS SCREEN preview body (v1.1)
+   Rendered inside <SuccessScreen> as children. Mirrors the feed text-card
+   treatment: amber WRITTEN label, serif bold title, DM Sans excerpt.
+   The .savedCard wrapper (border, padding, bg) comes from
+   SuccessScreen.module.css — these classes style only the inner elements.
+   ═══════════════════════════════════════ */
+
+.successLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #c4922a;
+  margin: 0 0 8px 0;
+  line-height: 1;
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+}
+
+.successTitle {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  color: var(--color-text-primary, #2d3436);
+  margin: 0 0 8px 0;
+  line-height: 1.35;
+}
+
+.successExcerpt {
+  font-size: 15px;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+  line-height: 1.55;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (min-width: 900px) {
+  .successTitle { font-size: 20px; }
+  .successExcerpt { font-size: 16px; }
 }

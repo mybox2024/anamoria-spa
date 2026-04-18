@@ -1,4 +1,21 @@
-/* MemoryDetailPage.module.css */
+/* MemoryDetailPage.module.css
+   v1.2 — Replaces v1.1 inline success toast with under-header "Updated" banner.
+          (April 17, 2026)
+   v1.1 — Added inline .successToast + .successToastIcon (April 17, 2026)
+          — superseded by v1.2.
+   v1.0 — Initial (unversioned) file.
+
+   Changes in v1.2:
+     - REMOVED: .successToast, .successToastIcon, @keyframes successToastIn
+       (they placed the confirmation inline inside the form above the Save
+       button — wrong pattern for a success-then-navigate flow).
+     - ADDED: .updatedBanner, .updatedBannerInner, .updatedBannerIcon,
+       .updatedBannerText, @keyframes updatedBannerSlideIn.
+       The banner sits under the sticky header, spans the viewport width,
+       and uses the sage-light / sage-dark palette already in this file.
+     - No pre-existing class from v1.0 modified. Zero regression risk to
+       pre-existing styles.
+*/
 
 .screen {
   display: flex;
@@ -519,14 +536,72 @@
   text-align: center;
 }
 
+/* ═══ Updated banner (v1.2) ═══
+   Rendered between .header and .content in edit mode after a successful PATCH.
+   Full-width row under the sticky header. Inner element is width-constrained
+   to match .headerInner / .content max-widths at each breakpoint below.
+   Sage-light bg + sage-dark text — palette already used elsewhere in this
+   file (.headerAvatar, .metaCategory). */
+
+.updatedBanner {
+  width: 100%;
+  background: var(--color-sage-light, #e8f0eb);
+  border-bottom: 1px solid var(--color-sage, #7c9885);
+  animation: updatedBannerSlideIn 0.22s ease-out;
+}
+
+.updatedBannerInner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: var(--cw, 100%);
+  padding: 12px var(--pad, 20px);
+  margin: 0 auto;
+}
+
+.updatedBannerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-sage-dark, #5b7a65);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.updatedBannerText {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-sage-dark, #5b7a65);
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+  letter-spacing: 0.01em;
+}
+
+@keyframes updatedBannerSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .updatedBanner { animation: none; }
+}
+
 /* ═══ Responsive ═══ */
 
 @media (min-width: 640px) {
   .headerInner, .content { max-width: 560px; }
+  .updatedBannerInner { max-width: 560px; }
 }
 
 @media (min-width: 900px) {
   .headerInner, .content { max-width: 740px; }
+  .updatedBannerInner { max-width: 740px; }
   .title { font-size: 26px; }
   .noteText { font-size: 16px; }
   .photoImg { max-height: 600px; }
@@ -534,4 +609,5 @@
 
 @media (min-width: 1280px) {
   .headerInner, .content { max-width: 800px; }
+  .updatedBannerInner { max-width: 800px; }
 }
