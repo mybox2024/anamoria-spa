@@ -1,53 +1,76 @@
 // pages/ReminderPage.jsx — Anamoria SPA
-// v1.1 — Session 1A (April 18, 2026)
+// v1.2 — Session 1A.5 (April 18, 2026)
 //
-// Changes from v1.0:
-//   - Subtitle memory count now fetched from GET /spaces/:id/memories/count
-//     in parallel with GET /spaces/:id (pattern copied from SpacePage v2.14,
-//     lines 180-191). v1.0 read `space.memories`/`space.memoryCount` which do
-//     not exist on the response shape. Discovered during Session 1A file
-//     review — see Anamoria_Session_1A_Session_Log (when produced).
-//   - No other behavior changes. All v1.0 comments retained.
+// Changes from v1.1:
+//   - Removed the SEEN_FLAG_KEY constant and the markSeen() helper. All
+//     sessionStorage reads and writes are gone from this file.
+//   - "Yes, remind me" PATCH payload now includes `reminderPromptedAt:
+//     new Date().toISOString()`. This records the timestamp in the DB column
+//     `spaces.reminder_prompted_at` (migration 015) alongside the four
+//     existing reminder fields.
+//   - "Not now" converted from a synchronous sessionStorage write to an
+//     async PATCH that writes `reminderPromptedAt` only (no change to
+//     reminderEnabled — the user has not opted in, they've only been asked).
+//     Inline error + retry on failure, same pattern as "Yes".
+//   - LovedOneBar back handler receives the same async PATCH treatment as
+//     "Not now". Back now commits the user to "prompted" state.
+//   - Shared `submitting` flag across Yes / Not now / Back — when any one is
+//     in flight, all three are disabled. Handler guards (`if (submitting)
+//     return`) provide idempotent double-click / cross-click protection.
+//   - Added `aria-busy={submitting}` to the outer page div so assistive tech
+//     correctly announces the in-flight state during any of the three PATCHes
+//     (LovedOneBar itself does not expose a disabled prop — see File Review
+//     Findings v1.1 D9.i).
+//
+// Why "Not now" and Back now PATCH:
+//   The Session 1A design scoped the "seen prompt" flag to sessionStorage,
+//   which meant sign-out / tab-close / browser-refresh could re-prompt a user
+//   who had already dismissed the question. Session 1A.5 (ADR-038) moves
+//   the single source of truth to the DB. That means every path that
+//   dismisses this screen — Yes, Not now, or back — must persist the prompt
+//   event. Otherwise a user could see the screen, hit back, hit "View all
+//   memories" from the next save, and see the same screen again.
+//
+// Failure-mode posture (per Plan §6.3 + File Review D8b option i):
+//   On any PATCH failure, we show an inline error and re-enable the buttons.
+//   The user is NOT automatically redirected to the feed on failure — they
+//   have expressed intent (Yes, No, or Back) and we owe them a recorded
+//   outcome. If the user can't succeed (e.g., airplane mode), they remain on
+//   the reminder screen until connectivity returns. This is rare and
+//   acceptable.
 //
 // Route: /spaces/:spaceId/reminder (protected — JWT required)
-// Purpose: Reminder opt-in screen shown after a user's first saved memory when
-//          their space has reminderEnabled=false AND they haven't dismissed the
-//          prompt in this session. Porting the LWC canonical screen from
-//          axr_MemoryVaultV2.html (STEP 12 REMINDER SCREEN) to the SPA.
+// Purpose: Reminder opt-in screen shown after a user's first saved memory on
+//          a space whose reminder_prompted_at is NULL. Porting the LWC
+//          canonical screen from axr_MemoryVaultV2.html (STEP 12 REMINDER
+//          SCREEN) to the SPA.
 //
-// Behavior contract (locked in Reminder/Feedback/ContributorFeed Master Plan v1.0):
+// Behavior contract (post-1A.5):
 //   - "Yes, remind me" → PATCH /spaces/:id with reminderEnabled=true,
-//     reminderDay='Sunday', reminderTime='09:00', reminderTimezone=<browser IANA TZ>
-//     Then sessionStorage.setItem('ana_reminderPromptSeen','1') and navigate to feed.
-//   - "Not now" → no PATCH, sessionStorage flag set, navigate to feed.
-//   - LovedOneBar back button → sessionStorage flag set, navigate(-1) (back to
-//     SuccessScreen; user can still click any CTA).
-//   - PATCH failure (Q4 approved: inline error + retry) → display inline error,
-//     re-enable the Yes button, allow retry or "Not now". Never auto-navigate on
-//     failure because the user's explicit intent was "Yes, remind me".
+//     reminderDay='Sunday', reminderTime='09:00', reminderTimezone=<browser IANA TZ>,
+//     reminderPromptedAt=<now ISO>. On success, navigate to feed. On failure,
+//     inline error, re-enable buttons.
+//   - "Not now" → PATCH /spaces/:id with reminderPromptedAt=<now ISO> only.
+//     On success, navigate to feed. On failure, inline error, re-enable.
+//   - LovedOneBar back → same PATCH as "Not now". On success, navigate(-1).
+//     On failure, inline error, re-enable.
 //
-// Memory count for LovedOneBar subtitle:
+// Memory count for LovedOneBar subtitle (unchanged from v1.1):
 //   - Fetched from GET /spaces/:id/memories/count which returns { count: N }.
-//     This is OWNER-ONLY count (same endpoint SpacePage uses for B7 soft gate).
-//     On this reminder screen the owner is the only user who will see it, so
-//     owner-only count is the correct figure.
-//   - Failure to fetch count falls back silently to "Your space" — the reminder
-//     prompt must still render even if the count endpoint is slow or down.
+//     Owner-only count; the reminder screen is always rendered for owners.
+//   - Failure falls back silently to "Your space".
 //
-// File Review Findings (v1.0, D2 approved):
-//   - LovedOneBar renders spaceName inside a <span>, not an <h1>. ReminderPage
-//     owns the page-level <h1> ("Would you like a reminder?").
-//
-// Accessibility:
+// Accessibility (unchanged from v1.1 plus aria-busy):
 //   - <h1> page heading, <p> subtext, aria-live="polite" error region.
 //   - Q3 approved: "Yes, remind me" auto-focused on mount so Enter submits.
-//   - All buttons have text labels (no icon-only).
+//   - aria-busy={submitting} on the outer page div.
+//   - All buttons have text labels.
 //
 // Session scope:
-//   - Frontend only. This file consumes the existing PATCH /spaces/:id endpoint
-//     via the existing api.patch() helper (client.js v1.1). No backend changes.
-//   - Email delivery is Session 1B (EventBridge + SES). That work is NOT started
-//     until Session 1A is verified and its session log is complete.
+//   - Frontend only. PATCH hits the existing /spaces/:id endpoint. Backend
+//     (Session 1A.5 Steps 1–4) already accepts `reminderPromptedAt` in the
+//     PATCH whitelist and surfaces it on GET responses.
+//   - Email delivery is Session 1B (EventBridge + SES).
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -55,11 +78,6 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import LovedOneBar from '../components/LovedOneBar';
 import styles from './ReminderPage.module.css';
-
-// SessionStorage key shared with RecordPage/WritePage/PhotoPage gating logic.
-// Changing this string requires updating postSaveGating.js and the 3 creation
-// pages in the same change set.
-const SEEN_FLAG_KEY = 'ana_reminderPromptSeen';
 
 export default function ReminderPage() {
   const { spaceId } = useParams();
@@ -78,6 +96,9 @@ export default function ReminderPage() {
   const [loadError, setLoadError] = useState(null);
 
   // ─── Submit state ──────────────────────────────────────────────────
+  // v1.2: single shared flag across Yes / Not now / Back. When one PATCH
+  // is in flight, all three buttons are disabled. Handler guards prevent
+  // duplicate invocations from cross-button clicks.
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -130,24 +151,13 @@ export default function ReminderPage() {
   }, [space]);
 
   // ─── Helpers ───────────────────────────────────────────────────────
-  const markSeen = useCallback(() => {
-    try {
-      sessionStorage.setItem(SEEN_FLAG_KEY, '1');
-    } catch (err) {
-      // sessionStorage can fail in edge cases (private modes, quota). Safe
-      // to swallow — worst case the user sees the prompt once more, no data
-      // loss. Logging for diagnostics.
-      console.warn('[ReminderPage] sessionStorage.setItem failed:', err);
-    }
-  }, []);
-
   const goToFeed = useCallback(() => {
     navigate(`/spaces/${spaceId}`, { replace: true });
   }, [navigate, spaceId]);
 
   // ─── "Yes, remind me" handler ──────────────────────────────────────
   const handleYes = useCallback(async () => {
-    if (submitting) return; // guard against double-click
+    if (submitting) return; // guard against double-click or cross-button click
     setSubmitting(true);
     setError(null);
 
@@ -165,11 +175,12 @@ export default function ReminderPage() {
         reminderDay: 'Sunday',
         reminderTime: '09:00',
         reminderTimezone: tz,
+        // v1.2: record the prompt event in the DB alongside the opt-in fields.
+        reminderPromptedAt: new Date().toISOString(),
       });
-      markSeen();
       goToFeed();
     } catch (err) {
-      console.error('Reminder PATCH failed:', err);
+      console.error('Reminder "Yes" PATCH failed:', err);
       // Q4 approved: inline error + retry. Do NOT auto-navigate — the user
       // explicitly said "yes" and a silent dismissal would be misleading.
       setError(
@@ -177,21 +188,54 @@ export default function ReminderPage() {
       );
       setSubmitting(false);
     }
-  }, [submitting, getApi, spaceId, markSeen, goToFeed]);
+  }, [submitting, getApi, spaceId, goToFeed]);
 
   // ─── "Not now" handler ─────────────────────────────────────────────
-  const handleNotNow = useCallback(() => {
-    markSeen();
-    goToFeed();
-  }, [markSeen, goToFeed]);
+  // v1.2: converted from sync sessionStorage write to async DB PATCH.
+  // Writes only reminderPromptedAt — leaves reminderEnabled untouched
+  // (the user has not opted in, they've only been asked).
+  const handleNotNow = useCallback(async () => {
+    if (submitting) return; // guard
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const api = getApi();
+      await api.patch(`/spaces/${spaceId}`, {
+        reminderPromptedAt: new Date().toISOString(),
+      });
+      goToFeed();
+    } catch (err) {
+      console.error('Reminder "Not now" PATCH failed:', err);
+      // Plan §6.3 + File Review D8b option i: inline error + retry.
+      // No fallthrough to feed — if the user wants to be recorded as
+      // dismissed, the DB must actually record it.
+      setError('Could not save. Please try again.');
+      setSubmitting(false);
+    }
+  }, [submitting, getApi, spaceId, goToFeed]);
 
   // ─── LovedOneBar back handler ──────────────────────────────────────
-  // Back still marks as seen so the user isn't re-prompted if they navigate
-  // forward again in the same session without saving a new memory.
-  const handleBack = useCallback(() => {
-    markSeen();
-    navigate(-1);
-  }, [markSeen, navigate]);
+  // v1.2: back also PATCHes reminderPromptedAt. A user who navigates back
+  // from this screen is dismissing the question — we commit that decision
+  // to the DB so they aren't re-prompted on the next save.
+  const handleBack = useCallback(async () => {
+    if (submitting) return; // guard
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const api = getApi();
+      await api.patch(`/spaces/${spaceId}`, {
+        reminderPromptedAt: new Date().toISOString(),
+      });
+      navigate(-1);
+    } catch (err) {
+      console.error('Reminder back-button PATCH failed:', err);
+      setError('Could not save. Please try again.');
+      setSubmitting(false);
+    }
+  }, [submitting, getApi, spaceId, navigate]);
 
   // ─── Render: loading ───────────────────────────────────────────────
   // Matches SpacePage convention: render nothing while data loads so the
@@ -202,7 +246,9 @@ export default function ReminderPage() {
 
   // ─── Render: load error ────────────────────────────────────────────
   // Rare path — GET /spaces/:id failure. Give the user a way out without
-  // blocking them.
+  // blocking them. Note: the load-error branch does NOT attempt a back-PATCH
+  // (we don't have space data to know the space is real / writable). User
+  // can navigate back or "Continue to feed" via the ghost button.
   if (loadError) {
     return (
       <div className={styles.page}>
@@ -210,7 +256,7 @@ export default function ReminderPage() {
           spaceName={'Space'}
           spacePhotoUrl={null}
           subtitle=""
-          onBack={handleBack}
+          onBack={() => navigate(-1)}
           backLabel="Back"
         />
         <div className={styles.content}>
@@ -238,8 +284,11 @@ export default function ReminderPage() {
   }
 
   // ─── Render: main screen ───────────────────────────────────────────
+  // v1.2: aria-busy={submitting} on the outer page div. Assistive tech
+  // announces the busy state during any of the three PATCHes. Sighted
+  // users see the primary and secondary buttons already disabled.
   return (
-    <div className={styles.page}>
+    <div className={styles.page} aria-busy={submitting}>
       <LovedOneBar
         spaceName={space.name}
         spacePhotoUrl={space.photoUrl}

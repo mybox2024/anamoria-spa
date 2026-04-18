@@ -1,27 +1,51 @@
 // WritePage.jsx — /spaces/:id/write
-// v1.2 — Session 1A: post-save gating on "View all memories" CTA (April 18, 2026)
+// v1.3 — Session 1A.5 (April 18, 2026)
 //
-// Changes from v1.1:
+// Changes from v1.2:
+//   - Removed the `sessionStorage.getItem('ana_reminderPromptSeen') === '1'`
+//     read inside `handleViewAllMemories`. The session-scoped flag has been
+//     retired in favor of DB-owned `space.reminderPromptedAt` (ADR-038 /
+//     Session 1A.5 Steps 1–4).
+//   - Dropped the `hasSeenReminderPrompt` argument from the
+//     `checkPostSaveGating()` call. The helper's v1.1 signature no longer
+//     accepts it; the DB-backed rule reads `space.reminderPromptedAt`
+//     directly.
+//   - No other changes. Compose screen, review screen, success-screen layout,
+//     all other handlers (handleSave, handleWriteAnother, handleReview,
+//     handleBackToCompose, handleCancel, handleSkipPrompt, handleTextChange,
+//     handleTitleChange, handleDictation), SuccessScreen props, state shape,
+//     imports — all byte-identical to v1.2.
+//
+// Contract change (caller-side):
+//   v1.2 call shape (retired):
+//     checkPostSaveGating({
+//       spaceId, space, memoryType: 'text',
+//       hasSeenReminderPrompt,   ← dropped
+//       getApi: () => createApiClient(getAccessTokenSilently),
+//     })
+//   v1.3 call shape (current):
+//     checkPostSaveGating({
+//       spaceId, space, memoryType: 'text',
+//       getApi: () => createApiClient(getAccessTokenSilently),
+//     })
+//
+// No editMode guard here: WritePage does NOT support edit via this route.
+// Text memory edits flow through MemoryDetailPage (see File Review Findings
+// §5 / D1). The `handleViewAllMemories` handler therefore never fires on an
+// edit path.
+//
+// Regression expectations (Session 1A.5):
+//   - RG-2 Text save flow: tertiaryCta routes through DB-backed gating.
+//   - RG-5 Text edit from feed (MemoryDetailPage path): unaffected.
+//   - RG-11 (sign-out re-prompt suppression): passes via DB persistence.
+//   - RG-14 Tab-close re-prompt suppression: passes via DB persistence.
+//
+// Previous changes (v1.2 — Session 1A):
 //   - Imported `checkPostSaveGating` from `../utils/postSaveGating` v1.0.
 //   - Replaced the one-line `tertiaryCta.onClick` on SuccessScreen with an
-//     async handler that:
-//       1. Calls `checkPostSaveGating()` and navigates to
-//          /spaces/:spaceId/reminder or /spaces/:spaceId based on the result.
-//       2. On ANY error (gating throws, unexpected shape, etc.) falls through
-//          to the feed. The user must never be stuck on SuccessScreen.
-//   - No editMode guard needed here: WritePage does NOT support edit via this
-//     route. Text memory edits flow through MemoryDetailPage v2.3 (see File
-//     Review Findings §5 / D1 / Screen Matrix v17). The flat async block
-//     therefore never fires on an edit path.
-//   - No other changes. Compose screen, review screen, success-screen layout,
-//     all handlers (handleSave, handleWriteAnother, handleReview, etc.),
-//     SuccessScreen props other than tertiaryCta, state shape, imports other
-//     than the new postSaveGating — all byte-identical to v1.1.
-//
-// Regression expectations:
-//   - RG-2 Text save flow: tertiaryCta now routes through gating.
-//   - RG-5 Text edit from feed (MemoryDetailPage path): unaffected, because
-//     this file is not involved in the edit path.
+//     async handler that called the gating helper and routed via
+//     /spaces/:id/reminder or /spaces/:id. Session-scoped gating flag read
+//     from sessionStorage (now removed in v1.3).
 //
 // Previous changes (v1.1):
 //   - Imports: SuccessScreen, WriteIcon.
@@ -34,7 +58,7 @@
 //   - New render branch (top-priority): when `saved`, render <SuccessScreen>
 //     with `WRITTEN` label + title + note excerpt body.
 //
-// Intentionally UNTOUCHED from v1.1:
+// Intentionally UNTOUCHED from v1.2:
 //   - Compose screen layout, textarea, DictateButton, prompt banner, footer
 //   - Review screen layout, preview card, privacy toggle
 //   - All existing handlers (handleReview, handleBackToCompose, handleCancel,
@@ -44,7 +68,7 @@
 //   - Error banner rendering
 //   - Loading / error-screen branches
 //
-// Two sub-screens: compose → review → save → (v1.1) success
+// Two sub-screens: compose → review → save → success
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -53,8 +77,9 @@ import { createApiClient } from '../api/client';
 import DictateButton from '../components/DictateButton';
 import SuccessScreen from '../components/SuccessScreen';
 import { WriteIcon } from '../components/BrandIcons';
-// v1.2: Session 1A post-save gating helper (reminder branch only in this
-// session; feedback branch stubbed for Session 2).
+// v1.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
+// feedback branch stubbed for Session 2). Signature dropped
+// `hasSeenReminderPrompt` — caller must not pass it.
 import { checkPostSaveGating } from '../utils/postSaveGating';
 import styles from './WritePage.module.css';
 
@@ -226,7 +251,7 @@ export default function WritePage() {
     setStep('compose');
   }, []);
 
-  // v1.2: "View all memories" — post-save gating handler.
+  // v1.3: "View all memories" — post-save gating handler (DB-backed).
   // Called from SuccessScreen.tertiaryCta.onClick. No editMode guard needed —
   // text edits flow through MemoryDetailPage, not this file (File Review
   // Findings §5 / D1). Fallthrough on any error routes to the feed so the
@@ -234,22 +259,19 @@ export default function WritePage() {
   //
   // `getApi` is passed as a function per Q5 approval. WritePage does not
   // memoize createApiClient (each handler creates it ad-hoc), so we preserve
-  // that page-level pattern by inlining the factory here.
+  // that page-level pattern by inlining the factory here (D3).
   const handleViewAllMemories = useCallback(async () => {
     try {
-      const hasSeenReminderPrompt =
-        sessionStorage.getItem('ana_reminderPromptSeen') === '1';
       const gate = await checkPostSaveGating({
         spaceId,
         space,
         memoryType: 'text',
-        hasSeenReminderPrompt,
         getApi: () => createApiClient(getAccessTokenSilently),
       });
       if (gate.redirectTo === 'reminder') {
         navigate(`/spaces/${spaceId}/reminder`);
       } else {
-        // 'feedback' (Session 2 stub) and 'feed' both land on the feed in 1A.
+        // 'feedback' (Session 2 stub) and 'feed' both land on the feed in 1A.5.
         navigate(`/spaces/${spaceId}`, { replace: true });
       }
     } catch (err) {
@@ -288,7 +310,7 @@ export default function WritePage() {
 
   // ═══════════════════════════════════════════════════
   //  SUCCESS SCREEN (v1.1) — after save
-  //  v1.2: tertiaryCta.onClick now routes through post-save gating.
+  //  v1.3: tertiaryCta.onClick routes through DB-backed post-save gating.
   // ═══════════════════════════════════════════════════
   if (saved && savedSnapshot) {
     const subtitle = savedSnapshot.title
