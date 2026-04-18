@@ -1,0 +1,194 @@
+/* src/pages/ReminderPage.module.css
+ * v1.0 — Session 1A (April 18, 2026)
+ *
+ * Ported from axr_MemoryVaultV2.css "STEP 12: REMINDER SCREEN (Screen 17)".
+ * Uses only existing CSS variables defined in the SPA's global token layer
+ * (see axr_MemoryVaultV2.css :host block). No new tokens introduced.
+ *
+ * Class name mapping (LWC → CSS Module camelCase):
+ *   .reminder-screen      → .page
+ *   .reminder-content     → .content
+ *   .reminder-icon-wrap   → .iconWrap
+ *   .reminder-icon-circle → .iconCircle
+ *   .reminder-heading     → .heading
+ *   .reminder-subtext     → .subtext
+ *   .reminder-ctas        → .ctas
+ *   (.btn .btn-primary)   → .btnPrimary
+ *   (.btn .btn-ghost)     → .btnGhost
+ *
+ * Notes:
+ *   - Padding uses hard-coded px values for Session 1A rather than the LWC's
+ *     responsive --pad / --cw custom properties, since those tokens are not
+ *     set at :root in the SPA (they are LWC :host-scoped). Values chosen to
+ *     match the rendered LWC experience at the 560px max-width that SpacePage
+ *     and other module.css files target.
+ *   - Error message style mirrors the existing .uploadError / .errorBanner
+ *     pattern used elsewhere in the SPA (semantic red, rounded, with padding).
+ *   - No bottom-nav padding — ReminderPage does not render BottomNav.
+ */
+
+/* ─── Page shell ──────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Scrollable content region ──────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 20px;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* ─── Icon treatment ─────────────────────────────────────────────── */
+.iconWrap {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.iconCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-sage-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  color: var(--color-sage-dark);
+}
+
+.iconCircle svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* ─── Heading (page-level h1) ────────────────────────────────────── */
+/* Per File Review Findings D2: LovedOneBar does not render a page-level
+ * <h1>, so ReminderPage owns the h1 for accessibility. */
+.heading {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  text-align: center;
+  margin: 0 0 6px 0;
+}
+
+/* ─── Subtext — cadence disclosure ───────────────────────────────── */
+.subtext {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--color-text-subtle);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 0 28px 0;
+}
+
+/* ─── Error message (aria-live region) ───────────────────────────── */
+.error {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-red);
+  background: rgba(184, 84, 80, 0.08);
+  border: 1px solid rgba(184, 84, 80, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 16px 0;
+  text-align: left;
+  line-height: 1.45;
+}
+
+/* ─── CTA stack ──────────────────────────────────────────────────── */
+.ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Primary button ("Yes, remind me") ──────────────────────────── */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 18px 32px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-text-white);
+  background: var(--color-sage-dark);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #4a6654;
+  transform: translateY(-1px);
+}
+
+.btnPrimary:focus-visible {
+  outline: 2px solid var(--color-sage-dark);
+  outline-offset: 3px;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── Ghost button ("Not now") ───────────────────────────────────── */
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 18px 32px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-text-body);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btnGhost:hover:not(:disabled) {
+  background: var(--color-sage-light);
+  color: var(--color-text-primary);
+}
+
+.btnGhost:focus-visible {
+  outline: 2px solid var(--color-sage-dark);
+  outline-offset: 3px;
+}
+
+.btnGhost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Loading shell (while space fetch in flight) ────────────────── */
+/* Mirrors the SpacePage convention of "render null" when space is loading,
+ * but if a future iteration wants a skeleton, this class is reserved. */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--color-bg);
+}

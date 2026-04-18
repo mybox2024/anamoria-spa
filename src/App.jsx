@@ -1,6 +1,16 @@
 // App.jsx — Anamoria SPA
-// v1.8 — Butterfly loader replaces generic spinner on full-page loads (April 15, 2026)
-// Changes from v1.7:
+// v1.9 — Session 1A: add /spaces/:spaceId/reminder route (April 18, 2026)
+// Changes from v1.8:
+//   - Added static import for ReminderPage (pages/ReminderPage.jsx v1.1).
+//   - Added one <Route> for /spaces/:spaceId/reminder wrapped in
+//     <ProtectedRoute>, placed immediately after /spaces/:spaceId/invite
+//     and before /leader (matches the grouping convention of space-scoped
+//     routes per Session 1A Plan v1.0 §3.4).
+//   - No other changes: no logic changes, no bootstrap changes, no
+//     modifications to existing routes or their order, no changes to any
+//     other component.
+//
+// Previous changes (v1.8):
 //   - Imported new ButterflyLoader shared component
 //   - Replaced the 3 full-page loading states (Auth0 init, bootstrap pending,
 //     Suspense LoadingFallback) with <ButterflyLoader />
@@ -46,6 +56,9 @@ import ContributorFeedPage from './pages/ContributorFeedPage';
 import LeaderPage from './pages/LeaderPage';
 import SettingsPage from './pages/SettingsPage';
 import UpgradePage from './pages/UpgradePage';
+// v1.9: ReminderPage — opt-in screen shown after first memory save per
+// Reminder/Feedback/ContributorFeed Master Plan v1.0 (Session 1A scope).
+import ReminderPage from './pages/ReminderPage';
 // v1.5 (Fix 4): CheckoutPage lazy-loaded to prevent Stripe.js from evaluating
 // on app startup. This scopes the Stripe badge to the checkout route only.
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
@@ -317,6 +330,16 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <InvitePage />
+              </ProtectedRoute>
+            }
+          />
+          {/* v1.9: Reminder opt-in screen — Session 1A. Placed after /invite
+              and before /leader to keep space-scoped routes grouped. */}
+          <Route
+            path="/spaces/:spaceId/reminder"
+            element={
+              <ProtectedRoute>
+                <ReminderPage />
               </ProtectedRoute>
             }
           />
