@@ -1,72 +1,62 @@
 // WritePage.jsx — /spaces/:id/write
-// v1.3 — Session 1A.5 (April 18, 2026)
+// v1.4 — Session 2 (April 19, 2026)
 //
-// Changes from v1.2:
-//   - Removed the `sessionStorage.getItem('ana_reminderPromptSeen') === '1'`
-//     read inside `handleViewAllMemories`. The session-scoped flag has been
-//     retired in favor of DB-owned `space.reminderPromptedAt` (ADR-038 /
-//     Session 1A.5 Steps 1–4).
-//   - Dropped the `hasSeenReminderPrompt` argument from the
-//     `checkPostSaveGating()` call. The helper's v1.1 signature no longer
-//     accepts it; the DB-backed rule reads `space.reminderPromptedAt`
-//     directly.
-//   - No other changes. Compose screen, review screen, success-screen layout,
-//     all other handlers (handleSave, handleWriteAnother, handleReview,
+// Changes from v1.3:
+//   - Session 2 feedback routing. Four narrow additions, no logic removed:
+//
+//     1. `handleSave` now captures the POST response. v1.3 discarded it;
+//        v1.4 stores `created.id` into savedSnapshot.memoryId. Response
+//        shape (text) verified against anamoria-memories Lambda v2.0:
+//          { id, type: 'text', spaceId, createdAt }
+//        This is the only scope extension beyond handler-only changes,
+//        per session decision D1c (Option A). Documented in session log.
+//
+//     2. savedSnapshot now carries a `memoryId` field. Additive: existing
+//        success-screen render block reads only the fields it always did
+//        (title, text, isPrivate, promptText) — no regression risk.
+//        Router state for feedback navigation reads memoryId from the
+//        snapshot via `savedSnapshot?.memoryId || null`.
+//
+//     3. `handleViewAllMemories` feedback branch now routes to
+//        /spaces/:id/feedback with full router.state instead of falling
+//        through to the feed. Branch split:
+//           gate.redirectTo === 'reminder'  → /spaces/:id/reminder
+//           gate.redirectTo === 'feedback'  → /spaces/:id/feedback (NEW)
+//           default (feed)                  → /spaces/:id
+//        No editMode guard — text edits flow through MemoryDetailPage.
+//
+//     4. postSaveGating v1.2 call: `userMemoryCount` argument is OMITTED
+//        from the caller side. The helper fetches it from
+//        GET /spaces/{id}/memories/count internally (parallel with the
+//        stats fetch). Per session decision on File 5 review.
+//
+//   - No other changes. Compose screen, review screen, success-screen
+//     layout, all other handlers (handleWriteAnother, handleReview,
 //     handleBackToCompose, handleCancel, handleSkipPrompt, handleTextChange,
-//     handleTitleChange, handleDictation), SuccessScreen props, state shape,
-//     imports — all byte-identical to v1.2.
+//     handleTitleChange, handleDictation), SuccessScreen props, state shape
+//     apart from savedSnapshot.memoryId, imports — all byte-identical
+//     to v1.3.
 //
-// Contract change (caller-side):
-//   v1.2 call shape (retired):
-//     checkPostSaveGating({
-//       spaceId, space, memoryType: 'text',
-//       hasSeenReminderPrompt,   ← dropped
-//       getApi: () => createApiClient(getAccessTokenSilently),
-//     })
-//   v1.3 call shape (current):
-//     checkPostSaveGating({
-//       spaceId, space, memoryType: 'text',
-//       getApi: () => createApiClient(getAccessTokenSilently),
-//     })
+// No editMode guard here (unchanged from v1.3): WritePage does NOT
+// support edit via this route. Text memory edits flow through
+// MemoryDetailPage (see File Review Findings §5 / D1). The
+// `handleViewAllMemories` handler therefore never fires on an edit path.
 //
-// No editMode guard here: WritePage does NOT support edit via this route.
-// Text memory edits flow through MemoryDetailPage (see File Review Findings
-// §5 / D1). The `handleViewAllMemories` handler therefore never fires on an
-// edit path.
+// Regression expectations (Session 2 additions):
+//   - F-1 through F-3 Text feedback paths: tertiaryCta routes through
+//     feedback when gating matches (First_Memory / First_Text / Periodic).
+//   - R-1 Text reminder flow: unchanged — reminder branch byte-identical.
+//   - M-2 Text save flow end-to-end: POST still creates row, response
+//     id now captured and used for feedback correlation.
 //
-// Regression expectations (Session 1A.5):
-//   - RG-2 Text save flow: tertiaryCta routes through DB-backed gating.
-//   - RG-5 Text edit from feed (MemoryDetailPage path): unaffected.
-//   - RG-11 (sign-out re-prompt suppression): passes via DB persistence.
-//   - RG-14 Tab-close re-prompt suppression: passes via DB persistence.
+// Previous changes (v1.3 — Session 1A.5, April 18, 2026):
+//   - Removed sessionStorage-based gating flag (hasSeenReminderPrompt).
+//   - Gating helper v1.1 signature: drops hasSeenReminderPrompt.
 //
-// Previous changes (v1.2 — Session 1A):
-//   - Imported `checkPostSaveGating` from `../utils/postSaveGating` v1.0.
-//   - Replaced the one-line `tertiaryCta.onClick` on SuccessScreen with an
-//     async handler that called the gating helper and routed via
-//     /spaces/:id/reminder or /spaces/:id. Session-scoped gating flag read
-//     from sessionStorage (now removed in v1.3).
+// Previous changes (v1.2 — Session 1A): Original gating wiring via
+//   sessionStorage (superseded by v1.3 DB-backed design).
 //
-// Previous changes (v1.1):
-//   - Imports: SuccessScreen, WriteIcon.
-//   - State: added `saved` flag + `savedSnapshot` (captures title/note/isPrivate
-//     at save-time so the success card shows the saved memory, not a mutating
-//     form state — same approach as PhotoPage).
-//   - handleSave: on POST success, set saved=true instead of navigate().
-//   - handleWriteAnother: resets form state + returns to compose step
-//     (mirror of RecordPage.handleRecordAnother / PhotoPage.handleAddAnotherPhoto).
-//   - New render branch (top-priority): when `saved`, render <SuccessScreen>
-//     with `WRITTEN` label + title + note excerpt body.
-//
-// Intentionally UNTOUCHED from v1.2:
-//   - Compose screen layout, textarea, DictateButton, prompt banner, footer
-//   - Review screen layout, preview card, privacy toggle
-//   - All existing handlers (handleReview, handleBackToCompose, handleCancel,
-//     handleSkipPrompt, handleTextChange, handleTitleChange, handleDictation)
-//   - POST payload to /spaces/:id/memories
-//   - Prompt-respond side effect
-//   - Error banner rendering
-//   - Loading / error-screen branches
+// Previous changes (v1.1): Success screen extraction with savedSnapshot.
 //
 // Two sub-screens: compose → review → save → success
 
@@ -78,8 +68,8 @@ import DictateButton from '../components/DictateButton';
 import SuccessScreen from '../components/SuccessScreen';
 import { WriteIcon } from '../components/BrandIcons';
 // v1.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
-// feedback branch stubbed for Session 2). Signature dropped
-// `hasSeenReminderPrompt` — caller must not pass it.
+// feedback branch stubbed for Session 2).
+// v1.4: postSaveGating is now v1.2 — feedback branch implemented.
 import { checkPostSaveGating } from '../utils/postSaveGating';
 import styles from './WritePage.module.css';
 
@@ -107,6 +97,8 @@ export default function WritePage() {
   const [error, setError] = useState(null);
   // v1.1: Success screen state. savedSnapshot captures what was saved so the
   // success card doesn't flicker if the form is reset before render completes.
+  // v1.4: savedSnapshot additionally carries `memoryId` from the POST response
+  // for feedback routing. Additive — all v1.1 consumers still work.
   const [saved, setSaved] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(null);
 
@@ -201,8 +193,11 @@ export default function WritePage() {
     try {
       const api = createApiClient(getAccessTokenSilently);
 
-      // 1. Create text memory
-      await api.post(`/spaces/${spaceId}/memories`, {
+      // v1.4: capture the POST response so savedSnapshot.memoryId is
+      // available for feedback routing. Response shape (text):
+      //   { id, type: 'text', spaceId, createdAt }
+      // Verified against anamoria-memories Lambda v2.0 source.
+      const createdMemory = await api.post(`/spaces/${spaceId}/memories`, {
         type: 'text',
         note: text.trim(),
         title: title.trim() || null,
@@ -222,13 +217,14 @@ export default function WritePage() {
       }
 
       // 3. v1.1: Show success screen instead of navigating.
-      // Capture a snapshot so the success card reflects exactly what was saved,
-      // independent of any later form mutation by handleWriteAnother.
+      // v1.4: Snapshot now includes memoryId from the POST response for
+      // feedback routing. All other fields unchanged from v1.1.
       setSavedSnapshot({
         title: title.trim(),
         text: text.trim(),
         isPrivate,
         promptText: prompt?.text || null,
+        memoryId: createdMemory.id,
       });
       setSaved(true);
       setSaving(false);
@@ -241,6 +237,8 @@ export default function WritePage() {
 
   // v1.1: "Keep going — write another" — reset form, return to compose.
   // Mirrors RecordPage.handleRecordAnother / PhotoPage.handleAddAnotherPhoto.
+  // v1.4: No change needed — setSavedSnapshot(null) already clears everything
+  // including the new memoryId field.
   const handleWriteAnother = useCallback(() => {
     setSaved(false);
     setSavedSnapshot(null);
@@ -251,15 +249,23 @@ export default function WritePage() {
     setStep('compose');
   }, []);
 
-  // v1.3: "View all memories" — post-save gating handler (DB-backed).
-  // Called from SuccessScreen.tertiaryCta.onClick. No editMode guard needed —
-  // text edits flow through MemoryDetailPage, not this file (File Review
-  // Findings §5 / D1). Fallthrough on any error routes to the feed so the
-  // user is never stuck on SuccessScreen.
+  // v1.4: "View all memories" — post-save gating handler (DB-backed).
+  // Called from SuccessScreen.tertiaryCta.onClick.
   //
-  // `getApi` is passed as a function per Q5 approval. WritePage does not
-  // memoize createApiClient (each handler creates it ad-hoc), so we preserve
-  // that page-level pattern by inlining the factory here (D3).
+  // No editMode guard — text edits flow through MemoryDetailPage, not this
+  // file (File Review Findings §5 / D1). Fallthrough on any error routes
+  // to the feed so the user is never stuck on SuccessScreen.
+  //
+  // `getApi` is passed as an inline arrow per D3 session decision (page does
+  // not memoize createApiClient; each handler creates it ad-hoc).
+  //
+  // v1.4 changes:
+  //   - Feedback branch routes to /spaces/:id/feedback with full router
+  //     state instead of falling through to feed.
+  //   - memoryId read from savedSnapshot; null-safe access in case the
+  //     handler fires in an unusual sequence.
+  //   - userMemoryCount intentionally omitted from the helper call;
+  //     helper fetches it from GET /spaces/:id/memories/count internally.
   const handleViewAllMemories = useCallback(async () => {
     try {
       const gate = await checkPostSaveGating({
@@ -267,18 +273,33 @@ export default function WritePage() {
         space,
         memoryType: 'text',
         getApi: () => createApiClient(getAccessTokenSilently),
+        // userMemoryCount intentionally omitted — helper fetches it
+        // from GET /spaces/:id/memories/count in parallel with stats.
       });
       if (gate.redirectTo === 'reminder') {
         navigate(`/spaces/${spaceId}/reminder`);
+      } else if (gate.redirectTo === 'feedback') {
+        // v1.4: route to feedback screen with full router state per Plan
+        // v1.2 Q5. FeedbackPage's direct-URL-load guard requires
+        // triggerContext at minimum; the other fields correlate the
+        // feedback event to the memory that triggered it.
+        navigate(`/spaces/${spaceId}/feedback`, {
+          state: {
+            memoryId: savedSnapshot?.memoryId || null,
+            memoryType: 'text',
+            triggerContext: gate.triggerContext,
+            userMemoryCount: gate.userMemoryCount,
+          },
+        });
       } else {
-        // 'feedback' (Session 2 stub) and 'feed' both land on the feed in 1A.5.
+        // 'feed' — default path, or helper returned 'feed' on internal error
         navigate(`/spaces/${spaceId}`, { replace: true });
       }
     } catch (err) {
       console.error('Gating check failed:', err);
       navigate(`/spaces/${spaceId}`, { replace: true });
     }
-  }, [spaceId, space, navigate, getAccessTokenSilently]);
+  }, [spaceId, space, navigate, getAccessTokenSilently, savedSnapshot]);
 
   // ─── Derived values ───
   const charCount = text.length;
@@ -310,7 +331,8 @@ export default function WritePage() {
 
   // ═══════════════════════════════════════════════════
   //  SUCCESS SCREEN (v1.1) — after save
-  //  v1.3: tertiaryCta.onClick routes through DB-backed post-save gating.
+  //  v1.4: tertiaryCta.onClick routes through DB-backed post-save gating
+  //  with feedback branch fully wired. Markup unchanged from v1.3.
   // ═══════════════════════════════════════════════════
   if (saved && savedSnapshot) {
     const subtitle = savedSnapshot.title

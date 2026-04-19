@@ -1,78 +1,92 @@
 // src/utils/postSaveGating.js
-// v1.1 — Session 1A.5 (April 18, 2026)
+// v1.2 — Session 2 (April 19, 2026)
 //
-// Changes from v1.0:
-//   - Removed `hasSeenReminderPrompt` parameter from the function signature.
-//     The session-scoped sessionStorage flag it represented has been retired
-//     in favor of DB-owned state (see ADR-038).
-//   - Reminder branch now reads `space.reminderPromptedAt` instead of the
-//     combined `!reminderEnabled && !hasSeenReminderPrompt` rule. A null
-//     (or absent) timestamp means "user has never been prompted on this
-//     space" — regardless of reminderEnabled state. Once set (by ReminderPage
-//     on Yes / Not now / Back), the user is never re-prompted for this space.
-//   - Header branch table, guardrails, and @param contract updated to reflect
-//     the new single-field rule and DB ownership.
+// Changes from v1.1:
+//   - FEEDBACK BRANCH IS NOW IMPLEMENTED.
+//     v1.1 had a comment-only stub that always fell through to 'feed'.
+//     v1.2 fetches fresh stats + memory count from the server and applies
+//     the R3 gating rules from Plan v1.2 §2. When a rule matches, returns
+//     {redirectTo:'feedback', triggerContext, userMemoryCount} so the
+//     caller can populate router state for FeedbackPage.
+//   - `getApi` is now USED (v1.1 preserved the arg but didn't call it).
+//   - Added a new optional arg `userMemoryCount` for callers that already
+//     know the count post-save. If not provided, the helper fetches it
+//     from `GET /spaces/{id}/memories/count` (parallel with stats fetch).
+//   - Return shape is a widened union:
+//       { redirectTo: 'reminder' }
+//       { redirectTo: 'feed' }
+//       { redirectTo: 'feedback', triggerContext, userMemoryCount }
+//     The third shape is new in v1.2. Callers switching on redirectTo will
+//     compile-error-free (plain object access), but must now destructure
+//     triggerContext + userMemoryCount when routing to feedback.
+//
+// Changes from v1.1 — reminder branch:
+//   - BYTE-IDENTICAL. Zero regression risk.
 //
 // Purpose:
-//   Pure async decision function. Given current space state, decides where a
-//   user should land after the SuccessScreen "View all memories" CTA.
-//   Called by RecordPage, WritePage, PhotoPage from their tertiaryCta.onClick
-//   handler.
+//   Pure async decision function. Given current space state (+ memoryType +
+//   optional pre-known memory count), decides where a user should land after
+//   the SuccessScreen "View all memories" CTA.
 //
-// Session scope:
-//   Session 1A.5 — DB-backed reminder branch.
-//   Session 2    — extends with feedback branch (queries /feedback/stats).
-//   Session 3    — contributor gating reuses this helper via memoryType === 'voice' |
-//                  'text' | 'photo' + contributor session token path (tbd).
+//   Called by RecordPage, WritePage, PhotoPage from their
+//   tertiaryCta.onClick handler.
 //
-// Branch table (reference for future sessions):
-//   ┌───────────────────────────────────────────────────────────┬────────────────────┐
-//   │ Condition                                                 │ returns            │
-//   ├───────────────────────────────────────────────────────────┼────────────────────┤
-//   │ space.reminderPromptedAt == null                          │ { redirectTo:      │
-//   │   (never prompted on this space — regardless of           │   'reminder' }     │
-//   │    reminderEnabled)                                       │                    │
-//   ├───────────────────────────────────────────────────────────┼────────────────────┤
-//   │ (Session 2) feedback eligibility check per R3 gating rule │ { redirectTo:      │
-//   │   — stub in v1.1 (always returns 'feed' from this branch) │   'feedback' }     │
-//   ├───────────────────────────────────────────────────────────┼────────────────────┤
-//   │ otherwise                                                 │ { redirectTo:      │
-//   │                                                           │   'feed' }         │
-//   └───────────────────────────────────────────────────────────┴────────────────────┘
+// Branch table (v1.2):
+//   ┌────────────────────────────────────────────────────────┬──────────────────────────┐
+//   │ Condition                                              │ returns                  │
+//   ├────────────────────────────────────────────────────────┼──────────────────────────┤
+//   │ space.reminderPromptedAt == null                       │ { redirectTo:            │
+//   │   (never prompted on this space)                       │   'reminder' }           │
+//   ├────────────────────────────────────────────────────────┼──────────────────────────┤
+//   │ R3 gating matches (First_Memory / First_Voice /        │ { redirectTo:            │
+//   │   First_Text / First_Photo / Periodic)                 │   'feedback',            │
+//   │                                                        │   triggerContext,        │
+//   │                                                        │   userMemoryCount }      │
+//   ├────────────────────────────────────────────────────────┼──────────────────────────┤
+//   │ gating fetch fails, no rule matches, or any throw      │ { redirectTo:            │
+//   │                                                        │   'feed' }               │
+//   └────────────────────────────────────────────────────────┴──────────────────────────┘
 //
-// Guardrails:
-//   - Pure async function — no DOM, no navigate(), no sessionStorage reads or
-//     writes. Prompt history is read from `space.reminderPromptedAt` which
-//     is populated from the DB column `spaces.reminder_prompted_at`
-//     (migration 015). ReminderPage writes it on Yes / Not now / Back via
-//     PATCH /spaces/:id. See ADR-038.
-//   - Never throws. Any internal error is caught and returns { redirectTo:
-//     'feed' } so the caller can navigate safely. The CALLER is also expected
-//     to wrap the call in its own try/catch as a defense-in-depth measure.
-//   - `getApi` is retained in the signature even though unused in v1.1.
-//     Session 2's feedback branch will use it to query /feedback/stats, and
-//     preserving it now avoids another breaking-signature change when
-//     feedback lands.
+// R3 gating rules (Plan v1.2 §2, locked — evaluated in order, first match wins):
+//   1. First_Memory  — userMemoryCount === 1 AND no prior First_Memory feedback
+//   2. First_Voice   — memoryType === 'voice' AND no prior First_Voice feedback
+//   3. First_Text    — memoryType === 'text'  AND no prior First_Text feedback
+//   4. First_Photo   — memoryType === 'photo' AND no prior First_Photo feedback
+//   5. Periodic      — >= 7 days since last Periodic AND >= 3 memories since last Periodic
+//
+// Guardrails (unchanged from v1.1):
+//   - Pure async function — no DOM, no navigate(), no sessionStorage reads or writes.
+//     Reminder prompt history reads from space.reminderPromptedAt (DB-owned;
+//     ADR-038). Feedback state reads from GET /feedback/stats (Session 2 Lambda).
+//   - Never throws. Any internal error is caught and returns
+//     { redirectTo: 'feed' } so the caller can navigate safely.
+//   - The CALLER is also expected to wrap the call in its own try/catch as
+//     defense-in-depth. Pattern established in Session 1A.
 //
 // Contract:
 //   @param {Object} args
-//   @param {string} args.spaceId                 — current space UUID
-//   @param {Object} args.space                   — space object with
-//                                                  { reminderPromptedAt, ... }
-//                                                  where reminderPromptedAt is
-//                                                  ISO string or null
-//   @param {'voice'|'text'|'photo'} args.memoryType — type just saved
-//   @param {Function} args.getApi                — () => apiClient (Session 2+)
-//   @returns {Promise<{ redirectTo: 'reminder'|'feedback'|'feed' }>}
+//   @param {string} args.spaceId                       — current space UUID
+//   @param {Object} args.space                         — space object with
+//                                                        { reminderPromptedAt, ... }
+//   @param {'voice'|'text'|'photo'} args.memoryType    — type just saved
+//   @param {Function} args.getApi                      — () => apiClient
+//   @param {number}  [args.userMemoryCount]            — optional; if omitted,
+//                                                        fetched from server
+//   @returns {Promise<
+//     { redirectTo: 'reminder' } |
+//     { redirectTo: 'feedback', triggerContext: string, userMemoryCount: number } |
+//     { redirectTo: 'feed' }
+//   >}
 
 export async function checkPostSaveGating({
   spaceId,
   space,
   memoryType,
   getApi,
+  userMemoryCount,   // optional — falls back to server fetch
 }) {
   try {
-    // ─── REMINDER BRANCH (Session 1A.5 — DB-backed) ──────────────────────
+    // ─── REMINDER BRANCH (Session 1A.5 — DB-backed; BYTE-IDENTICAL to v1.1) ──
     // Show reminder opt-in if the user has not yet been prompted on this
     // space. `reminderPromptedAt == null` covers both null and undefined
     // (loose-equality intentional) — the single source of truth is the DB
@@ -80,23 +94,75 @@ export async function checkPostSaveGating({
     //
     // Note: `space?.reminderPromptedAt` uses optional chaining so a missing
     // space object falls through to `feed` rather than showing reminder.
-    // This differs from v1.0 which would have shown reminder in that case;
-    // v1.1's stricter rule is safer — we only prompt when we can confirm the
-    // null state from a loaded space object.
     if (space && space.reminderPromptedAt == null) {
       return { redirectTo: 'reminder' };
     }
 
-    // ─── FEEDBACK BRANCH (Session 2 — stubbed in v1.1) ───────────────────
-    // Session 2 will query /feedback/stats via getApi() and apply R3 gating:
-    //   - First_Memory (once ever)
-    //   - First_Voice / First_Text / First_Photo (once ever each)
-    //   - Periodic (>=7d since last Periodic AND >=3 memories since last Periodic)
-    // In Session 1A.5 this branch is intentionally a no-op: we fall through
-    // to 'feed'. Do NOT remove this comment block when Session 2 extends the
-    // function; replace the body with the real check and keep the fall-through.
+    // ─── FEEDBACK BRANCH (Session 2 — v1.2) ──────────────────────────────────
+    // Preconditions at this point: space is loaded AND reminder has been
+    // prompted before (reminderPromptedAt != null). We now fetch whatever we
+    // need (stats + optionally count) in parallel and evaluate R3 rules.
+    //
+    // Fetching strategy:
+    //   - stats: always fetched (we don't cache — BP2 revised, compute on read)
+    //   - count: fetched only if caller didn't provide userMemoryCount
+    //
+    // Parallel fetch via Promise.all — both are independent GETs. Sequential
+    // fetching would double latency before FeedbackPage can be shown.
+    //
+    // Any fetch failure → log + fall through to 'feed'. Do NOT block the
+    // user's post-save flow on feedback gating errors. Per handoff §5.2.
 
-    // ─── DEFAULT ─────────────────────────────────────────────────────────
+    const api = typeof getApi === 'function' ? getApi() : null;
+    if (!api) {
+      console.error('[postSaveGating] getApi did not return a valid client; falling through to feed');
+      return { redirectTo: 'feed' };
+    }
+
+    let stats;
+    let countResolved;
+    try {
+      if (typeof userMemoryCount === 'number') {
+        // Caller provided count; only fetch stats.
+        stats = await api.get(`/spaces/${spaceId}/feedback/stats`);
+        countResolved = userMemoryCount;
+      } else {
+        // Fetch both in parallel.
+        const [countResponse, statsResponse] = await Promise.all([
+          api.get(`/spaces/${spaceId}/memories/count`),
+          api.get(`/spaces/${spaceId}/feedback/stats`),
+        ]);
+        countResolved = countResponse?.count ?? 0;
+        stats = statsResponse;
+      }
+    } catch (err) {
+      console.error(
+        '[postSaveGating] stats/count fetch failed; falling through to feed:',
+        err
+      );
+      return { redirectTo: 'feed' };
+    }
+
+    // Stats shape defensive check. If the Lambda response is malformed,
+    // evaluate gating as if no feedback has ever been given on any first —
+    // that's the safest UX (more feedback prompts, never fewer), but if
+    // fields are missing entirely, fall through to feed.
+    if (!stats || typeof stats !== 'object') {
+      console.error('[postSaveGating] stats response malformed; falling through to feed');
+      return { redirectTo: 'feed' };
+    }
+
+    // ─── R3 evaluation ───────────────────────────────────────────────────────
+    const triggerContext = decideTriggerContext(memoryType, stats, countResolved);
+    if (triggerContext) {
+      return {
+        redirectTo: 'feedback',
+        triggerContext,
+        userMemoryCount: countResolved,
+      };
+    }
+
+    // ─── DEFAULT ─────────────────────────────────────────────────────────────
     return { redirectTo: 'feed' };
   } catch (err) {
     // Never block the user from reaching the feed. The caller will also log,
@@ -104,4 +170,51 @@ export async function checkPostSaveGating({
     console.error('[postSaveGating] unexpected error, falling through to feed:', err);
     return { redirectTo: 'feed' };
   }
+}
+
+// ============================================================================
+// decideTriggerContext — pure function, no side effects
+// ============================================================================
+//
+// Evaluates R3 gating rules in priority order. First match wins.
+// Returns the triggerContext string that matched, or null if no rule fires.
+//
+// Exported as a named helper so it can be unit-tested in isolation.
+// (Not consumed externally by any runtime code — the main entrypoint is
+// checkPostSaveGating above.)
+//
+// @param {'voice'|'text'|'photo'} memoryType
+// @param {Object} stats             — response from GET /feedback/stats
+// @param {number} userMemoryCount   — total owner memories in this space
+// @returns {string|null}
+export function decideTriggerContext(memoryType, stats, userMemoryCount) {
+  // 1. First_Memory — user's first memory of any type, not yet feedbacked.
+  //    "First" is strict: userMemoryCount === 1 at time of save.
+  if (userMemoryCount === 1 && !stats.hasFirstMemoryFeedback) {
+    return 'First_Memory';
+  }
+
+  // 2. First by type — first memory of this particular type, not yet feedbacked.
+  if (memoryType === 'voice' && !stats.hasFirstVoiceFeedback) return 'First_Voice';
+  if (memoryType === 'text'  && !stats.hasFirstTextFeedback)  return 'First_Text';
+  if (memoryType === 'photo' && !stats.hasFirstPhotoFeedback) return 'First_Photo';
+
+  // 3. Periodic — >= 7 days since last Periodic AND >= 3 memories since
+  //    If never given Periodic feedback, the cooldown is satisfied by default.
+  //    The ">= 3 memories since last Periodic" is compared against the
+  //    server-computed `memoriesSinceLastPeriodic` in the stats response.
+  const last = stats.lastPeriodicFeedbackAt
+    ? new Date(stats.lastPeriodicFeedbackAt).getTime()
+    : null;
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const periodicCooldownOk = last === null || last <= sevenDaysAgo;
+  const periodicMemoryThresholdOk =
+    typeof stats.memoriesSinceLastPeriodic === 'number' &&
+    stats.memoriesSinceLastPeriodic >= 3;
+
+  if (periodicCooldownOk && periodicMemoryThresholdOk) {
+    return 'Periodic';
+  }
+
+  return null;
 }

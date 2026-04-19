@@ -1,0 +1,119 @@
+/* Toast.module.css — reusable transient toast overlay
+   v1.0 — Session 2 (April 19, 2026)
+
+   Purpose:
+     Bottom-center auto-dismiss toast used for low-stakes, "stay on page"
+     success confirmations. Introduced in Session 2 for the feedback flow
+     ("Thanks for sharing"). Reusable across any page that needs the same
+     pattern in future.
+
+   Design sources:
+     - Session 2 Implementation Plan v1.2 §8.3 (baseline spec)
+     - Anamoria_EditFlow_WritePage_InvitePage_Session_Log_v1_0.md
+       (established app-wide pattern; Decision 1-B on 3s duration; safe-area
+        padding pattern for iOS home indicator)
+     - Material Design 3 — Snackbar guidelines
+       (https://m3.material.io/components/snackbar/guidelines)
+     - Red Hat Design System — Alert guidelines
+       (https://ux.redhat.com/elements/alert/guidelines/)
+     - Nielsen Norman Group — Indicators, Validations, and Notifications
+       (https://www.nngroup.com/articles/indicators-validations-notifications/)
+     - Designary UX Tip #3 — Snackbars and Toasts
+       (reading-time ≈ 100ms/char; 18-char message → 1.8s min read)
+     - WCAG 2.1 — safe area respect on devices with home indicator
+     - WCAG 2.3.3 — honor prefers-reduced-motion
+
+   Session 2 specific deviations from Plan v1.2 §8.3 (approved per session
+   decision: Option B):
+     - Duration: component default uses Toast.jsx durationMs=3000 (not 2000)
+       for parity with MemoryDetailPage v2.3 and InvitePage v1.1 toasts,
+       which both adopted 3s after citing NN/G + Designary research.
+       The CSS file itself does not encode duration; it is set in Toast.jsx.
+     - Safe-area handling added (not in Plan spec but present in sibling
+       toast patterns): uses max() + env(safe-area-inset-bottom) so the
+       toast never sits behind iOS home indicator or Android gesture bar.
+
+   Design tokens consumed (all pre-existing, sourced from axr_MemoryVaultV2.css):
+     --color-sage-dark   — #5b7a65 (background)
+     --color-text-white  — #ffffff (foreground)
+     --font-sans         — "DM Sans", sans-serif
+
+   Tokens are referenced with fallback values so this component renders
+   correctly even if consumed in a subtree where the token layer is not in
+   scope (defense-in-depth).
+*/
+
+/* ═══ Toast root ═══ */
+/*
+   Positioning strategy:
+     - position: fixed → overlays all content, never displaces layout
+     - bottom uses max() with env(safe-area-inset-bottom) so:
+         - default: 32px above viewport bottom
+         - iOS home indicator: 32px above safe-area inset
+         - Android gesture bar: same
+     - left 50% + translateX(-50%) centers horizontally
+     - transform in the animation keyframes preserves the -50% X shift
+
+   Interaction:
+     - pointer-events: none — the toast is informational; clicks should
+       pass through to content beneath. Matches Plan v1.2 §8.3 spec.
+     - role="status" + aria-live="polite" are set on the element in Toast.jsx
+       (not here — those are DOM semantics, not styling)
+
+   Z-index:
+     - 1000 — above page content and sticky headers (which sit at z-index 10
+       per MemoryDetailPage.module.css convention). Below any future modal
+       overlays if those exceed z-index 1000. No modal currently uses 1000+,
+       so 1000 is safe at this time.
+*/
+.toast {
+  position: fixed;
+  bottom: max(32px, calc(env(safe-area-inset-bottom) + 32px));
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: var(--color-sage-dark, #5b7a65);
+  color: var(--color-text-white, #ffffff);
+  font-family: var(--font-sans, "DM Sans", sans-serif);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+
+  padding: 12px 20px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  z-index: 1000;
+  pointer-events: none;
+
+  /* Mount animation; see @media block below for reduced-motion fallback. */
+  animation: toastFadeIn 0.2s ease-out;
+}
+
+/* ═══ Mount animation ═══ */
+/*
+   Slide-up + fade, 8px travel, 200ms. Matches Plan v1.2 §8.3 baseline.
+   The translate keeps the -50% X shift (centering) while animating Y.
+*/
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ═══ Reduced-motion fallback ═══ */
+/*
+   WCAG 2.3.3 — honor user's motion-reduction preference.
+   Animation is disabled; the toast appears immediately at its final position.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

@@ -1,67 +1,71 @@
 // pages/RecordPage.jsx — Anamoria SPA
-// v5.3 — Session 1A.5 (April 18, 2026)
+// v5.4 — Session 2 (April 19, 2026)
 //
-// Changes from v5.1:
-//   - Imports `checkPostSaveGating` from '../utils/postSaveGating' v1.1.
-//   - Adds a `handleViewAllMemories` useCallback that gates on create paths
-//     and early-returns to feed on edit paths. Wired into the SuccessScreen
-//     `tertiaryCta.onClick` (previously a plain `navigate(...)`).
-//   - No other changes. Record screen (5a), Review screen (5b, create + edit
-//     variants), Uploading, Loading, Success body, all handlers
-//     (handleSave, handleEditSave, handleRecordAnother, handleSkipPrompt,
-//     handleRecordNewVersion, handleConfirmReRecord, handleCircleTap,
-//     togglePlayback, toggleExistingPlayback), state shape, effects, refs,
-//     useRecorder integration, LovedOneBar usage, BottomNav placement,
-//     re-record confirmation modal — all byte-identical to v5.1.
+// Changes from v5.3:
+//   - Session 2 feedback routing. Three narrow additions:
 //
-// Historical note — v5.2 was never deployed:
-//   Session 1A produced a v5.2 of this file intended to wire the Session 1A
-//   sessionStorage-based gating. That file was saved to `src/RecordPage.jsx`
-//   instead of `src/pages/RecordPage.jsx` and was never imported or bundled.
-//   The deployed code remained v5.1 with no gating wiring, which matches the
-//   observed behavior "voice save never shows reminder." The orphan file was
-//   deleted during Session 1A.5 preflight.
+//     1. NEW STATE `savedMemoryId`. Captures the id returned by the
+//        successful POST to /spaces/:id/memories so the feedback branch
+//        of handleViewAllMemories can put it into router.state.memoryId.
+//        Per Plan v1.2 Q5 + D1c (Option A — session decision).
 //
-//   Session 1A.5 therefore jumps this file directly from v5.1 to v5.3,
-//   implementing the gating wiring against the DB-backed contract (ADR-038)
-//   rather than the superseded sessionStorage contract. No intermediate
-//   sessionStorage code ever lands in this file.
+//     2. `handleSave` now captures the POST response. v5.3 discarded it;
+//        v5.4 stores `created.id` into savedMemoryId before setSaved(true).
+//        Response shape verified against anamoria-memories Lambda v2.0
+//        (createVoiceMemory → returns {id, type, spaceId, s3Key, duration,
+//        createdAt, voiceNoteId}). This is the only scope extension beyond
+//        handler-only changes, documented per the session guardrail.
+//        EDIT PATH (`handleEditSave`) is INTENTIONALLY NOT MODIFIED —
+//        edits bypass gating via the editMode early-return, so the id is
+//        not needed for edits.
 //
-//   See Session 1A Session Log Errata v1.0.1 (to be produced post-regression)
-//   for the full root-cause record.
+//     3. `handleViewAllMemories` feedback branch now routes to
+//        /spaces/:id/feedback with full router.state instead of falling
+//        through to the feed. The branch splits:
+//           gate.redirectTo === 'reminder'  → /spaces/:id/reminder
+//           gate.redirectTo === 'feedback'  → /spaces/:id/feedback (NEW)
+//           default (feed)                  → /spaces/:id
+//        editMode early-return unchanged (edits never gate).
 //
-// editMode guard rationale (File Review v1.1 D5):
+//     4. `handleRecordAnother` additionally resets savedMemoryId to null
+//        so the next save within this mount gets its own id and can't
+//        accidentally reuse the previous one.
+//
+//   - postSaveGating v1.2 call: `userMemoryCount` argument is OMITTED
+//     from the caller side. The helper fetches it from
+//     GET /spaces/{id}/memories/count internally (parallel with the
+//     stats fetch). Per session decision on File 5 review.
+//
+//   - No other changes. Record screen (5a), Review screen (5b, create +
+//     edit variants), Uploading, Loading, Success body apart from the
+//     handleViewAllMemories edit, handlers except the three listed above,
+//     state shape apart from savedMemoryId, effects, refs, useRecorder
+//     integration, LovedOneBar usage, BottomNav placement, re-record
+//     confirmation modal — all byte-identical to v5.3.
+//
+// editMode guard rationale (unchanged from v5.3):
 //   RecordPage's success branch renders `<SuccessScreen>` for both create
-//   (handleSave) and edit (handleEditSave) paths. The only existing
-//   discriminator is `badgeLabel`. Editing a memory is NOT a new memory
-//   creation, so it must not trigger the reminder opt-in prompt. The gating
-//   handler checks `editMode` at the top and early-returns to feed without
-//   calling the gating helper. Satisfies RG-4 and RG-13.
+//   (handleSave) and edit (handleEditSave) paths. Editing is NOT a new
+//   memory creation, so it must not trigger feedback OR reminder prompts.
+//   The gating handler checks `editMode` at the top and early-returns to
+//   feed without calling the gating helper. Satisfies RG-4 and RG-13.
+//
+// Previous changes (v5.3 — Session 1A.5, April 18, 2026):
+//   - Imports `checkPostSaveGating` from '../utils/postSaveGating' v1.1.
+//   - Adds a `handleViewAllMemories` useCallback that gates on create
+//     paths and early-returns to feed on edit paths. Wired into the
+//     SuccessScreen `tertiaryCta.onClick`.
+//
+// Historical note — v5.2 was never deployed (see v5.3 header for detail).
 //
 // Previous changes (v5.1 — Success screen extraction, April 16, 2026):
-//   - Success block (5c) now uses shared <SuccessScreen> component.
-//   - Primary CTA icon: emoji '🎤' replaced with <RecordIcon /> from BrandIcons
-//     (consistency with Write/Photo success screens in Phase 3; matches the
-//     Brand Sage SVGs used in BottomNav).
-//   - Voice-specific player body (play button + waveform + duration + hidden
-//     audio) extracted to local VoicePlayerBody component, passed to
-//     <SuccessScreen> via children slot.
-//   - Subtitle logic preserved exactly: `${memoryLabel} · Memory saved` when
-//     label is present, else `Memory saved` (V1+ decision).
-//   - No change to save flow, state management, handlers, Record screen (5a),
-//     Review screen (5b), Edit Review (5b-edit), loading, uploading, or the
-//     re-record confirmation modal.
+//   - Success block (5c) uses shared <SuccessScreen> component.
+//   - Voice-specific player body extracted to local VoicePlayerBody.
 //
-// Regression-critical: VR-1 through VR-13 in Plan v1.4 must all pass, plus
-// RG-1, RG-4, RG-13 from the Session 1A.5 regression sweep.
-//
-// Previous changes (v5.0):
-//   - Edit mode: nav state { editMode: true, editMemory: {...} }
-//   - Lands on Review (5b) with existing audio playback, label, privacy
-//   - "Record new version" → Record (5a) → stop → Review (5b) with new blob → save
-//   - Save calls PATCH /memories/:id
-//   - Success (5c) after save
-//   - Cancel → back to feed
+// Regression-critical: VR-1 through VR-13 plus RG-1, RG-4, RG-13 from
+// Session 1A.5 must all pass. Session 2 adds F-1/F-2 (voice first save
+// triggers feedback after reminder has been shown) and F-10 (direct URL
+// load) for feedback-specific verification — see Plan v1.2 §10.
 //
 // Route: /spaces/:spaceId/record (protected — JWT required)
 // Screens: Record (5a) | Review (5b) | Success (5c via SuccessScreen) | Uploading
@@ -80,6 +84,7 @@ import SuccessScreen from '../components/SuccessScreen';
 import { RecordIcon } from '../components/BrandIcons';
 // v5.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
 // feedback branch stubbed for Session 2).
+// v5.4: postSaveGating is now v1.2 — feedback branch implemented.
 import { checkPostSaveGating } from '../utils/postSaveGating';
 import styles from './RecordPage.module.css';
 
@@ -231,6 +236,11 @@ export default function RecordPage() {
   const [playing, setPlaying] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedDuration, setSavedDuration] = useState('0:00');
+  // v5.4: Session 2 — capture created memory id from successful POST for
+  // feedback routing. Null until handleSave succeeds. Reset in
+  // handleRecordAnother so a second save within this mount gets its own id.
+  // Not populated on edit path (handleEditSave) — edits never gate.
+  const [savedMemoryId, setSavedMemoryId] = useState(null);
 
   useEffect(() => {
     if (audioBlob && recordingState === 'stopped') {
@@ -288,7 +298,12 @@ export default function RecordPage() {
       await api.putS3(uploadData.uploadUrl, audioBlob, baseMimeType);
       setS3KeySaved(uploadData.s3Key);
 
-      await api.post(`/spaces/${spaceId}/memories`, {
+      // v5.4: capture the response from POST /spaces/:id/memories so
+      // savedMemoryId is available to the feedback branch of
+      // handleViewAllMemories. Response shape (voice):
+      //   { id, type: 'voice', spaceId, s3Key, duration, createdAt, voiceNoteId }
+      // Verified against anamoria-memories Lambda v2.0 source.
+      const createdMemory = await api.post(`/spaces/${spaceId}/memories`, {
         type: 'voice',
         s3Key: uploadData.s3Key,
         mimeType: baseMimeType,
@@ -297,6 +312,7 @@ export default function RecordPage() {
         ...(memoryLabel.trim() ? { title: memoryLabel.trim() } : {}),
         ...(activePromptId ? { promptId: activePromptId } : {}),
       });
+      setSavedMemoryId(createdMemory.id);
 
       if (activePromptId) {
         api.post(`/spaces/${spaceId}/prompt/respond`, { promptId: activePromptId }).catch(() => {});
@@ -317,6 +333,11 @@ export default function RecordPage() {
   }
 
   // ─── Save: EDIT mode (metadata only or re-record) ────────
+  // v5.4: INTENTIONALLY UNCHANGED FROM v5.3.
+  // Edit path bypasses gating via handleViewAllMemories editMode early-return,
+  // so savedMemoryId is not needed here. The PATCH response is discarded as
+  // in v5.3. If edits ever needed to gate in a future session, this handler
+  // would be the place to capture the id — but for Session 2, it stays.
 
   async function handleEditSave() {
     setUploadError('');
@@ -445,19 +466,33 @@ export default function RecordPage() {
     setIsPrivate(true);
     setMemoryLabel('');
     setPlaying(false);
+    // v5.4: clear captured memory id so the next save gets its own id
+    setSavedMemoryId(null);
     reRecord();
   }
 
-  // ─── View all memories (post-save gating, v5.3) ──────────
-  // Called from SuccessScreen.tertiaryCta.onClick. editMode path early-returns
-  // to feed without gating (edits do not trigger reminder opt-in prompts —
-  // RG-4 / RG-13). Create path calls the DB-backed gating helper which
-  // returns { redirectTo: 'reminder' | 'feedback' | 'feed' }.
-  // On any error, falls through to feed so the user is never stuck on the
-  // success screen.
+  // ─── View all memories (post-save gating, v5.4) ──────────
+  // Called from SuccessScreen.tertiaryCta.onClick.
+  //
+  // Edit paths: early-return to feed. Edits never trigger reminder OR
+  // feedback prompts (RG-4 / RG-13 Session 1A.5 + Session 2 scope).
+  //
+  // Create paths: call the DB-backed gating helper (v1.2) which returns
+  // one of three shapes:
+  //   { redirectTo: 'reminder' }                                      → /reminder
+  //   { redirectTo: 'feedback', triggerContext, userMemoryCount }     → /feedback
+  //   { redirectTo: 'feed' }                                          → /:spaceId
+  //
+  // The helper also handles the internal count fetch (we omit
+  // `userMemoryCount` from the call — helper fetches it in parallel with
+  // /feedback/stats). Per session decision on File 5 review.
+  //
+  // On any error from the helper (which itself never throws — it returns
+  // 'feed' on internal failure), we catch defensively and navigate to the
+  // feed. User is never stuck on success screen.
   const handleViewAllMemories = useCallback(async () => {
     // Edit-mode early-return (File Review v1.1 D5): edits are not new
-    // memories; no gating prompt should fire.
+    // memories; no gating prompt should fire. Unchanged from v5.3.
     if (editMode) {
       navigate(`/spaces/${spaceId}`, { replace: true });
       return;
@@ -468,18 +503,33 @@ export default function RecordPage() {
         space,
         memoryType: 'voice',
         getApi,
+        // userMemoryCount intentionally omitted — helper fetches it from
+        // GET /spaces/:id/memories/count in parallel with the stats fetch.
       });
       if (gate.redirectTo === 'reminder') {
         navigate(`/spaces/${spaceId}/reminder`);
+      } else if (gate.redirectTo === 'feedback') {
+        // v5.4: route to feedback screen with full router state per Plan
+        // v1.2 Q5. FeedbackPage's direct-URL-load guard requires
+        // triggerContext at minimum; the other fields correlate the
+        // feedback event to the memory that triggered it.
+        navigate(`/spaces/${spaceId}/feedback`, {
+          state: {
+            memoryId: savedMemoryId,
+            memoryType: 'voice',
+            triggerContext: gate.triggerContext,
+            userMemoryCount: gate.userMemoryCount,
+          },
+        });
       } else {
-        // 'feedback' (Session 2 stub) and 'feed' both land on the feed in 1A.5.
+        // 'feed' — default path, or helper returned 'feed' on internal error
         navigate(`/spaces/${spaceId}`, { replace: true });
       }
     } catch (err) {
       console.error('Gating check failed:', err);
       navigate(`/spaces/${spaceId}`, { replace: true });
     }
-  }, [editMode, spaceId, space, navigate, getApi]);
+  }, [editMode, spaceId, space, navigate, getApi, savedMemoryId]);
 
   // ═══════════════════════════════════════════════════════════
   // RENDER ORDER
@@ -521,6 +571,8 @@ export default function RecordPage() {
   //       as children. Subtitle and handler behavior unchanged from v5.0.
   // v5.3: tertiaryCta.onClick routes through handleViewAllMemories which
   //       gates on create paths and early-returns on edit paths.
+  // v5.4: handleViewAllMemories feedback branch fully wired — unchanged
+  //       markup below.
 
   if (saved) {
     const subtitle = memoryLabel.trim()

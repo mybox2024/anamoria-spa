@@ -1,0 +1,305 @@
+/* src/pages/FeedbackPage.module.css
+ * v1.0 — Session 2 (April 19, 2026)
+ *
+ * Feedback opt-in screen. Shown after a qualifying memory save per the
+ * post-save gating rules in postSaveGating v1.2 (feedback branch).
+ *
+ * Uses only existing CSS variables defined in the SPA's global token layer.
+ * No new tokens introduced.
+ *
+ * ═══════════════════════════════════════════════════════════════════
+ * Class structure
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Shared with ReminderPage.module.css v1.0 (byte-identical values):
+ *   .page, .content, .heading, .subtext, .error, .ctas,
+ *   .btnPrimary, .btnGhost
+ *
+ * Feedback-specific additions (ported from axr_MemoryVaultV2.css
+ * "STEP 12: FEEDBACK SCREEN V2" section):
+ *   .moodRow, .moodBtn, .moodSelected, .moodEmoji, .moodLabel
+ *
+ * ═══════════════════════════════════════════════════════════════════
+ * Source / reconciliation notes
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Plan v1.2 §8.2 described .heading as weight 600 and .content padding as
+ * 40px 20px. Deployed ReminderPage v1.0 uses weight 500 and 32px 20px
+ * respectively. Per guardrail FS-10/11/12 (verify against live state, not
+ * plan text), this file matches the DEPLOYED sibling ReminderPage values,
+ * not the Plan text.
+ *
+ * Mood button styling is ported from the LWC axr_MemoryVaultV2.css
+ * "STEP 12: FEEDBACK SCREEN V2 (Screen 18)" section. Mood buttons are a
+ * selection-set UI (pick one), not a command-set (do a thing), so they use
+ * their own class family distinct from .btnPrimary / .btnGhost. This
+ * follows Material Design 3's distinction between choice chips and action
+ * buttons.
+ *
+ * :focus-visible added to .moodBtn for WCAG 2.4.7 (Focus Visible, Level AA).
+ * LWC source did not have this — it is a defensible accessibility addition.
+ *
+ * ═══════════════════════════════════════════════════════════════════
+ * NOT included this version
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * - Textarea styles (R2 removed textarea from MVP)
+ * - Contributor-specific styling (Master Plan v1.1 Addendum: contributor
+ *   feedback out of MVP)
+ * - No bottom-nav padding — FeedbackPage does not render BottomNav, per
+ *   pattern established by ReminderPage
+ */
+
+/* ─── Page shell ──────────────────────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .page */
+.page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Scrollable content region ──────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .content */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 20px;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* ─── Heading (page-level h1) ────────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .heading.
+ * FeedbackPage owns the <h1> (LovedOneBar has no page-level h1) per
+ * File Review D2 precedent.
+ */
+.heading {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  text-align: center;
+  margin: 0 0 6px 0;
+}
+
+/* ─── Subtext — prompt phrasing ──────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .subtext */
+.subtext {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--color-text-subtle);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 0 28px 0;
+}
+
+/* ─── Error message (aria-live region) ───────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .error */
+.error {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-red);
+  background: rgba(184, 84, 80, 0.08);
+  border: 1px solid rgba(184, 84, 80, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 16px 0;
+  text-align: left;
+  line-height: 1.45;
+}
+
+/* ─── Mood row (3 selection cards) ───────────────────────────────── */
+/* Horizontal flex; 12px gap; bottom margin separates from CTAs.
+ * Ported from LWC .feedback-mood-cards. Plan v1.2 §8.2 mood-row hover
+ * behavior preserved; selected state is a class toggle from FeedbackPage.
+ */
+.moodRow {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+/* ─── Individual mood card ───────────────────────────────────────── */
+/* Bordered card; 18px padding; centered content; equal flex.
+ * Max-width caps growth on desktop; on mobile, cards shrink uniformly.
+ * .feedback-mood-cards .mood-btn in the LWC source.
+ */
+.moodBtn {
+  flex: 1;
+  max-width: 160px;
+  padding: 18px 12px;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--color-bg-white);
+  border: 1.5px solid var(--color-border-light);
+  font-family: var(--font-sans);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.moodBtn:hover:not(:disabled) {
+  border-color: var(--color-sage-dark);
+  background: var(--color-sage-tint);
+}
+
+/* WCAG 2.4.7 Focus Visible — not in LWC source.
+ * Using the same focus-ring style as .btnPrimary / .btnGhost in
+ * ReminderPage for consistency across interactive elements.
+ */
+.moodBtn:focus-visible {
+  outline: 2px solid var(--color-sage-dark);
+  outline-offset: 3px;
+}
+
+.moodBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Selected mood card ─────────────────────────────────────────── */
+/* Applied via class toggle from FeedbackPage when mood === this button's
+ * value. The 0.5px border-width jump on selection (1.5 → 2) is masked by
+ * shifting colors simultaneously so the layout does not shift.
+ */
+.moodSelected {
+  background: var(--color-sage-tint);
+  border: 2px solid var(--color-sage-dark);
+  /* Compensate for 0.5px border delta by nudging padding by 0.5px on each
+   * edge — keeps the card's outer box identical to unselected state so
+   * adjacent cards don't reflow. */
+  padding: 17.5px 11.5px;
+}
+
+/* When selected, the mood label weight and color shift for emphasis. */
+.moodSelected .moodLabel {
+  font-weight: 700;
+  color: var(--color-sage-dark);
+}
+
+/* ─── Mood emoji ─────────────────────────────────────────────────── */
+/* Large emoji for visual anchor. Intentionally kept as emoji per
+ * Icon_Audit_Complete.md "CATEGORY 6: KEEP AS EMOJI — Intentionally human.
+ * Feedback mood selectors should stay as emoji. They're emotional,
+ * universal, and changing them to SVGs would make them feel clinical."
+ */
+.moodEmoji {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+/* ─── Mood label ─────────────────────────────────────────────────── */
+.moodLabel {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  font-family: var(--font-sans);
+  line-height: 1.3;
+}
+
+/* ─── CTA stack ──────────────────────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .ctas */
+.ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Primary button ("Submit") ──────────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .btnPrimary */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 18px 32px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-text-white);
+  background: var(--color-sage-dark);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #4a6654;
+  transform: translateY(-1px);
+}
+
+.btnPrimary:focus-visible {
+  outline: 2px solid var(--color-sage-dark);
+  outline-offset: 3px;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── Ghost button ("Not right now") ─────────────────────────────── */
+/* Byte-identical to ReminderPage.module.css v1.0 .btnGhost */
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 18px 32px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-text-body);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btnGhost:hover:not(:disabled) {
+  background: var(--color-sage-light);
+  color: var(--color-text-primary);
+}
+
+.btnGhost:focus-visible {
+  outline: 2px solid var(--color-sage-dark);
+  outline-offset: 3px;
+}
+
+.btnGhost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Responsive: narrow viewports ───────────────────────────────── */
+/* Under 480px: tighten mood row gap and card padding so three cards fit
+ * without wrapping. Keep emoji and label legible.
+ */
+@media (max-width: 480px) {
+  .moodRow {
+    gap: 8px;
+  }
+  .moodBtn {
+    padding: 14px 8px;
+  }
+  .moodSelected {
+    padding: 13.5px 7.5px;
+  }
+  .moodEmoji {
+    font-size: 28px;
+  }
+  .moodLabel {
+    font-size: 14px;
+  }
+}

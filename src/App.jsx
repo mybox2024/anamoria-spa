@@ -1,6 +1,25 @@
 // App.jsx — Anamoria SPA
-// v1.9 — Session 1A: add /spaces/:spaceId/reminder route (April 18, 2026)
-// Changes from v1.8:
+// v1.10 — Session 2: add FeedbackPage route + sessionTag context (April 19, 2026)
+// Changes from v1.9:
+//   - Added `useMemo` to the react import list (used to stabilize the
+//     AppContext value so spreading appState + sessionTag doesn't break
+//     downstream memoization; see D2 session decision).
+//   - Added static import for FeedbackPage (pages/FeedbackPage.jsx v1.0).
+//   - Added `sessionTag` state in AppRoutes via
+//     `useState(() => crypto.randomUUID())`. Regenerates per page-load
+//     (refresh / hard reload resets it). Per BP1 session decision.
+//     Placed in AppRoutes, not in useSessionBootstrap, per D3.
+//   - Wrapped AppContext.Provider value in useMemo, combining appState
+//     and sessionTag into a single stable object. Per D2 (Option B+) —
+//     spread + memoize so React.memo'd consumers don't thrash.
+//   - Added one <Route> for /spaces/:spaceId/feedback wrapped in
+//     <ProtectedRoute>, placed immediately after /spaces/:spaceId/reminder
+//     and before /leader (matches the grouping convention of space-scoped
+//     routes).
+//   - No other changes: no bootstrap logic changes, no modifications to
+//     existing routes or their order, no changes to any other component.
+//
+// Previous changes (v1.9):
 //   - Added static import for ReminderPage (pages/ReminderPage.jsx v1.1).
 //   - Added one <Route> for /spaces/:spaceId/reminder wrapped in
 //     <ProtectedRoute>, placed immediately after /spaces/:spaceId/invite
@@ -34,7 +53,8 @@
 // Previous changes (v1.4):
 //   - Bootstrap refactored: GET /pilot/me replaces POST /pilot/activate
 
-import { createContext, useContext, useState, useEffect, useCallback, lazy, Suspense } from 'react';
+// v1.10: useMemo added for stable AppContext value (D2 decision).
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -59,6 +79,9 @@ import UpgradePage from './pages/UpgradePage';
 // v1.9: ReminderPage — opt-in screen shown after first memory save per
 // Reminder/Feedback/ContributorFeed Master Plan v1.0 (Session 1A scope).
 import ReminderPage from './pages/ReminderPage';
+// v1.10: FeedbackPage — mood-selection screen shown on qualifying saves
+// per Session 2 R3 gating rules. See pages/FeedbackPage.jsx v1.0.
+import FeedbackPage from './pages/FeedbackPage';
 // v1.5 (Fix 4): CheckoutPage lazy-loaded to prevent Stripe.js from evaluating
 // on app startup. This scopes the Stripe badge to the checkout route only.
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
@@ -232,7 +255,26 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
 
 function AppRoutes() {
   const { isLoading, isAuthenticated, getAccessTokenSilently, user } = useAuth0();
+
+  // v1.10: sessionTag — per-page-load UUID used by FeedbackPage to group
+  // analytics events from a single visit. Lazy initializer runs exactly
+  // once per component mount; refresh/hard-reload regenerates (correct per
+  // BP1). Placed here rather than in useSessionBootstrap per D3 decision:
+  // sessionTag is an app-level per-visit concern, not an identity concern,
+  // so it lives next to the other AppRoutes-level state.
+  const [sessionTag] = useState(() => crypto.randomUUID());
+
   const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
+
+  // v1.10: Stable context value per D2 (Option B+). useMemo recomputes only
+  // when appState or sessionTag identity changes, so consumers wrapped in
+  // React.memo keep their memoization working. Without useMemo, the spread
+  // would produce a new object every render and defeat any downstream
+  // memoization (per React.dev memo guidance + Kent C. Dodds optimize-context).
+  const contextValue = useMemo(
+    () => ({ ...appState, sessionTag }),
+    [appState, sessionTag]
+  );
 
   // v1.8: Auth0 initializing — butterfly loader
   if (isLoading) {
@@ -261,7 +303,7 @@ function AppRoutes() {
   }
 
   return (
-    <AppContext.Provider value={appState}>
+    <AppContext.Provider value={contextValue}>
       {/* v1.5: Suspense boundary wraps Routes for lazy-loaded CheckoutPage */}
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
@@ -340,6 +382,16 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <ReminderPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* v1.10: Feedback opt-in screen — Session 2. Placed immediately
+              after /reminder to keep space-scoped gating screens grouped. */}
+          <Route
+            path="/spaces/:spaceId/feedback"
+            element={
+              <ProtectedRoute>
+                <FeedbackPage />
               </ProtectedRoute>
             }
           />

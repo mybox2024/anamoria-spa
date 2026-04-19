@@ -1,92 +1,73 @@
 // pages/PhotoPage.jsx — /spaces/:spaceId/photo
-// v2.3 — Session 1A.5 (April 18, 2026)
+// v2.4 — Session 2 (April 19, 2026)
 //
-// Changes from v2.2:
-//   - Removed the `sessionStorage.getItem('ana_reminderPromptSeen') === '1'`
-//     read inside `handleViewAllMemories`. The session-scoped flag has been
-//     retired in favor of DB-owned `space.reminderPromptedAt` (ADR-038 /
-//     Session 1A.5 Steps 1–4).
-//   - Dropped the `hasSeenReminderPrompt` argument from the
-//     `checkPostSaveGating()` call. The helper's v1.1 signature no longer
-//     accepts it; the DB-backed rule reads `space.reminderPromptedAt`
-//     directly.
+// Changes from v2.3:
+//   - Session 2 feedback routing. Four narrow additions, no logic removed:
+//
+//     1. NEW STATE `savedMemoryId`. Captures the id returned by the
+//        successful POST to /spaces/:id/memories so the feedback branch
+//        of handleViewAllMemories can put it into router.state.memoryId.
+//        Per Plan v1.2 Q5 + D1c (Option A — session decision).
+//        Null until handleSave succeeds. Mirrors RecordPage v5.4 pattern.
+//
+//     2. `handleSave` now captures the POST response. v2.3 discarded it;
+//        v2.4 stores `created.id` into savedMemoryId before setSaved(true).
+//        Response shape (photo) verified against anamoria-memories Lambda
+//        v2.0: { id, type: 'photo', spaceId, s3Key, createdAt }
+//        This is the only scope extension beyond handler-only changes,
+//        per session decision D1c (Option A).
+//
+//     3. `handleSuccessFileChange` additionally resets savedMemoryId to
+//        null so a subsequent save within this mount gets its own id and
+//        can't accidentally reuse the previous one. Mirrors the cleanup
+//        pattern in RecordPage.handleRecordAnother v5.4.
+//
+//     4. `handleViewAllMemories` feedback branch now routes to
+//        /spaces/:id/feedback with full router.state instead of falling
+//        through to the feed. Branch split:
+//           gate.redirectTo === 'reminder'  → /spaces/:id/reminder
+//           gate.redirectTo === 'feedback'  → /spaces/:id/feedback (NEW)
+//           default (feed)                  → /spaces/:id
+//        No editMode guard — photo edits flow through MemoryDetailPage.
+//
+//   - postSaveGating v1.2 call: `userMemoryCount` argument is OMITTED
+//     from the caller side. The helper fetches it from
+//     GET /spaces/{id}/memories/count internally (parallel with the
+//     stats fetch). Per session decision on File 5 review.
+//
 //   - No other changes. Form screen, success-screen layout, all other
-//     handlers (handleSave, handleAddAnotherPhoto, handleSuccessFileChange,
-//     handleFileSelect, handleChangePhoto, handleRemovePhoto, handleCancel,
+//     handlers (handleSave apart from the id capture, handleAddAnotherPhoto,
+//     handleSuccessFileChange apart from the id reset, handleFileSelect,
+//     handleChangePhoto, handleRemovePhoto, handleCancel,
 //     validateAndSetFile), preview derivation effect, blob-URL lifecycle,
-//     redirect-on-no-file guard, SuccessScreen props, state shape, imports —
-//     all byte-identical to v2.2.
+//     redirect-on-no-file guard, SuccessScreen props, state shape apart
+//     from savedMemoryId, imports — all byte-identical to v2.3.
 //
-// Contract change (caller-side):
-//   v2.2 call shape (retired):
-//     checkPostSaveGating({
-//       spaceId, space, memoryType: 'photo',
-//       hasSeenReminderPrompt,   ← dropped
-//       getApi: () => createApiClient(getAccessTokenSilently),
-//     })
-//   v2.3 call shape (current):
-//     checkPostSaveGating({
-//       spaceId, space, memoryType: 'photo',
-//       getApi: () => createApiClient(getAccessTokenSilently),
-//     })
+// No editMode guard here (unchanged from v2.3): PhotoPage does NOT
+// support edit via this route. Photo edits flow through MemoryDetailPage
+// (see File Review Findings §6 / D1). The `handleViewAllMemories`
+// handler therefore never fires on an edit path.
 //
-// No editMode guard here: PhotoPage does NOT support edit via this route.
-// Photo edits flow through MemoryDetailPage (see File Review Findings §6 /
-// D1). The `handleViewAllMemories` handler therefore never fires on an edit
-// path.
+// Regression expectations (Session 2 additions):
+//   - F-1 through F-3 Photo feedback paths: tertiaryCta routes through
+//     feedback when gating matches (First_Memory / First_Photo / Periodic).
+//   - R-3 Photo reminder flow: unchanged — reminder branch byte-identical.
+//   - M-3 Photo save flow end-to-end: POST still creates row, response
+//     id now captured and used for feedback correlation.
 //
-// Regression expectations (Session 1A.5):
-//   - RG-3 Photo save flow: tertiaryCta routes through DB-backed gating.
-//   - RG-6 Photo edit from feed (MemoryDetailPage path): unaffected.
-//   - RG-11 (sign-out re-prompt suppression): passes via DB persistence.
-//   - RG-14 Tab-close re-prompt suppression: passes via DB persistence.
+// Previous changes (v2.3 — Session 1A.5, April 18, 2026):
+//   - Removed sessionStorage-based gating flag (hasSeenReminderPrompt).
+//   - Gating helper v1.1 signature: drops hasSeenReminderPrompt.
 //
-// Previous changes (v2.2 — Session 1A):
-//   - Imported `checkPostSaveGating` from `../utils/postSaveGating` v1.0.
-//   - Replaced the one-line `tertiaryCta.onClick` on SuccessScreen with an
-//     async handler that called the gating helper and routed via
-//     /spaces/:id/reminder or /spaces/:id. Session-scoped gating flag read
-//     from sessionStorage (now removed in v2.3).
+// Previous changes (v2.2 — Session 1A): Original gating wiring via
+//   sessionStorage (superseded by v2.3 DB-backed design).
 //
-// Previous changes (v2.1):
-//   - Fixed broken image display on form + success screen + edit flows.
-//   - Adopted canonical React pattern for URL.createObjectURL per MDN
-//     (https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)
-//     and React community consensus (CoreUI, reactuse.com, use-object-url).
+// Previous changes (v2.1): Canonical URL.createObjectURL/revokeObjectURL
+//   pattern per MDN, fixing v2.0 React 18 StrictMode double-invocation bug.
 //
-// What was broken in v2.0:
-//   - URL.createObjectURL was called inside the useState initializer. In
-//     React 18 StrictMode, useState initializers are invoked TWICE; only the
-//     second result is kept in state. This leaked the first blob URL and,
-//     depending on render ordering, could race against cleanup.
-//   - Two revoke paths existed (manual revoke in setPreview callback and the
-//     [preview]-dep cleanup effect). Harmless but redundant and obscured the
-//     real lifecycle.
-//
-// Canonical pattern (applied in v2.1):
-//   1. Store the File in state (set from location.state.file).
-//   2. DERIVE the preview via useEffect keyed on [file].
-//   3. Create the URL inside the effect. Close over it in the cleanup
-//      return so we revoke exactly the URL we created.
-//   4. The effect re-runs when `file` changes — React calls the previous
-//      cleanup BEFORE the new effect setup, so the old URL is released
-//      just before a new one is created. On unmount, the last cleanup
-//      releases the last URL. Zero leaks, zero races.
-//
-//   Reference shape (from CoreUI + reactuse.com):
-//     useEffect(() => {
-//       if (!file) { setPreview(null); return; }
-//       const url = URL.createObjectURL(file);
-//       setPreview(url);
-//       return () => URL.revokeObjectURL(url);
-//     }, [file]);
-//
-// Previous changes (v2.0):
-//   - Removed setTimeout-based auto-open of file picker (Safari user-gesture
-//     chain fix). Reads location.state.file on mount; redirects to feed if
-//     missing (refresh/deep-link).
-//   - Added saved state flag and SuccessScreen integration.
-//   - Added handleAddAnotherPhoto using hidden file input on success screen.
+// Previous changes (v2.0): Removed setTimeout-based auto-open of file
+//   picker; reads location.state.file on mount; redirects to feed if
+//   missing.
 //
 // Route: /spaces/:spaceId/photo (protected)
 
@@ -97,8 +78,8 @@ import { createApiClient } from '../api/client';
 import SuccessScreen from '../components/SuccessScreen';
 import { PhotoIcon } from '../components/BrandIcons';
 // v2.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
-// feedback branch stubbed for Session 2). Signature dropped
-// `hasSeenReminderPrompt` — caller must not pass it.
+// feedback branch stubbed for Session 2).
+// v2.4: postSaveGating is now v1.2 — feedback branch implemented.
 import { checkPostSaveGating } from '../utils/postSaveGating';
 import styles from './PhotoPage.module.css';
 
@@ -129,6 +110,13 @@ export default function PhotoPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+
+  // v2.4: Session 2 — capture created memory id from successful POST for
+  // feedback routing. Null until handleSave succeeds. Reset in
+  // handleSuccessFileChange so a second save within this mount gets its
+  // own id. Not populated on edit path — PhotoPage has none (edits flow
+  // through MemoryDetailPage).
+  const [savedMemoryId, setSavedMemoryId] = useState(null);
 
   // ─── Refs ───
   const fileInputRef = useRef(null);               // in-form "Change photo"
@@ -234,14 +222,19 @@ export default function PhotoPage() {
       // 2. Upload to S3
       await api.putS3(uploadData.uploadUrl, file, mimeType);
 
-      // 3. Create photo memory
-      await api.post(`/spaces/${spaceId}/memories`, {
+      // 3. Create photo memory.
+      // v2.4: capture the response so savedMemoryId is available to the
+      // feedback branch of handleViewAllMemories. Response shape (photo):
+      //   { id, type: 'photo', spaceId, s3Key, createdAt }
+      // Verified against anamoria-memories Lambda v2.0 source.
+      const createdMemory = await api.post(`/spaces/${spaceId}/memories`, {
         type: 'photo',
         s3Key: uploadData.s3Key,
         title: title.trim() || null,
         note: caption.trim() || null,
         isPrivate,
       });
+      setSavedMemoryId(createdMemory.id);
 
       // 4. Show success screen (file state is preserved, so preview blob
       //    URL is still alive and renders in the success card).
@@ -274,17 +267,26 @@ export default function PhotoPage() {
     setIsPrivate(true);
     setError(null);
     setSaved(false);                        // back to form view
+    // v2.4: clear captured memory id so the next save gets its own id
+    setSavedMemoryId(null);
   }, [validateAndSetFile]);
 
-  // v2.3: "View all memories" — post-save gating handler (DB-backed).
-  // Called from SuccessScreen.tertiaryCta.onClick. No editMode guard needed —
-  // photo edits flow through MemoryDetailPage, not this file (File Review
-  // Findings §6 / D1). Fallthrough on any error routes to the feed so the
-  // user is never stuck on SuccessScreen.
+  // v2.4: "View all memories" — post-save gating handler (DB-backed).
+  // Called from SuccessScreen.tertiaryCta.onClick.
   //
-  // `getApi` is passed as a function per Q5 approval. PhotoPage does not
-  // memoize createApiClient (each handler creates it ad-hoc), so we preserve
-  // that page-level pattern by inlining the factory here (D3).
+  // No editMode guard — photo edits flow through MemoryDetailPage, not
+  // this file (File Review Findings §6 / D1). Fallthrough on any error
+  // routes to the feed so the user is never stuck on SuccessScreen.
+  //
+  // `getApi` is passed as an inline arrow per D3 session decision (page
+  // does not memoize createApiClient; each handler creates it ad-hoc).
+  //
+  // v2.4 changes:
+  //   - Feedback branch routes to /spaces/:id/feedback with full router
+  //     state instead of falling through to feed.
+  //   - memoryId read from savedMemoryId state.
+  //   - userMemoryCount intentionally omitted from the helper call;
+  //     helper fetches it from GET /spaces/:id/memories/count internally.
   const handleViewAllMemories = useCallback(async () => {
     try {
       const gate = await checkPostSaveGating({
@@ -292,18 +294,33 @@ export default function PhotoPage() {
         space,
         memoryType: 'photo',
         getApi: () => createApiClient(getAccessTokenSilently),
+        // userMemoryCount intentionally omitted — helper fetches it
+        // from GET /spaces/:id/memories/count in parallel with stats.
       });
       if (gate.redirectTo === 'reminder') {
         navigate(`/spaces/${spaceId}/reminder`);
+      } else if (gate.redirectTo === 'feedback') {
+        // v2.4: route to feedback screen with full router state per Plan
+        // v1.2 Q5. FeedbackPage's direct-URL-load guard requires
+        // triggerContext at minimum; the other fields correlate the
+        // feedback event to the memory that triggered it.
+        navigate(`/spaces/${spaceId}/feedback`, {
+          state: {
+            memoryId: savedMemoryId,
+            memoryType: 'photo',
+            triggerContext: gate.triggerContext,
+            userMemoryCount: gate.userMemoryCount,
+          },
+        });
       } else {
-        // 'feedback' (Session 2 stub) and 'feed' both land on the feed in 1A.5.
+        // 'feed' — default path, or helper returned 'feed' on internal error
         navigate(`/spaces/${spaceId}`, { replace: true });
       }
     } catch (err) {
       console.error('Gating check failed:', err);
       navigate(`/spaces/${spaceId}`, { replace: true });
     }
-  }, [spaceId, space, navigate, getAccessTokenSilently]);
+  }, [spaceId, space, navigate, getAccessTokenSilently, savedMemoryId]);
 
   // ─── Derived ───
   const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
@@ -320,7 +337,8 @@ export default function PhotoPage() {
 
   // ═══════════════════════════════════════════════════════════
   //  SUCCESS SCREEN — after successful save
-  //  v2.3: tertiaryCta.onClick routes through DB-backed post-save gating.
+  //  v2.4: tertiaryCta.onClick routes through DB-backed post-save gating
+  //  with feedback branch fully wired. Markup unchanged from v2.3.
   // ═══════════════════════════════════════════════════════════
 
   if (saved) {
