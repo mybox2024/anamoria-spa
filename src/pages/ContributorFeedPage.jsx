@@ -1,61 +1,106 @@
-// ContributorFeedPage.jsx — /contribute/:spaceId
-// Session token auth (from sessionStorage, not Auth0)
-// Shows shared memories, contributor can record voice / write text
-// APIs: GET /contribute/:spaceId, GET /contribute/:spaceId/memories
-// Session token sent via x-session-token header
+// pages/ContributorFeedPage.jsx — Anamoria SPA
+// v2.0 — Session 3 (April 19, 2026)
+//
+// Contributor feed screen. Reached via "View shared memories →" link from
+// ContributorHomePage (Screen 1). Back chevron returns to ContributorHomePage.
+//
+// Route: /contribute/:spaceId/memories
+//
+// Ported from LWC axr_MemoryVaultV2.html contributor-feed-screen (v2.9) +
+// axr_MemoryVaultV2.css contributor-space-header, contributor-banner,
+// contributor-feed-screen blocks.
+//
+// Changes from v1.0 (current deployed):
+//   - Route changed from /contribute/:spaceId to /contribute/:spaceId/memories
+//     (root /contribute/:spaceId is now ContributorHomePage).
+//   - Removed inline sessionFetch helper — uses createContributorApiClient() from
+//     api/contributorApi.js instead.
+//   - Removed custom inline card rendering — delegates to ContributorMemoryFeed
+//     component (Step 4 deliverable, uses MemoryFeed.module.css via B2 reuse).
+//   - Removed inline CTA buttons — capture actions now in ContributorBottomNav
+//     (Step 3 deliverable).
+//   - New header structure: back chevron + avatar + space name + "Shared Memories"
+//     subtitle (replaces old "ANAMORIA" logo + space name + "Welcome, {name}").
+//   - New contribution banner below header: "You're contributing to {spaceName}'s
+//     memory space" (sage gradient, full-width).
+//   - Uses camelCase response fields from Lambda v1.2 (spaceName, contributorName,
+//     photoUrl) per B1 response shape changes.
+//
+// Auth: Requires ana_sessionToken in sessionStorage. Redirects to error state
+// if missing. See createContributorApiClient for token handling.
+//
+// Layout:
+//   [screen]
+//     [contributor-space-header: ←  [avatar] Space name / "Shared Memories"]
+//     [contribution-banner: 👥 "You're contributing to X's memory space"]
+//     [ContributorMemoryFeed — masonry, handles empty state]
+//   [ContributorBottomNav — Record / Write / Photo]
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import config from '../config';
+import { createContributorApiClient, getSessionToken } from '../api/contributorApi';
+import ContributorMemoryFeed from '../components/ContributorMemoryFeed';
+import ContributorBottomNav from '../components/ContributorBottomNav';
 import styles from './ContributorFeedPage.module.css';
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
-  } catch { return ''; }
+/* ─── Inline SVG icons ─── */
+
+function BackArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
 }
 
-// Session-token fetch (no JWT)
-function sessionFetch(path, sessionToken, options = {}) {
-  const url = `${config.apiUrl}${path}`;
-  return fetch(url, {
-    ...options,
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
-      'x-session-token': sessionToken,
-      ...(options.headers || {}),
-    },
-  }).then(async (res) => {
-    const data = res.headers.get('content-type')?.includes('json') ? await res.json() : {};
-    if (!res.ok) throw { error: data.error || 'REQUEST_FAILED', status: res.status };
-    return data;
-  });
+function ContributorsIcon() {
+  // People icon matching the LWC banner decoration — two overlapping user shapes.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
 }
+
+/* ═══════════════════════════════════════
+   CONTRIBUTOR FEED PAGE
+   ═══════════════════════════════════════ */
 
 export default function ContributorFeedPage() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
 
-  const sessionToken = sessionStorage.getItem('ana_sessionToken');
-  const contributorName = sessionStorage.getItem('ana_contributorName');
-
   const [space, setSpace] = useState(null);
-  const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
 
-  // ─── Validate session ───
+  // Stable getApi for ContributorMemoryFeed — factory pattern mirrors owner SpacePage
+  // which calls createApiClient(getAccessTokenSilently) inside useCallback.
+  const getApi = useCallback(() => createContributorApiClient(), []);
+
+  /* ─── Validate session + fetch space metadata ─── */
   useEffect(() => {
-    if (!sessionToken) {
+    const token = getSessionToken();
+    if (!token) {
       setError('Your session has expired. Please use your invite link again.');
       setLoading(false);
       return;
@@ -64,15 +109,13 @@ export default function ContributorFeedPage() {
     let cancelled = false;
     async function load() {
       try {
-        const [spaceData, feedData] = await Promise.all([
-          sessionFetch(`/contribute/${spaceId}`, sessionToken),
-          sessionFetch(`/contribute/${spaceId}/memories?limit=100&offset=0`, sessionToken),
-        ]);
+        const api = createContributorApiClient();
+        const data = await api.get(`/contribute/${spaceId}`);
         if (cancelled) return;
-        setSpace(spaceData);
-        setMemories(feedData.memories || []);
+        setSpace(data);
       } catch (err) {
-        if (err.error === 'INVALID_SESSION') {
+        if (cancelled) return;
+        if (err.error === 'INVALID_SESSION' || err.error === 'NO_SESSION_TOKEN') {
           setError('Your session has expired. Please use your invite link again.');
         } else {
           setError('Could not load this space.');
@@ -83,84 +126,86 @@ export default function ContributorFeedPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [spaceId, sessionToken]);
+  }, [spaceId]);
 
-  const handleRefresh = useCallback(async () => {
-    if (!sessionToken) return;
-    try {
-      const feedData = await sessionFetch(`/contribute/${spaceId}/memories?limit=100&offset=0`, sessionToken);
-      setMemories(feedData.memories || []);
-    } catch (_) { /* silent */ }
-  }, [spaceId, sessionToken]);
+  /* ─── Back to ContributorHomePage (Screen 1) ─── */
+  const handleBack = useCallback(() => {
+    navigate(`/contribute/${spaceId}`);
+  }, [navigate, spaceId]);
+
+  /* ─── Render states ─── */
 
   if (loading) {
-    return <div className={styles.loading}><div className={styles.loadingDot} /><span>Loading...</span></div>;
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingDot} />
+        <span>Loading...</span>
+      </div>
+    );
   }
 
   if (error) {
     return (
       <div className={styles.errorScreen}>
-        <span className={styles.logo}>Anamoria</span>
         <p className={styles.errorText}>{error}</p>
       </div>
     );
   }
 
+  const spaceName = space?.spaceName || 'this space';
+  const initial = (spaceName || '?').charAt(0).toUpperCase();
+
   return (
     <div className={styles.screen}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerInner}>
-          <span className={styles.logo}>ANAMORIA</span>
-          <div className={styles.headerInfo}>
-            <span className={styles.headerName}>{space?.name}</span>
-            <span className={styles.headerSub}>Welcome, {contributorName || space?.contributorName}</span>
-          </div>
+
+      {/* ─── Space header: back + avatar + name + "Shared Memories" ─── */}
+      <header className={styles.header}>
+        <button
+          type="button"
+          className={styles.backBtn}
+          onClick={handleBack}
+          aria-label="Back"
+        >
+          <BackArrowIcon />
+        </button>
+
+        <div className={styles.avatar}>
+          {space?.photoUrl ? (
+            <img
+              src={space.photoUrl}
+              alt={spaceName}
+              className={styles.avatarImg}
+            />
+          ) : (
+            <span className={styles.avatarPlaceholder}>{initial}</span>
+          )}
         </div>
+
+        <div className={styles.spaceInfo}>
+          <h1 className={styles.spaceName}>{spaceName}</h1>
+          <p className={styles.spaceSubtitle}>Shared Memories</p>
+        </div>
+      </header>
+
+      {/* ─── Contribution banner ─── */}
+      <div className={styles.banner}>
+        <span className={styles.bannerIcon}><ContributorsIcon /></span>
+        <span className={styles.bannerText}>
+          You're contributing to {spaceName}'s memory space
+        </span>
       </div>
 
-      {/* CTA */}
-      <div className={styles.ctaSection}>
-        <p className={styles.ctaText}>Share a memory of {space?.name}</p>
-        <div className={styles.ctaButtons}>
-          <button className={styles.ctaBtn} onClick={() => {/* TODO: contributor record */}}>
-            🎙 Record
-          </button>
-          <button className={styles.ctaBtn} onClick={() => {/* TODO: contributor write */}}>
-            ✏️ Write
-          </button>
-        </div>
-        <p className={styles.ctaNote}>Your memories will be shared with the family</p>
-      </div>
+      {/* ─── Masonry feed (empty state handled inside component) ─── */}
+      <main className={styles.main}>
+        <ContributorMemoryFeed
+          spaceId={spaceId}
+          getApi={getApi}
+        />
+      </main>
 
-      {/* Feed */}
-      <div className={styles.feed}>
-        {memories.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>No shared memories yet. Be the first to add one.</p>
-          </div>
-        ) : (
-          memories.map((m) => {
-            const category = (m.category || '').toLowerCase();
-            return (
-              <div key={m.id} className={styles.card}>
-                <p className={styles.cardCategory}>{(m.category || '').toUpperCase()}</p>
-                {m.title && <p className={styles.cardTitle}>{m.title}</p>}
-                {category === 'text' && m.note && <p className={styles.cardNote}>{m.note}</p>}
-                {category === 'voice' && m.duration_seconds && (
-                  <span className={styles.cardDuration}>🎙 {Math.floor(m.duration_seconds / 60)}:{(m.duration_seconds % 60).toString().padStart(2, '0')}</span>
-                )}
-                <div className={styles.cardFooter}>
-                  <span className={styles.cardDate}>{formatDate(m.created_at)}</span>
-                  <span className={styles.cardCreator}>
-                    {m.creator_type === 'contributor' ? (m.creator_name || 'Contributor') : 'Family'}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      {/* ─── Bottom nav: Record / Write / Photo ─── */}
+      <ContributorBottomNav spaceId={spaceId} />
+
     </div>
   );
 }

@@ -1,0 +1,327 @@
+/* pages/ContributorHomePage.module.css
+   v1.0 — Session 3 (April 19, 2026)
+
+   Ported from axr_MemoryVaultV2.css:
+     - .contributor-landing-screen    → .screen
+     - .contributor-content           → .content
+     - .contributor-header            → .avatarWrap (wrapper retained for margin)
+     - .loved-one-avatar-placeholder-large → .avatarPlaceholder
+     - .loved-one-avatar-large        → .avatarImg
+     - .contributor-title             → .title
+     - .contributor-subtitle          → .subtitle
+     - .contributor-actions           → .actions
+     - .contributor-note              → .note
+     - .btn.btn-primary.btn-lg        → .btn.btnPrimary (flattened to CSS module)
+     - .btn.btn-secondary.btn-lg      → .btn.btnSecondary
+     - .btn-icon                      → .btnIcon + .svgFill
+     - .view-memories-section         → .viewMemoriesSection
+     - .view-memories-divider         → .viewMemoriesDivider
+     - .view-memories-link            → .viewMemoriesLink
+
+   CSS variables (matches existing tokens used across app):
+     --color-bg, --color-bg-white, --color-text-primary, --color-text-caption,
+     --color-text-subtle, --color-border-light, --color-sage, --color-sage-dark,
+     --font-serif, --font-sans
+*/
+
+/* ═══════════════════════════════════════
+   SCREEN CONTAINER
+   ═══════════════════════════════════════ */
+
+.screen {
+  background: var(--color-bg, #faf9f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 60px 24px;
+}
+
+.content {
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+}
+
+/* ═══════════════════════════════════════
+   AVATAR
+   ═══════════════════════════════════════ */
+
+.avatarWrap {
+  margin-bottom: 28px;
+  display: flex;
+  justify-content: center;
+}
+
+.avatarImg {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarPlaceholder {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--color-bg, #faf9f7);
+  border: 1px solid var(--color-border-light, #edebe7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: 600;
+  color: var(--color-sage, #7c9885);
+  margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════
+   TITLE + SUBTITLE
+   ═══════════════════════════════════════ */
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 17px;
+  color: var(--color-text-caption, #636e72);
+  margin: 0 0 36px 0;
+  line-height: 1.5;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.subtitle strong {
+  color: var(--color-text-primary, #2d3436);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════
+   ACTION BUTTONS
+   ═══════════════════════════════════════ */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  border: none;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btnPrimary {
+  background: var(--color-sage-dark, #5b7a65);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(91, 122, 101, 0.2);
+}
+
+.btnPrimary:hover {
+  background: #4a6954;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: var(--color-bg-white, #fff);
+  color: var(--color-text-primary, #2d3436);
+  border: 1px solid var(--color-border-light, #edebe7);
+}
+
+.btnSecondary:hover {
+  border-color: var(--color-sage, #7c9885);
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+/* ─── Inline icon inside buttons (from axr btn-icon) ─── */
+
+.btnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.btnIcon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.btnIcon svg path,
+.btnIcon svg circle,
+.btnIcon svg rect,
+.btnIcon svg line {
+  stroke: currentColor;
+}
+
+/* Elements that should fill rather than stroke (mic body, pen tip dot) */
+.svgFill {
+  fill: currentColor;
+  stroke: none !important;
+}
+
+/* ═══════════════════════════════════════
+   VIEW MEMORIES SECTION
+   Ported from axr view-memories-section (v2.9)
+   ═══════════════════════════════════════ */
+
+.viewMemoriesSection {
+  text-align: center;
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+.viewMemoriesDivider {
+  color: var(--color-text-subtle, #737373);
+  font-size: 14px;
+  margin: 0 0 12px 0;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.viewMemoriesLink {
+  background: none;
+  border: none;
+  color: var(--color-sage, #7c9885);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 16px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  text-decoration: none;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.viewMemoriesLink:hover {
+  color: var(--color-sage-dark, #5b7a65);
+  text-decoration: underline;
+}
+
+.viewMemoriesLink:focus-visible {
+  outline: 2px solid var(--color-sage, #7c9885);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════
+   FOOTER NOTE
+   ═══════════════════════════════════════ */
+
+.note {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  margin: 24px 0 0 0;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+/* ═══════════════════════════════════════
+   LOADING + ERROR STATES
+   ═══════════════════════════════════════ */
+
+.loadingScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  gap: 12px;
+  color: var(--color-text-caption, #636e72);
+  font-size: 14px;
+  background: var(--color-bg, #faf9f7);
+}
+
+.loadingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-sage, #7c9885);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.errorScreen {
+  background: var(--color-bg, #faf9f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 60px 24px;
+}
+
+.errorText {
+  font-size: 15px;
+  color: var(--color-text-caption, #636e72);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .screen {
+    padding: 40px 20px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .avatarPlaceholder,
+  .avatarImg {
+    width: 96px;
+    height: 96px;
+  }
+
+  .avatarPlaceholder {
+    font-size: 38px;
+  }
+}
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingDot,
+  .btn,
+  .viewMemoriesLink {
+    animation: none !important;
+    transition: none !important;
+  }
+}

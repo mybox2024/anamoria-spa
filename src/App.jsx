@@ -1,59 +1,50 @@
 // App.jsx — Anamoria SPA
-// v1.10 — Session 2: add FeedbackPage route + sessionTag context (April 19, 2026)
-// Changes from v1.9:
-//   - Added `useMemo` to the react import list (used to stabilize the
-//     AppContext value so spreading appState + sessionTag doesn't break
-//     downstream memoization; see D2 session decision).
-//   - Added static import for FeedbackPage (pages/FeedbackPage.jsx v1.0).
-//   - Added `sessionTag` state in AppRoutes via
-//     `useState(() => crypto.randomUUID())`. Regenerates per page-load
-//     (refresh / hard reload resets it). Per BP1 session decision.
-//     Placed in AppRoutes, not in useSessionBootstrap, per D3.
-//   - Wrapped AppContext.Provider value in useMemo, combining appState
-//     and sessionTag into a single stable object. Per D2 (Option B+) —
-//     spread + memoize so React.memo'd consumers don't thrash.
-//   - Added one <Route> for /spaces/:spaceId/feedback wrapped in
-//     <ProtectedRoute>, placed immediately after /spaces/:spaceId/reminder
-//     and before /leader (matches the grouping convention of space-scoped
-//     routes).
-//   - No other changes: no bootstrap logic changes, no modifications to
-//     existing routes or their order, no changes to any other component.
+// v1.11 — Session 3: contributor routing restructure (April 19, 2026)
+// Changes from v1.10:
+//   - Added 4 static imports for new contributor pages:
+//     ContributorHomePage, ContributorRecordPage, ContributorWritePage,
+//     ContributorPhotoPage (all in pages/).
+//   - Restructured contributor routing to match LWC axr_MemoryVaultV2
+//     two-screen flow + three capture pages:
+//       /contribute/:spaceId            → ContributorHomePage   (CHANGED
+//         from ContributorFeedPage — landing page with "You've been
+//         invited to contribute" CTAs)
+//       /contribute/:spaceId/memories   → ContributorFeedPage   (NEW route
+//         — feed screen reached via "View shared memories →" link from
+//         HomePage; back chevron on feed returns to HomePage)
+//       /contribute/:spaceId/record     → ContributorRecordPage (NEW)
+//       /contribute/:spaceId/write      → ContributorWritePage  (NEW)
+//       /contribute/:spaceId/photo      → ContributorPhotoPage  (NEW)
+//     All 5 contributor routes remain in the "Public (no auth)" block
+//     because contributors authenticate via session token (in sessionStorage,
+//     set by ContributorLandingPage.jsx on claim), not Auth0 JWT.
+//     ProtectedRoute would require a JWT and reject contributors.
+//   - No other changes: no bootstrap logic changes, no changes to any other
+//     route, no context changes, no hook changes, no component changes
+//     outside imports and the contributor route block.
+//
+// React Router v6 matches routes by specificity, not declaration order, so
+// /contribute/:spaceId/memories is correctly distinguished from
+// /contribute/:spaceId without path ordering gymnastics. The ordering below
+// is purely hierarchical for readability.
+//
+// Auth strategy for contributor routes (unchanged pattern from v1.10):
+//   - No ProtectedRoute wrapper.
+//   - Each contributor page component reads ana_sessionToken from
+//     sessionStorage via getSessionToken() helper on mount.
+//   - If no token present, page renders "session expired" state with
+//     guidance to re-use invite link.
+//   - API calls flow through createContributorApiClient (api/contributorApi.js)
+//     which injects x-session-token + x-api-key headers.
+//
+// Previous changes (v1.10):
+//   - Added FeedbackPage route + sessionTag context (Session 2).
 //
 // Previous changes (v1.9):
-//   - Added static import for ReminderPage (pages/ReminderPage.jsx v1.1).
-//   - Added one <Route> for /spaces/:spaceId/reminder wrapped in
-//     <ProtectedRoute>, placed immediately after /spaces/:spaceId/invite
-//     and before /leader (matches the grouping convention of space-scoped
-//     routes per Session 1A Plan v1.0 §3.4).
-//   - No other changes: no logic changes, no bootstrap changes, no
-//     modifications to existing routes or their order, no changes to any
-//     other component.
+//   - Added ReminderPage route (Session 1A).
 //
-// Previous changes (v1.8):
-//   - Imported new ButterflyLoader shared component
-//   - Replaced the 3 full-page loading states (Auth0 init, bootstrap pending,
-//     Suspense LoadingFallback) with <ButterflyLoader />
-//   - Removed the now-unused text "Anamoria" + CSS spinner markup from all
-//     3 spots. Old `app-loading-*` CSS classes are left untouched — they may
-//     still be referenced by other files.
-//   - No route changes, no logic changes, no bootstrap changes.
-//
-// Previous changes (v1.7):
-//   - New user join now reads ana_displayName from sessionStorage (set by
-//     JoinPage v1.3 name collection step) and uses it as the displayName
-//     for POST /pilot/join. Fallback to auth0User.name || auth0User.nickname.
-//
-// Previous changes (v1.6):
-//   - Added displayName and email to appState shape.
-//
-// Previous changes (v1.5):
-//   - CheckoutPage lazy-loaded via React.lazy() + Suspense to scope Stripe.js
-//     evaluation to the checkout route only.
-//
-// Previous changes (v1.4):
-//   - Bootstrap refactored: GET /pilot/me replaces POST /pilot/activate
+// [Earlier change history unchanged from v1.10 header.]
 
-// v1.10: useMemo added for stable AppContext value (D2 decision).
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -72,22 +63,22 @@ import PhotoPage from './pages/PhotoPage';
 import MemoryDetailPage from './pages/MemoryDetailPage';
 import InvitePage from './pages/InvitePage';
 import ContributorLandingPage from './pages/ContributorLandingPage';
+// v1.11: Session 3 — contributor landing page (Screen 1 per LWC
+// axr_MemoryVaultV2 contributor-landing-screen block).
+import ContributorHomePage from './pages/ContributorHomePage';
 import ContributorFeedPage from './pages/ContributorFeedPage';
+// v1.11: Session 3 — contributor capture pages.
+import ContributorRecordPage from './pages/ContributorRecordPage';
+import ContributorWritePage from './pages/ContributorWritePage';
+import ContributorPhotoPage from './pages/ContributorPhotoPage';
 import LeaderPage from './pages/LeaderPage';
 import SettingsPage from './pages/SettingsPage';
 import UpgradePage from './pages/UpgradePage';
-// v1.9: ReminderPage — opt-in screen shown after first memory save per
-// Reminder/Feedback/ContributorFeed Master Plan v1.0 (Session 1A scope).
 import ReminderPage from './pages/ReminderPage';
-// v1.10: FeedbackPage — mood-selection screen shown on qualifying saves
-// per Session 2 R3 gating rules. See pages/FeedbackPage.jsx v1.0.
 import FeedbackPage from './pages/FeedbackPage';
-// v1.5 (Fix 4): CheckoutPage lazy-loaded to prevent Stripe.js from evaluating
-// on app startup. This scopes the Stripe badge to the checkout route only.
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
-// v1.8: Shared butterfly loader for full-page brand loading moments
 import ButterflyLoader from './components/ButterflyLoader';
 
 // ─── App context — shared state across all pages ──────────────────────────
@@ -113,8 +104,6 @@ function PlaceholderPage({ name }) {
   );
 }
 
-// v1.8: Loading fallback for lazy-loaded components (Suspense boundary)
-// Replaces previous text + spinner with the butterfly brand loader.
 function LoadingFallback() {
   return <ButterflyLoader />;
 }
@@ -130,11 +119,11 @@ function LoadingFallback() {
 function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User) {
   const navigate = useNavigate();
   const [appState, setAppState] = useState({
-    bootstrapped: false,   // true after /me + spaces calls complete
-    bootstrapError: null,  // error message if bootstrap fails
+    bootstrapped: false,
+    bootstrapError: null,
     userId: null,
-    displayName: null,     // v1.6: from GET /pilot/me or POST /pilot/join (DB source of truth)
-    email: null,           // v1.6: from GET /pilot/me or POST /pilot/join
+    displayName: null,
+    email: null,
     pilotRole: null,
     groupId: null,
     groupName: null,
@@ -146,10 +135,7 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     const api = createApiClient(getAccessTokenSilently);
 
     try {
-      // Step 1: GET /pilot/me — identity lookup by auth0_sub
       const meData = await api.get('/pilot/me');
-
-      // Step 2: returning user — load spaces
       const spacesData = await api.get('/spaces');
       const spaces = spacesData.spaces || [];
       const currentSpace = spaces[0] || null;
@@ -158,8 +144,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         bootstrapped: true,
         bootstrapError: null,
         userId: meData.userId,
-        displayName: meData.displayName || null,  // v1.6
-        email: meData.email || null,              // v1.6
+        displayName: meData.displayName || null,
+        email: meData.email || null,
         pilotRole: meData.pilotRole,
         groupId: meData.groupId,
         groupName: meData.groupName,
@@ -167,7 +153,6 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         currentSpace,
       });
 
-      // Step 3: route based on state
       if (spaces.length === 0) {
         navigate('/spaces/new', { replace: true });
       } else {
@@ -177,41 +162,34 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     } catch (err) {
       console.error('Bootstrap error:', err);
 
-      // 404 from GET /pilot/me = new user
       if (err.status === 404 && err.error === 'USER_NOT_FOUND') {
-        // Check sessionStorage for groupId from validate-code flow
         const groupId = sessionStorage.getItem('ana_groupId');
         const groupName = sessionStorage.getItem('ana_groupName');
-        // v1.7: Read display name collected by JoinPage v1.3 name step
         const collectedName = sessionStorage.getItem('ana_displayName');
 
         if (!groupId) {
-          // No groupId — user reached app without completing access code flow
           navigate('/join', { replace: true });
           setAppState(prev => ({ ...prev, bootstrapped: true }));
           return;
         }
 
-        // New user with groupId — register via POST /pilot/join
         try {
           const joinData = await api.post('/pilot/join', {
             groupId,
             email: auth0User?.email || '',
-            // v1.7: Prefer name from JoinPage step 2, fall back to Auth0 profile
             displayName: collectedName || auth0User?.name || auth0User?.nickname || '',
           });
 
-          // Clear sessionStorage after successful join
           sessionStorage.removeItem('ana_groupId');
           sessionStorage.removeItem('ana_groupName');
-          sessionStorage.removeItem('ana_displayName');  // v1.7
+          sessionStorage.removeItem('ana_displayName');
 
           setAppState({
             bootstrapped: true,
             bootstrapError: null,
             userId: joinData.userId,
-            displayName: joinData.displayName || null,  // v1.6
-            email: joinData.email || null,              // v1.6
+            displayName: joinData.displayName || null,
+            email: joinData.email || null,
             pilotRole: joinData.pilotRole,
             groupId: joinData.groupId,
             groupName: joinData.groupName,
@@ -219,7 +197,6 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
             currentSpace: null,
           });
 
-          // New user always goes to consent
           navigate('/consent', { replace: true });
           return;
         } catch (joinErr) {
@@ -233,7 +210,6 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         }
       }
 
-      // Any other error (500, network failure) — show error screen
       setAppState(prev => ({
         ...prev,
         bootstrapped: true,
@@ -256,37 +232,23 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
 function AppRoutes() {
   const { isLoading, isAuthenticated, getAccessTokenSilently, user } = useAuth0();
 
-  // v1.10: sessionTag — per-page-load UUID used by FeedbackPage to group
-  // analytics events from a single visit. Lazy initializer runs exactly
-  // once per component mount; refresh/hard-reload regenerates (correct per
-  // BP1). Placed here rather than in useSessionBootstrap per D3 decision:
-  // sessionTag is an app-level per-visit concern, not an identity concern,
-  // so it lives next to the other AppRoutes-level state.
   const [sessionTag] = useState(() => crypto.randomUUID());
 
   const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
 
-  // v1.10: Stable context value per D2 (Option B+). useMemo recomputes only
-  // when appState or sessionTag identity changes, so consumers wrapped in
-  // React.memo keep their memoization working. Without useMemo, the spread
-  // would produce a new object every render and defeat any downstream
-  // memoization (per React.dev memo guidance + Kent C. Dodds optimize-context).
   const contextValue = useMemo(
     () => ({ ...appState, sessionTag }),
     [appState, sessionTag]
   );
 
-  // v1.8: Auth0 initializing — butterfly loader
   if (isLoading) {
     return <ButterflyLoader />;
   }
 
-  // v1.8: Authenticated but bootstrap not yet complete — butterfly loader
   if (isAuthenticated && !appState.bootstrapped) {
     return <ButterflyLoader />;
   }
 
-  // Bootstrap failed
   if (isAuthenticated && appState.bootstrapError) {
     return (
       <div className="app-error">
@@ -304,7 +266,6 @@ function AppRoutes() {
 
   return (
     <AppContext.Provider value={contextValue}>
-      {/* v1.5: Suspense boundary wraps Routes for lazy-loaded CheckoutPage */}
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* ── Public ───────────────────────────────────────────── */}
@@ -375,8 +336,6 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
-          {/* v1.9: Reminder opt-in screen — Session 1A. Placed after /invite
-              and before /leader to keep space-scoped routes grouped. */}
           <Route
             path="/spaces/:spaceId/reminder"
             element={
@@ -385,8 +344,6 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
-          {/* v1.10: Feedback opt-in screen — Session 2. Placed immediately
-              after /reminder to keep space-scoped gating screens grouped. */}
           <Route
             path="/spaces/:spaceId/feedback"
             element={
@@ -404,9 +361,20 @@ function AppRoutes() {
             }
           />
 
-          {/* ── Public (no auth) ────────────────────────────────── */}
+          {/* ── Contributor public routes (session token auth) ───── */}
+          {/* v1.11 restructure per Session 3 (LWC axr_MemoryVaultV2 parity):
+              Landing /invite/:token → claim → redirect to
+              /contribute/:spaceId (ContributorHomePage).
+              From there, "View shared memories →" → /memories feed,
+              bottom nav → /record | /write | /photo capture pages.
+              All 5 routes below remain public — session-token auth is
+              handled by each page component via getSessionToken(). */}
           <Route path="/invite/:token" element={<ContributorLandingPage />} />
-          <Route path="/contribute/:spaceId" element={<ContributorFeedPage />} />
+          <Route path="/contribute/:spaceId" element={<ContributorHomePage />} />
+          <Route path="/contribute/:spaceId/memories" element={<ContributorFeedPage />} />
+          <Route path="/contribute/:spaceId/record" element={<ContributorRecordPage />} />
+          <Route path="/contribute/:spaceId/write" element={<ContributorWritePage />} />
+          <Route path="/contribute/:spaceId/photo" element={<ContributorPhotoPage />} />
 
           {/* ── Settings + Billing (B1–B3) ───────────────────────── */}
           <Route
@@ -425,7 +393,6 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
-          {/* v1.5: CheckoutPage is lazy-loaded — Suspense boundary above handles fallback */}
           <Route
             path="/settings/upgrade/checkout"
             element={
