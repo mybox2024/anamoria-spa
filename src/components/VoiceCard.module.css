@@ -1,17 +1,23 @@
 /* components/VoiceCard.module.css
-   v2.0 — Warm amber theme ported from LWC axr_MediaCard.css
-   Source of truth: .voice-theme-warm + .masonry-item.voice (lines 1553–1705)
-   April 1, 2026
+   v2.1 — 4-theme voice card system (April 21, 2026)
+   Changes from v2.0:
+     - Refactored: warm-specific colors extracted from .card/.dot/.label/.player
+       into .theme_warm. .card retains structural layout only.
+     - Added: .theme_story, .theme_sage, .theme_clean theme classes.
+     - Added: .accent, .pauseIcon, .micIcon, .progressTrack, .progressFill,
+       .durationPill structural elements for theme-specific rendering.
+     - Warm visual output is pixel-identical to v2.0 (regression safe).
+   Source: Voice_Card_Theme_Spec.md + LWC axr_MediaCard.css
+   v2.0 — Warm amber theme ported from LWC axr_MediaCard.css (April 1, 2026)
 */
 
 /* ═══════════════════════════════════════
-   WARM AMBER CARD SHELL
-   Gradient background: linear-gradient(160deg, #fbf5e8, #f5ecd4)
+   CARD SHELL — Structural base (all themes)
+   Layout, border-radius, overflow, hover shadow, overlay positioning.
+   Theme classes below add backgrounds, borders, and colors.
    ═══════════════════════════════════════ */
 
 .card {
-  background: linear-gradient(160deg, #fbf5e8, #f5ecd4);
-  border: 1px solid rgba(200, 180, 130, 0.2);
   border-radius: 14px;
   overflow: hidden;
   position: relative;
@@ -19,9 +25,6 @@
   flex-direction: column;
   cursor: pointer;
   transition: box-shadow 0.2s ease;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.14),
-    0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .card:hover {
@@ -30,7 +33,345 @@
     0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-/* ─── Header: dot + label + title ─── */
+/* ═══════════════════════════════════════
+   THEME: WARM (butter-yellow gradient) — DEFAULT
+   Ported from LWC .voice-theme-warm
+   ═══════════════════════════════════════ */
+
+.theme_warm {
+  background: linear-gradient(160deg, #fbf5e8, #f5ecd4);
+  border: 1px solid rgba(200, 180, 130, 0.2);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Warm — header elements */
+.theme_warm .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c4956a;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.theme_warm .label {
+  display: inline;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #8b7355;
+  line-height: 1;
+}
+
+.theme_warm .title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d3436;
+  margin: 4px 0 0;
+  line-height: 1.35;
+}
+
+/* Warm — player */
+.theme_warm .player {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+}
+
+.theme_warm .playBtn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  background: #8b7355;
+}
+
+.theme_warm .playBtn:hover {
+  background: #7a6548;
+}
+
+.theme_warm .waveBar {
+  background: #8b7355;
+}
+
+.theme_warm .duration {
+  color: #8b7355;
+}
+
+/* Warm — footer */
+.theme_warm .date {
+  color: #9e9a95;
+}
+
+/* ═══════════════════════════════════════
+   THEME: STORY (white + yellow accent strip)
+   Reference: editorial/podcast feel, title-forward
+   ═══════════════════════════════════════ */
+
+.theme_story {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Story — accent strip (yellow bar at top) */
+.theme_story .accent {
+  display: block;
+  height: 6px;
+  background: #FFF7D4;
+  width: 100%;
+}
+
+/* Story — pause icon */
+.theme_story .pauseIcon {
+  display: block;
+  font-size: 16px;
+  color: var(--color-text-subtle, #737373);
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+
+/* Story — title: title-forward design */
+.theme_story .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Story — player row */
+.theme_story .player {
+  margin: 0 12px 8px;
+  padding: 4px 0;
+}
+
+.theme_story .playBtn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+.theme_story .playBtn:hover {
+  background: #4a6954;
+}
+
+/* Story — progress bar track */
+.theme_story .progressTrack {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+}
+
+.theme_story .progressFill {
+  background: var(--color-sage, #7c9885);
+}
+
+/* Story — duration */
+.theme_story .duration {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle, #737373);
+}
+
+/* Story — footer */
+.theme_story .date {
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   THEME: SAGE (sage-tinted background)
+   Reference: premium, cohesive with brand
+   ═══════════════════════════════════════ */
+
+.theme_sage {
+  background: var(--color-sage-light, #e8f0eb);
+  border: 1px solid #d0e0d5;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Sage — mic icon in circle */
+.theme_sage .micIcon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(91, 122, 101, 0.12);
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+/* Sage — title */
+.theme_sage .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Sage — player row */
+.theme_sage .player {
+  margin: 0 12px 8px;
+  padding: 4px 0;
+}
+
+.theme_sage .playBtn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+.theme_sage .playBtn:hover {
+  background: #4a6954;
+}
+
+/* Sage — waveform bars use sage color */
+.theme_sage .waveBar {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Sage — duration */
+.theme_sage .duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+}
+
+/* Sage — footer */
+.theme_sage .date {
+  color: var(--color-sage-dark, #5b7a65);
+  opacity: 0.7;
+}
+
+.theme_sage .privacyIcon {
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════
+   THEME: CLEAN (white + sage waveform header)
+   Reference: minimal, modern, restrained
+   ═══════════════════════════════════════ */
+
+.theme_clean {
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Clean — accent strip (sage waveform header with SVG mask) */
+.theme_clean .accent {
+  display: block;
+  height: 36px;
+  background: var(--color-sage-light, #e8f0eb);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative waveform bars in the header strip — exact SVG mask from LWC spec */
+.theme_clean .accent::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 16px;
+  right: 16px;
+  height: 24px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-sage, #7c9885) 0px,
+    var(--color-sage, #7c9885) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  opacity: 0.3;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 24'%3E%3Crect x='0' y='8' width='3' height='8' rx='1'/%3E%3Crect x='6' y='4' width='3' height='16' rx='1'/%3E%3Crect x='12' y='6' width='3' height='12' rx='1'/%3E%3Crect x='18' y='2' width='3' height='20' rx='1'/%3E%3Crect x='24' y='7' width='3' height='10' rx='1'/%3E%3Crect x='30' y='3' width='3' height='18' rx='1'/%3E%3Crect x='36' y='5' width='3' height='14' rx='1'/%3E%3Crect x='42' y='1' width='3' height='22' rx='1'/%3E%3Crect x='48' y='6' width='3' height='12' rx='1'/%3E%3Crect x='54' y='4' width='3' height='16' rx='1'/%3E%3Crect x='60' y='8' width='3' height='8' rx='1'/%3E%3Crect x='66' y='5' width='3' height='14' rx='1'/%3E%3Crect x='72' y='3' width='3' height='18' rx='1'/%3E%3Crect x='78' y='7' width='3' height='10' rx='1'/%3E%3Crect x='84' y='9' width='3' height='6' rx='1'/%3E%3Crect x='90' y='6' width='3' height='12' rx='1'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 24'%3E%3Crect x='0' y='8' width='3' height='8' rx='1'/%3E%3Crect x='6' y='4' width='3' height='16' rx='1'/%3E%3Crect x='12' y='6' width='3' height='12' rx='1'/%3E%3Crect x='18' y='2' width='3' height='20' rx='1'/%3E%3Crect x='24' y='7' width='3' height='10' rx='1'/%3E%3Crect x='30' y='3' width='3' height='18' rx='1'/%3E%3Crect x='36' y='5' width='3' height='14' rx='1'/%3E%3Crect x='42' y='1' width='3' height='22' rx='1'/%3E%3Crect x='48' y='6' width='3' height='12' rx='1'/%3E%3Crect x='54' y='4' width='3' height='16' rx='1'/%3E%3Crect x='60' y='8' width='3' height='8' rx='1'/%3E%3Crect x='66' y='5' width='3' height='14' rx='1'/%3E%3Crect x='72' y='3' width='3' height='18' rx='1'/%3E%3Crect x='78' y='7' width='3' height='10' rx='1'/%3E%3Crect x='84' y='9' width='3' height='6' rx='1'/%3E%3Crect x='90' y='6' width='3' height='12' rx='1'/%3E%3C/svg%3E");
+  mask-size: cover;
+  -webkit-mask-size: cover;
+}
+
+/* Clean — title */
+.theme_clean .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Clean — player row */
+.theme_clean .player {
+  margin: 0 12px 8px;
+  padding: 4px 0;
+}
+
+.theme_clean .playBtn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+.theme_clean .playBtn:hover {
+  background: #4a6954;
+}
+
+/* Clean — thin progress line */
+.theme_clean .progressTrack {
+  height: 2px;
+  background: var(--color-border-light, #edebe7);
+  border-radius: 1px;
+}
+
+.theme_clean .progressFill {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+/* Clean — duration pill */
+.theme_clean .durationPill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-sage-dark, #5b7a65);
+  background: var(--color-sage-light, #e8f0eb);
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+/* Clean — footer */
+.theme_clean .date {
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ═══════════════════════════════════════
+   SHARED STRUCTURAL ELEMENTS (all themes)
+   Base rules for elements that exist in the DOM for all themes.
+   Theme-specific overrides above change colors and visibility.
+   ═══════════════════════════════════════ */
+
+/* ─── Accent strip — hidden by default, shown by story + clean ─── */
+
+.accent {
+  display: none;
+}
+
+/* ─── Header: icon area + label + title ─── */
 
 .header {
   padding: 16px 16px 8px;
@@ -42,57 +383,46 @@
   gap: 4px;
 }
 
-/* Amber dot — matches LWC .voice-theme-warm .voice-card-icon */
+/* Dot — hidden by default, warm theme makes it visible */
 .dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #c4956a;
-  margin-right: 6px;
-  vertical-align: middle;
-  flex-shrink: 0;
+  display: none;
 }
 
-/* VOICE label — warm brown */
+/* Label — hidden by default, warm theme makes it visible */
 .label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: #8b7355;
-  line-height: 1;
+  display: none;
 }
 
-/* Title */
+/* Title — base structural rules */
 .title {
   font-size: 13px;
   font-weight: 600;
-  color: #2d3436;
+  color: var(--color-text-primary, #2d3436);
   margin: 4px 0 0;
   line-height: 1.35;
 }
 
+/* Pause icon — hidden by default, story theme makes it visible */
+.pauseIcon {
+  display: none;
+}
+
+/* Mic icon — hidden by default, sage theme makes it visible */
+.micIcon {
+  display: none;
+}
+
 /* ─── Player row ─── */
-/* Semi-transparent overlay on warm gradient — LWC voice-theme-warm .voice-card-player */
 
 .player {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  margin: 0 12px 8px;
-  padding: 8px 12px;
 }
 
-/* Play button — warm brown circle (28px) */
+/* Play button — structural base, themes add size + color */
 .playBtn {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
   border-radius: 50%;
-  background: #8b7355;
   border: none;
   cursor: pointer;
   display: flex;
@@ -102,10 +432,6 @@
   transition: background 0.2s;
   color: #fff;
   padding: 0;
-}
-
-.playBtn:hover {
-  background: #7a6548;
 }
 
 .playLoading {
@@ -121,7 +447,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* Waveform bars — warm brown */
+/* Waveform bars — used by warm + sage themes */
 .waveform {
   display: flex;
   align-items: center;
@@ -133,15 +459,32 @@
 .waveBar {
   width: 3px;
   border-radius: 1.5px;
-  background: #8b7355;
   transition: opacity 0.2s;
 }
 
-/* Duration — warm brown */
+/* Progress track + fill — used by story + clean themes */
+.progressTrack {
+  flex: 1;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+/* Duration — base structural (themes override font-size + color) */
 .duration {
   font-size: 10px;
   font-weight: 600;
-  color: #8b7355;
+  flex-shrink: 0;
+}
+
+/* Duration pill — clean theme only (themes override size + color) */
+.durationPill {
   flex-shrink: 0;
 }
 
@@ -156,7 +499,7 @@
 
 .date {
   font-size: 12px;
-  color: #9e9a95;
+  color: var(--color-text-subtle, #737373);
   font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
 }
 
@@ -293,7 +636,8 @@
   .card,
   .overlayBtn,
   .overlay,
-  .waveBar {
+  .waveBar,
+  .progressFill {
     animation: none !important;
     transition: none !important;
   }

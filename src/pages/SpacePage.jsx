@@ -1,17 +1,12 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.14 — Butterfly reserved for entry-point states (April 16, 2026)
-// Changes from v2.13:
-//   - Removed ButterflyLoader import and usage from the page-level loading state.
-//     Per best-practice and LWC behaviour: the butterfly is an entry-point
-//     indicator (after login / bootstrap), not an intra-app navigation
-//     indicator. SpacePage loads are typically fast; a full-page butterfly
-//     on every sidebar click or return-from-action was disproportionate.
-//   - Loading render path now returns null while `loading && !error`.
-//     React Router keeps the previous page mounted during the brief
-//     transition, so the user sees their prior screen until SpacePage
-//     has data. Error state split out to avoid flashing the error UI
-//     while space data is still being fetched.
-//   - Sidebar inline spinner unchanged (component-level wait, not brand moment).
+// v2.15 — Voice card theme passthrough to MemoryFeed (April 21, 2026)
+// Changes from v2.14:
+//   - Pass space.voiceCardTheme to MemoryFeed component.
+//     MemoryFeed forwards it to VoiceCard for 4-theme rendering.
+//     Default: 'warm' (backward compatible if field is null).
+//
+// Previous changes (v2.14):
+//   - Butterfly reserved for entry-point states.
 //
 // Previous changes (v2.13):
 //   - Imported ButterflyLoader and replaced page-level loading state.
@@ -407,6 +402,7 @@ export default function SpacePage() {
           spaceId={spaceId}
           getApi={getApi}
           onMemoryCount={handleMemoryCount}
+          voiceCardTheme={space?.voiceCardTheme || 'warm'}
         />
       </main>
 

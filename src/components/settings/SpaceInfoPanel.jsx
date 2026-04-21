@@ -1,8 +1,13 @@
 // components/settings/SpaceInfoPanel.jsx — Anamoria SPA
-// v1.0 — Space name + voice card style picker (April 11, 2026)
+// v1.1 — Screenshot thumbnails replace CSS-drawn previews (April 21, 2026)
 //
-// Extracted from SpaceSettings.jsx v1.1 (Sections 1 + 2)
-// Independent save: PATCH /spaces/:id with { name, voiceCardTheme }
+// Changes from v1.0:
+//   - Theme picker thumbnails now render <img> from THEME_OPTIONS.imagePath
+//     instead of CSS-drawn abstract previews (themePreview + themePreviewInner
+//     + themePreviewLabel + themePreviewWaveform removed).
+//   - Images sourced from public/images/themes/ (cropped card screenshots).
+//
+// v1.0 — Space name + voice card style picker (April 11, 2026)
 //
 // Props:
 //   space    — current space object (from SettingsPage state)
@@ -111,12 +116,11 @@ export default function SpaceInfoPanel({ space, getApi, onSave }) {
                 }
               }}
             >
-              <div className={`${styles.themePreview} ${styles[`themePreview_${theme.value}`]}`}>
-                <div className={styles.themePreviewInner}>
-                  <span className={styles.themePreviewLabel}>{theme.previewLabel}</span>
-                  <div className={styles.themePreviewWaveform} />
-                </div>
-              </div>
+              <img
+                className={styles.themePreviewImg}
+                src={theme.imagePath}
+                alt={`${theme.label} voice card theme`}
+              />
               <span className={styles.themePickerName}>{theme.label}</span>
             </div>
           ))}

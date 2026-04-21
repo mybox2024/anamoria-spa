@@ -1,4 +1,12 @@
 // components/settings/settingsUtils.js — Anamoria SPA
+// v1.1 — Add imagePath to theme options for screenshot thumbnails (April 21, 2026)
+//
+// Changes from v1.0:
+//   - THEME_OPTIONS: added imagePath field pointing to cropped card screenshots
+//     in public/images/themes/. Replaces CSS-drawn abstract previews in
+//     SpaceInfoPanel theme picker with real card images.
+//   - previewLabel retained for backward compatibility (not currently rendered).
+//
 // v1.0 — Shared constants and helpers for settings panels (April 11, 2026)
 //
 // Extracted from SpaceSettings.jsx v1.1 to avoid duplication across
@@ -20,10 +28,10 @@ export const DAY_OPTIONS = [
 /* ─── Voice card theme options for theme picker ─── */
 
 export const THEME_OPTIONS = [
-  { value: 'warm', label: 'Warm', previewLabel: '● VOICE' },
-  { value: 'story', label: 'Story', previewLabel: '❙❙' },
-  { value: 'sage', label: 'Sage', previewLabel: '🎙' },
-  { value: 'clean', label: 'Clean', previewLabel: '▌▌▌▌' },
+  { value: 'warm', label: 'Warm', previewLabel: '● VOICE', imagePath: '/images/themes/voice-card-warm.png' },
+  { value: 'story', label: 'Story', previewLabel: '❙❙', imagePath: '/images/themes/voice-card-story.png' },
+  { value: 'sage', label: 'Sage', previewLabel: '🎙', imagePath: '/images/themes/voice-card-sage.png' },
+  { value: 'clean', label: 'Clean', previewLabel: '▌▌▌▌', imagePath: '/images/themes/voice-card-clean.png' },
 ];
 
 /* ─── Contributor status helpers ─── */

@@ -1,5 +1,11 @@
 // components/VoiceCard.jsx — Anamoria SPA
-// Warm amber theme ported faithfully from LWC axr_MediaCard.css
+// v2.1 — 4-theme voice card system (April 21, 2026)
+// Changes from v2.0:
+//   - Accepts `theme` prop ('warm' | 'story' | 'sage' | 'clean'), default 'warm'
+//   - Conditional rendering by theme: accent strip, icon variants,
+//     waveform bars vs progress bar, duration vs duration pill
+//   - Warm rendering path is identical to v2.0 (regression safe)
+//
 // v2.0 — Space screen overhaul (April 1, 2026)
 //
 // API fields (camelCase from memories handler):
@@ -80,11 +86,11 @@ function PrivacyIcon({ isPrivate }) {
   );
 }
 
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════
    VoiceCard Component
-   ═══════════════════════════════════════════ */
+   ═══════════════════════════════════════ */
 
-export default function VoiceCard({ memory, getApi, onFavorite, onEdit, onClick }) {
+export default function VoiceCard({ memory, getApi, theme = 'warm', onFavorite, onEdit, onClick }) {
   const [playing, setPlaying] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -97,6 +103,17 @@ export default function VoiceCard({ memory, getApi, onFavorite, onEdit, onClick 
   const isPrivate = memory.isPrivate;
   const isFavorite = memory.isFavorite;
   const createdAt = memory.createdAt;
+
+  // v2.1: Resolve theme class — fallback to warm if unknown value
+  const themeClass = styles[`theme_${theme}`] || styles.theme_warm;
+
+  // v2.1: Theme flags for conditional rendering
+  const isWarm = theme === 'warm';
+  const isStory = theme === 'story';
+  const isSage = theme === 'sage';
+  const isClean = theme === 'clean';
+  const usesWaveform = isWarm || isSage;
+  const usesProgress = isStory || isClean;
 
   /* ─── Audio playback ─── */
 
@@ -156,60 +173,102 @@ export default function VoiceCard({ memory, getApi, onFavorite, onEdit, onClick 
     if (onClick) onClick(memory);
   }, [memory, onClick]);
 
+  /* ─── Play/Pause icon rendering ─── */
+
+  const renderPlayIcon = () => {
+    if (loadingAudio) {
+      return <div className={styles.playLoading} />;
+    }
+    if (playing) {
+      return (
+        <svg viewBox="0 0 24 24" width="10" height="10">
+          <rect x="5" y="4" width="4" height="16" rx="1" fill="white" />
+          <rect x="15" y="4" width="4" height="16" rx="1" fill="white" />
+        </svg>
+      );
+    }
+    return (
+      <svg viewBox="0 0 24 24" width="9" height="9">
+        <path d="M6 4l14 8-14 8V4z" fill="white" />
+      </svg>
+    );
+  };
+
   return (
     <div
-      className={styles.card}
+      className={`${styles.card} ${themeClass}`}
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
     >
-      {/* Header: dot icon + VOICE label + title */}
+      {/* ─── Accent strip (Story: yellow bar, Clean: sage waveform header) ─── */}
+      {(isStory || isClean) && (
+        <div className={styles.accent} />
+      )}
+
+      {/* ─── Header: theme-specific icon + label + title ─── */}
       <div className={styles.header}>
         <div className={styles.headerTop}>
-          <span className={styles.dot} />
-          <span className={styles.label}>VOICE</span>
+          {/* Warm: amber dot + "VOICE MEMORY" label */}
+          {isWarm && <span className={styles.dot} />}
+          {isWarm && <span className={styles.label}>VOICE MEMORY</span>}
+
+          {/* Story: pause icon */}
+          {isStory && <span className={styles.pauseIcon}>❙❙</span>}
+
+          {/* Sage: mic icon in sage circle */}
+          {isSage && <span className={styles.micIcon}>🎙</span>}
+
+          {/* Clean: no icon or label — title only */}
         </div>
-        {title && <p className={styles.title}>{title}</p>}
+        <p className={styles.title}>{title}</p>
       </div>
 
-      {/* Player: play btn + waveform + duration */}
+      {/* ─── Player: play btn + waveform/progress + duration ─── */}
       <div className={styles.player}>
         <button
           className={styles.playBtn}
           onClick={handlePlayPause}
           aria-label={playing ? 'Pause' : 'Play'}
         >
-          {loadingAudio ? (
-            <div className={styles.playLoading} />
-          ) : playing ? (
-            <svg viewBox="0 0 24 24" width="10" height="10">
-              <rect x="5" y="4" width="4" height="16" rx="1" fill="white" />
-              <rect x="15" y="4" width="4" height="16" rx="1" fill="white" />
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" width="9" height="9">
-              <path d="M6 4l14 8-14 8V4z" fill="white" />
-            </svg>
-          )}
+          {renderPlayIcon()}
         </button>
 
-        <div className={styles.waveform}>
-          {WAVE_BARS.map((h, i) => (
-            <div
-              key={i}
-              className={styles.waveBar}
-              style={{
-                height: `${h}px`,
-                opacity: playing ? 0.5 : 0.3,
-              }}
-            />
-          ))}
-        </div>
+        {/* Waveform bars — warm + sage themes */}
+        {usesWaveform && (
+          <div className={styles.waveform}>
+            {WAVE_BARS.map((h, i) => (
+              <div
+                key={i}
+                className={styles.waveBar}
+                style={{
+                  height: `${h}px`,
+                  opacity: playing ? 0.5 : 0.3,
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-        <span className={styles.duration}>{formatDuration(duration)}</span>
+        {/* Progress bar — story + clean themes (functional: moves during playback) */}
+        {usesProgress && (
+          <div className={styles.progressTrack}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+
+        {/* Duration: pill badge for clean, plain text for others */}
+        {isClean ? (
+          <span className={styles.durationPill}>{formatDuration(duration)}</span>
+        ) : (
+          <span className={styles.duration}>{formatDuration(duration)}</span>
+        )}
       </div>
 
-      {/* Footer: date + privacy */}
+      {/* ─── Footer: date + privacy ─── */}
       <div className={styles.footer}>
         <span className={styles.date}>{formatDate(createdAt)}</span>
         <span className={styles.privacyIcon}>
@@ -217,7 +276,7 @@ export default function VoiceCard({ memory, getApi, onFavorite, onEdit, onClick 
         </span>
       </div>
 
-      {/* Hover overlay: favorite + edit */}
+      {/* ─── Hover overlay: favorite + edit ─── */}
       <div className={`${styles.overlay} ${isFavorite ? styles.overlayLiked : ''}`}>
         <button
           className={`${styles.overlayBtn} ${isFavorite ? styles.overlayBtnLiked : ''}`}

@@ -1,17 +1,19 @@
 // components/MemoryFeed.jsx — Anamoria SPA
-// v2.1 — Voice edit routes to RecordPage (April 3, 2026)
+// v2.2 — Voice card theme passthrough (April 21, 2026)
 //
-// Changes from v2.0:
+// Changes from v2.1:
+//   - Accepts voiceCardTheme prop and forwards to VoiceCard as theme prop
+//   - Default: 'warm' (backward compatible — no visual change if prop absent)
+//
+// v2.1 — Voice edit routes to RecordPage (April 3, 2026)
 //   - handleEdit: voice memories route to /spaces/:id/record with editMode state
-//   - handleEdit: text/photo memories route to MemoryDetailPage (unchanged)
-//   - handleCardClick: voice cards route to RecordPage in edit mode (same as edit icon)
-//   - handleCardClick: text/photo cards route to MemoryDetailPage (unchanged)
+//   - handleCardClick: voice cards route to RecordPage in edit mode
 //
 // Features (unchanged):
 //   - Macy.js masonry layout (CDN loaded, CSS columns fallback)
 //   - Private / Shared tabs (client-side filter on isPrivate)
 //   - Photo cards with CloudFront signed URL fetch
-//   - Voice cards (warm amber theme)
+//   - Voice cards (4 themes: warm, story, sage, clean)
 //   - Text cards (white, amber "TEXT" label)
 //   - Favorite toggle + edit icon overlays on all card types
 
@@ -111,7 +113,7 @@ function loadMacy() {
    MEMORY FEED COMPONENT
    ═══════════════════════════════════════ */
 
-export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
+export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTheme }) {
   const navigate = useNavigate();
   const masonryRef = useRef(null);
   const macyInstanceRef = useRef(null);
@@ -407,6 +409,7 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount }) {
                   <VoiceCard
                     memory={memory}
                     getApi={getApi}
+                    theme={voiceCardTheme || 'warm'}
                     onFavorite={handleFavorite}
                     onEdit={handleEdit}
                     onClick={handleCardClick}
