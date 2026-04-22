@@ -1,7 +1,13 @@
 // components/MemoryFeed.jsx — Anamoria SPA
-// v2.6 — D-4: AbortController + fetchpriority + client-side cache (April 22, 2026)
+// v2.7 — D-5: Image dimensions for CLS fix (April 22, 2026)
 //
-// Changes from v2.5:
+// Changes from v2.6:
+//   - Photo card .photoImageWrap gets inline aspect-ratio from memory.imageWidth / imageHeight
+//   - Fallback to 4/3 for photos without dimensions
+//   - BlurHashCanvas receives correct aspect ratio from image dimensions
+//   - Eliminates CLS (layout shift) caused by masonry recalculating on image decode
+//
+// v2.6 — D-4: AbortController + fetchpriority + client-side cache (April 22, 2026)
 //   - 6A: AbortController cleanup in memories fetch useEffect
 //   - 5:  fetchpriority="high" on first photo, loading="lazy" on rest
 //   - 6B: Module-level memories cache with 50-min TTL + exported invalidateMemoriesCache()
@@ -464,6 +470,18 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
               const fallbackUrl = memory.originalPlaybackUrl;
               const isFirstPhoto = photoIndex === 0;
               photoIndex++;
+
+              // v2.7 (D-5): Compute aspect-ratio style from image dimensions
+              const photoAspectStyle = memory.imageWidth && memory.imageHeight
+                ? { aspectRatio: `${memory.imageWidth} / ${memory.imageHeight}` }
+                : { aspectRatio: '4 / 3' };
+
+              // v2.7 (D-5): BlurHash canvas dimensions matched to actual image ratio
+              const blurWidth = 269;
+              const blurHeight = (memory.imageWidth && memory.imageHeight)
+                ? Math.round(blurWidth * memory.imageHeight / memory.imageWidth)
+                : 180;
+
               return (
                 <div key={memory.id} className={`${styles.masonryItem} ${styles.photoItem}`}>
                   <div
@@ -472,7 +490,7 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
                     role="button"
                     tabIndex={0}
                   >
-                    <div className={styles.photoImageWrap}>
+                    <div className={styles.photoImageWrap} style={photoAspectStyle}>
                       {photoUrl ? (
                         <img
                           className={styles.photoImage}
@@ -489,7 +507,7 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
                           }}
                         />
                       ) : memory.blurHash ? (
-                        <BlurHashCanvas hash={memory.blurHash} />
+                        <BlurHashCanvas hash={memory.blurHash} width={blurWidth} height={blurHeight} />
                       ) : (
                         <div className={styles.photoSkeleton}>
                           <div className={styles.photoSkeletonShimmer} />

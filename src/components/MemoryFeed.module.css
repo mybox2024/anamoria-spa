@@ -1,4 +1,5 @@
 /* components/MemoryFeed.module.css
+   v2.2 — D-5 .photoImageWrap simplified for aspect-ratio (April 22, 2026)
    v2.1 — D-3 BlurHash placeholder canvas (April 22, 2026)
    v2.0 — Space screen overhaul (April 1, 2026)
    Sources: axr_Masonry.css, axr_MediaCard.css
@@ -257,15 +258,16 @@
   outline-offset: 2px;
 }
 
-/* Image container */
+/* Image container
+   v2.2 (D-5): Removed display:flex / align-items / justify-content.
+   Height is now driven by inline aspect-ratio style set per card in JSX.
+   The <img> fills the container with width:100%; height:auto.
+*/
 .photoImageWrap {
   position: relative;
   width: 100%;
   overflow: hidden;
   background: #f6f6f6;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
 }
 
 .photoImage {
