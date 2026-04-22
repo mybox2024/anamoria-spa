@@ -1,34 +1,22 @@
 // components/settings/NeedHelpPanel.jsx — Anamoria SPA
-// v1.0 — Help text + space deletion request mailto (April 11, 2026)
+// v1.2 — Navigate to request panel via callback (April 21, 2026 — Phase C)
 //
-// Extracted from SpaceSettings.jsx v1.1 (Section 5)
-// No save — purely presentational with a mailto link.
+// Changes from v1.1:
+//   - Replaced generic mailto link with "Submit a request" button
+//   - Uses onRequestHelp callback prop to open request panel inside SettingsPage
+//     (request form renders as a panel, not a standalone route)
+//   - space prop used to pass space name for subject pre-fill
 //
-// Props:
-//   space — current space object (for name + ID in email)
+// Previous changes (v1.1):
+//   - Removed Space Deletion button, EnvelopeIcon, panel-specific styles
 
 import shared from './settingsShared.module.css';
-import styles from './NeedHelpPanel.module.css';
 
-/* ─── Inline SVG icon ─── */
-
-function EnvelopeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-      strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="M22 6l-10 7L2 6" />
-    </svg>
-  );
-}
-
-export default function NeedHelpPanel({ space }) {
-  function handleRequestDeletion() {
-    const subject = encodeURIComponent(`Delete space: ${space.name}`);
-    const body = encodeURIComponent(
-      `Please delete the space "${space.name}" (ID: ${space.id}). I understand backups are kept for 30 days.`
-    );
-    window.open(`mailto:support@anamoria.org?subject=${subject}&body=${body}`, '_blank');
+export default function NeedHelpPanel({ space, onRequestHelp }) {
+  function handleContact() {
+    if (onRequestHelp) {
+      onRequestHelp(space?.name || null);
+    }
   }
 
   return (
@@ -36,12 +24,10 @@ export default function NeedHelpPanel({ space }) {
       <div className={shared.section}>
         <h3 className={shared.sectionTitle}>NEED HELP?</h3>
         <p className={shared.hint}>
-          If you need to delete this space or have other questions, we're here to help.
-          We keep backups for 30 days in case you change your mind.
+          If you have questions about this space or need a hand, we're here to help.
         </p>
-        <button className={styles.supportLink} onClick={handleRequestDeletion}>
-          <span className={styles.supportIcon}><EnvelopeIcon /></span>
-          Request Space Deletion
+        <button className={shared.saveBtn} onClick={handleContact}>
+          Submit a request
         </button>
       </div>
     </div>

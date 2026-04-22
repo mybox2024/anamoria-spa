@@ -1,6 +1,14 @@
 // App.jsx — Anamoria SPA
-// v1.11 — Session 3: contributor routing restructure (April 19, 2026)
-// Changes from v1.10:
+// v1.14 — Phase D: MyRequestsPage route (April 21, 2026)
+// Changes from v1.13:
+//   - Added MyRequestsPage import and /settings/my-requests protected route
+//   - Zero bootstrap or context changes
+//
+// Previous changes (v1.12):
+//   - useSessionBootstrap returns { appState, setAppState }
+//   - updateProfile callback in context
+//
+// Previous changes (v1.11):
 //   - Added 4 static imports for new contributor pages:
 //     ContributorHomePage, ContributorRecordPage, ContributorWritePage,
 //     ContributorPhotoPage (all in pages/).
@@ -76,6 +84,8 @@ import SettingsPage from './pages/SettingsPage';
 import UpgradePage from './pages/UpgradePage';
 import ReminderPage from './pages/ReminderPage';
 import FeedbackPage from './pages/FeedbackPage';
+// v1.14: Phase D — full request history page
+import MyRequestsPage from './pages/MyRequestsPage';
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
@@ -115,6 +125,9 @@ function LoadingFallback() {
 //   - 200 = returning user → set appState, load spaces, route
 //   - 404 = new user → check sessionStorage for groupId → POST /pilot/join
 //   - localStorage is never read or written for identity keys
+//
+// v1.12: Returns { appState, setAppState } instead of appState alone.
+// setAppState is consumed by AppRoutes to create the updateProfile callback.
 
 function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User) {
   const navigate = useNavigate();
@@ -224,7 +237,9 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     }
   }, [isAuthenticated, appState.bootstrapped, bootstrap]);
 
-  return appState;
+  // v1.12: Return both appState and setAppState so AppRoutes can create
+  // the updateProfile callback without exposing raw setAppState in context.
+  return { appState, setAppState };
 }
 
 // ─── Inner app (inside BrowserRouter + AuthProvider) ─────────────────────
@@ -234,11 +249,28 @@ function AppRoutes() {
 
   const [sessionTag] = useState(() => crypto.randomUUID());
 
-  const appState = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
+  // v1.12: Destructure both appState and setAppState from hook
+  const { appState, setAppState } = useSessionBootstrap(isAuthenticated, getAccessTokenSilently, user);
+
+  // v1.12: Narrow updateProfile action — whitelists displayName and email only.
+  // Consumed by SettingsPage v2.6 AccountPanel after successful PATCH /pilot/me.
+  // If a future developer adds a new editable field, they must also add it to
+  // ALLOWED here. This is intentional friction to prevent accidental context
+  // pollution from an unvetted field.
+  const updateProfile = useCallback((updates) => {
+    const ALLOWED = ['displayName', 'email'];
+    setAppState(prev => {
+      const filtered = Object.fromEntries(
+        Object.entries(updates).filter(([k, v]) => ALLOWED.includes(k) && v !== undefined)
+      );
+      if (Object.keys(filtered).length === 0) return prev;
+      return { ...prev, ...filtered };
+    });
+  }, [setAppState]);
 
   const contextValue = useMemo(
-    () => ({ ...appState, sessionTag }),
-    [appState, sessionTag]
+    () => ({ ...appState, sessionTag, updateProfile }),
+    [appState, sessionTag, updateProfile]
   );
 
   if (isLoading) {
@@ -406,6 +438,15 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <UpgradeSuccessPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* v1.14: Phase D — request history */}
+          <Route
+            path="/settings/my-requests"
+            element={
+              <ProtectedRoute>
+                <MyRequestsPage />
               </ProtectedRoute>
             }
           />

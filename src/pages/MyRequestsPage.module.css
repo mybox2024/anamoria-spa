@@ -1,0 +1,328 @@
+/* pages/MyRequestsPage.module.css
+   v1.0 — Phase D: Full request history page (April 21, 2026)
+   Tokens: variables.css
+*/
+
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, #faf9f7);
+  padding-top: var(--safe-area-top, 0px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-bg-white, #ffffff);
+  border-bottom: 1px solid var(--color-border-light, #edebe7);
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+.backBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, #2d3436);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.backBtn:hover { background: var(--color-bg-warm, #f5f5f4); }
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  font-family: var(--font-sans);
+  flex: 1;
+  text-align: center;
+}
+
+.headerSpacer { width: 40px; flex-shrink: 0; }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.loading, .error {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  text-align: center;
+  padding: 32px 0;
+}
+
+.error { color: #ef4444; }
+
+/* ─── Empty state ─── */
+
+.emptyState {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.emptyText {
+  font-size: 15px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  margin: 0 0 16px;
+}
+
+.emptyLink {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-sage-dark, #5b7a65);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.emptyLink:hover { color: var(--color-sage, #7c9885); }
+
+/* ─── Request list ─── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  background: var(--color-bg-white, #ffffff);
+  border: 1px solid var(--color-border-light, #edebe7);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rowHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  position: relative;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.rowHeader:hover {
+  background: var(--color-bg-warm, #f5f5f4);
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-right: 24px;
+}
+
+.rowType {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+  flex: 1;
+  min-width: 120px;
+}
+
+.rowDate {
+  font-size: 12px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+}
+
+.rowId {
+  font-size: 11px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-mono, 'SF Mono', monospace);
+}
+
+.rowSummary {
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 24px;
+}
+
+.expandIcon {
+  position: absolute;
+  right: 16px;
+  top: 18px;
+  color: var(--color-text-subtle, #737373);
+  transition: transform var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+}
+
+.expandIconOpen {
+  transform: rotate(180deg);
+}
+
+/* ─── Expanded details ─── */
+
+.rowDetails {
+  padding: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--color-border-light, #edebe7);
+  padding-top: 12px;
+  margin: 0 16px;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detailLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans);
+}
+
+.detailValue {
+  font-size: 14px;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Status badges ─── */
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badgePending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgeInProgress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badgeCompleted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badgeCancelled {
+  background: var(--color-bg-warm, #f5f5f4);
+  color: var(--color-text-subtle, #737373);
+}
+
+/* ─── Cancel button + confirmation ─── */
+
+.cancelBtn {
+  align-self: flex-end;
+  margin: 0 16px 12px 0;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-text-primary, #2d3436);
+  border: 1px solid var(--color-border-light, #edebe7);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.cancelBtn:hover { background: var(--color-bg-warm, #f5f5f4); }
+
+.cancelConfirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-primary, #2d3436);
+  font-family: var(--font-sans);
+  align-self: flex-end;
+  margin: 0 16px 12px 0;
+}
+
+.cancelConfirmYes {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #991b1b;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.cancelConfirmYes:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cancelConfirmNo {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--color-text-primary, #2d3436);
+  border: 1px solid var(--color-border-light, #edebe7);
+  cursor: pointer;
+}
+
+.cancelError {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+  font-family: var(--font-sans);
+  align-self: flex-end;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE
+   ═══════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .content { padding: 16px; }
+  .rowMain { gap: 8px; }
+  .cancelConfirm { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backBtn, .cancelBtn { transition: none !important; }
+}
