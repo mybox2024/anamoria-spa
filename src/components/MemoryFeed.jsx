@@ -1,9 +1,18 @@
 // components/MemoryFeed.jsx — Anamoria SPA
-// v2.2 — Voice card theme passthrough (April 21, 2026)
+// v2.6 — D-4: AbortController + fetchpriority + client-side cache (April 22, 2026)
 //
-// Changes from v2.1:
+// Changes from v2.5:
+//   - 6A: AbortController cleanup in memories fetch useEffect
+//   - 5:  fetchpriority="high" on first photo, loading="lazy" on rest
+//   - 6B: Module-level memories cache with 50-min TTL + exported invalidateMemoriesCache()
+//
+// v2.5 — BlurHash placeholders for photo cards (April 22, 2026)
+//   - BlurHash canvas placeholder, onError fallback to original
+//
+// v2.3 — Inline signed URLs from memories response (April 22, 2026)
+//
+// v2.2 — Voice card theme passthrough (April 21, 2026)
 //   - Accepts voiceCardTheme prop and forwards to VoiceCard as theme prop
-//   - Default: 'warm' (backward compatible — no visual change if prop absent)
 //
 // v2.1 — Voice edit routes to RecordPage (April 3, 2026)
 //   - handleEdit: voice memories route to /spaces/:id/record with editMode state
@@ -12,13 +21,14 @@
 // Features (unchanged):
 //   - Macy.js masonry layout (CDN loaded, CSS columns fallback)
 //   - Private / Shared tabs (client-side filter on isPrivate)
-//   - Photo cards with CloudFront signed URL fetch
+//   - Photo cards with CloudFront signed URL from API response
 //   - Voice cards (4 themes: warm, story, sage, clean)
 //   - Text cards (white, amber "TEXT" label)
 //   - Favorite toggle + edit icon overlays on all card types
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { decode } from 'blurhash';
 import VoiceCard from './VoiceCard';
 import styles from './MemoryFeed.module.css';
 
@@ -84,6 +94,63 @@ function PrivacyIcon({ isPrivate }) {
 }
 
 /* ═══════════════════════════════════════
+   BLURHASH CANVAS PLACEHOLDER (D-3)
+   ═══════════════════════════════════════ */
+
+function BlurHashCanvas({ hash, width = 269, height = 180 }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    if (!canvasRef.current || !hash) return;
+    try {
+      const pixels = decode(hash, width, height);
+      const ctx = canvasRef.current.getContext('2d');
+      const imageData = ctx.createImageData(width, height);
+      imageData.data.set(pixels);
+      ctx.putImageData(imageData, 0, 0);
+    } catch (err) {
+      console.warn('BlurHash decode failed:', err);
+    }
+  }, [hash, width, height]);
+  return <canvas ref={canvasRef} width={width} height={height} className={styles.blurCanvas} />;
+}
+
+/* ═══════════════════════════════════════
+   MEMORIES CACHE (D-4, Strategy 6B)
+   Module-level cache with 50-minute TTL.
+   Persists across navigations within the SPA.
+   ═══════════════════════════════════════ */
+
+const memoriesCache = new Map();
+const CACHE_TTL_MS = 50 * 60 * 1000; // 50 minutes (below 60-min signed URL expiry)
+
+function getCachedMemories(spaceId) {
+  const entry = memoriesCache.get(spaceId);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    memoriesCache.delete(spaceId);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedMemories(spaceId, data) {
+  memoriesCache.set(spaceId, { data, timestamp: Date.now() });
+}
+
+/**
+ * Invalidate the memories cache for a given space.
+ * Call this after creating, editing, or deleting a memory so the next
+ * navigation to the feed fetches fresh data.
+ */
+export function invalidateMemoriesCache(spaceId) {
+  if (spaceId) {
+    memoriesCache.delete(spaceId);
+  } else {
+    memoriesCache.clear();
+  }
+}
+
+/* ═══════════════════════════════════════
    MACY.JS DYNAMIC LOADER
    ═══════════════════════════════════════ */
 
@@ -122,78 +189,47 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('private'); // 'private' | 'shared'
-  const [photoUrls, setPhotoUrls] = useState({}); // s3Key → url
   const [macyReady, setMacyReady] = useState(false);
 
-  /* ─── Fetch memories ─── */
+  /* ─── Fetch memories (D-4: AbortController + cache) ─── */
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+
+    // 6B: Check cache first — instant render on return visits
+    const cached = getCachedMemories(spaceId);
+    if (cached) {
+      setMemories(cached);
+      if (onMemoryCount) onMemoryCount(cached.length);
+      setLoading(false);
+      return () => controller.abort();
+    }
+
     async function load() {
       setLoading(true);
       try {
         const api = getApi();
-        const data = await api.get(`/spaces/${spaceId}/memories?limit=100&offset=0`);
-        if (cancelled) return;
+        const data = await api.get(
+          `/spaces/${spaceId}/memories?limit=100&offset=0`,
+          { signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
         const mems = data.memories || [];
         setMemories(mems);
+        setCachedMemories(spaceId, mems); // Cache for return visits
         if (onMemoryCount) onMemoryCount(mems.length);
       } catch (err) {
-        if (!cancelled) setError('Could not load memories.');
+        if (err.name === 'AbortError') return; // Expected during cleanup
+        if (!controller.signal.aborted) setError('Could not load memories.');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, [spaceId, getApi, onMemoryCount]);
 
-  /* ─── Fetch photo CloudFront URLs ─── */
-  const fetchedKeysRef = useRef(new Set());
-
-  useEffect(() => {
-    if (memories.length === 0) return;
-    const photoMems = memories.filter(
-      (m) => (m.category || '').toLowerCase() === 'photo' && m.s3Key
-        && !fetchedKeysRef.current.has(m.s3Key)
-    );
-    if (photoMems.length === 0) return;
-
-    photoMems.forEach((m) => fetchedKeysRef.current.add(m.s3Key));
-
-    let cancelled = false;
-
-    async function fetchPhotoUrls() {
-      const api = getApi();
-      const results = {};
-
-      const chunks = [];
-      for (let i = 0; i < photoMems.length; i += 6) {
-        chunks.push(photoMems.slice(i, i + 6));
-      }
-
-      for (const chunk of chunks) {
-        if (cancelled) break;
-        const promises = chunk.map(async (m) => {
-          try {
-            const data = await api.get(`/media/playback/${encodeURIComponent(m.s3Key)}`);
-            results[m.s3Key] = data.playbackUrl;
-          } catch (err) {
-            console.error('Photo URL fetch error:', err);
-            fetchedKeysRef.current.delete(m.s3Key);
-          }
-        });
-        await Promise.all(promises);
-      }
-
-      if (!cancelled && Object.keys(results).length > 0) {
-        setPhotoUrls((prev) => ({ ...prev, ...results }));
-      }
-    }
-
-    fetchPhotoUrls();
-    return () => { cancelled = true; };
-  }, [memories, getApi]);
+  // v2.3: Photo URL fetch loop removed — playbackUrl now comes from memories API response
 
   /* ─── Initialize Macy.js ─── */
 
@@ -242,6 +278,7 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
   }, []);
 
   /* ─── Recalculate Macy when data changes ─── */
+  // v2.3: Removed photoUrls from dependency array (no longer exists)
 
   useEffect(() => {
     const inst = macyInstanceRef.current;
@@ -256,9 +293,9 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
     });
 
     return () => cancelAnimationFrame(raf1);
-  }, [memories, activeTab, photoUrls]);
+  }, [memories, activeTab]);
 
-  /* ─── Recalculate on photo URL load ─── */
+  /* ─── Recalculate on photo image load ─── */
 
   const handleImageLoad = useCallback(() => {
     const inst = macyInstanceRef.current;
@@ -394,7 +431,9 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
       )}
 
       {/* ─── Masonry Grid ─── */}
-      {filteredMemories.length > 0 && (
+      {filteredMemories.length > 0 && (() => {
+        let photoIndex = 0; // v2.6: tracks photo position for fetchpriority
+        return (
         <div
           ref={masonryRef}
           className={`${styles.masonry} ${!macyReady ? styles.masonryFallback : ''}`}
@@ -420,7 +459,11 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
 
             /* ── Photo card ── */
             if (category === 'photo') {
-              const photoUrl = photoUrls[memory.s3Key];
+              // v2.6: fetchpriority + lazy loading + BlurHash + onError fallback
+              const photoUrl = memory.playbackUrl;
+              const fallbackUrl = memory.originalPlaybackUrl;
+              const isFirstPhoto = photoIndex === 0;
+              photoIndex++;
               return (
                 <div key={memory.id} className={`${styles.masonryItem} ${styles.photoItem}`}>
                   <div
@@ -435,8 +478,18 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
                           className={styles.photoImage}
                           src={photoUrl}
                           alt={memory.title || 'Photo'}
+                          fetchpriority={isFirstPhoto ? 'high' : undefined}
+                          loading={isFirstPhoto ? 'eager' : 'lazy'}
                           onLoad={handleImageLoad}
+                          onError={(e) => {
+                            // D-2 fallback: feed variant not ready, use original
+                            if (fallbackUrl && e.target.src !== fallbackUrl) {
+                              e.target.src = fallbackUrl;
+                            }
+                          }}
                         />
+                      ) : memory.blurHash ? (
+                        <BlurHashCanvas hash={memory.blurHash} />
                       ) : (
                         <div className={styles.photoSkeleton}>
                           <div className={styles.photoSkeletonShimmer} />
@@ -527,7 +580,8 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

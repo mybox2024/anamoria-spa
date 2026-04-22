@@ -1,6 +1,12 @@
 // components/VoiceCard.jsx — Anamoria SPA
+// v2.2 — Inline signed URL support (April 22, 2026)
+// Changes from v2.1:
+//   - handlePlayPause uses memory.voiceNote.playbackUrl when available
+//   - Falls back to /media/playback API call if inline URL is null (contributor
+//     access, expired URLs after 60 min, backend env vars not configured)
+//   - getApi prop remains required for the fallback path
+//
 // v2.1 — 4-theme voice card system (April 21, 2026)
-// Changes from v2.0:
 //   - Accepts `theme` prop ('warm' | 'story' | 'sage' | 'clean'), default 'warm'
 //   - Conditional rendering by theme: accent strip, icon variants,
 //     waveform bars vs progress bar, duration vs duration pill
@@ -9,7 +15,7 @@
 // v2.0 — Space screen overhaul (April 1, 2026)
 //
 // API fields (camelCase from memories handler):
-//   memory.voiceNote.s3Key, memory.voiceNote.duration
+//   memory.voiceNote.s3Key, memory.voiceNote.duration, memory.voiceNote.playbackUrl
 //   memory.createdAt, memory.isPrivate, memory.isFavorite, memory.s3Key
 
 import { useState, useRef, useCallback } from 'react';
@@ -135,9 +141,14 @@ export default function VoiceCard({ memory, getApi, theme = 'warm', onFavorite, 
 
     setLoadingAudio(true);
     try {
-      const api = getApi();
-      const data = await api.get(`/media/playback/${encodeURIComponent(s3Key)}`);
-      const audio = new Audio(data.playbackUrl);
+      // v2.2: Use inline playbackUrl when available; fall back to API call
+      let playbackUrl = memory.voiceNote?.playbackUrl;
+      if (!playbackUrl) {
+        const api = getApi();
+        const data = await api.get(`/media/playback/${encodeURIComponent(s3Key)}`);
+        playbackUrl = data.playbackUrl;
+      }
+      const audio = new Audio(playbackUrl);
       audioRef.current = audio;
       audio.ontimeupdate = () => {
         if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
@@ -151,7 +162,7 @@ export default function VoiceCard({ memory, getApi, theme = 'warm', onFavorite, 
     } finally {
       setLoadingAudio(false);
     }
-  }, [playing, loadingAudio, s3Key, getApi]);
+  }, [playing, loadingAudio, s3Key, getApi, memory.voiceNote?.playbackUrl]);
 
   /* ─── Favorite toggle ─── */
 

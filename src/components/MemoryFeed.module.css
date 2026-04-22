@@ -1,4 +1,5 @@
 /* components/MemoryFeed.module.css
+   v2.1 — D-3 BlurHash placeholder canvas (April 22, 2026)
    v2.0 — Space screen overhaul (April 1, 2026)
    Sources: axr_Masonry.css, axr_MediaCard.css
 */
@@ -294,6 +295,14 @@
 @keyframes shimmer {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
+}
+
+/* BlurHash canvas placeholder (D-3) */
+.blurCanvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 14px;
 }
 
 /* Photo content — transparent, sits on page background */

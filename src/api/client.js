@@ -1,6 +1,10 @@
 // api/client.js — Anamoria SPA
+// v1.2 — April 22, 2026
+// Changes from v1.1:
+//   - get() now accepts optional second argument for fetch options (e.g., { signal })
+//     to support AbortController pattern in useEffect cleanup (D-4, Strategy 6A)
+//
 // v1.1 — April 14, 2026
-// Changes from v1.0:
 //   - Added put() method for authenticated JSON PUT requests
 //     (needed for PUT /billing/subscription and PUT /billing/payment-method)
 //
@@ -74,9 +78,9 @@ export function createApiClient(getAccessTokenSilently) {
   // ─── Public surface ───────────────────────────────────────────────────────
 
   return {
-    /** GET with JWT */
-    get(path) {
-      return authFetch(path, { method: 'GET' });
+    /** GET with JWT. Options (e.g., { signal }) are passed through to fetch. */
+    get(path, options = {}) {
+      return authFetch(path, { method: 'GET', ...options });
     },
 
     /** POST with JWT */
