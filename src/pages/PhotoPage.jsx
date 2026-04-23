@@ -1,5 +1,9 @@
 // pages/PhotoPage.jsx — /spaces/:spaceId/photo
-// v2.4 — Session 2 (April 19, 2026)
+// v2.5 — D-4 cache invalidation fix (April 22, 2026)
+// Changes from v2.4:
+//   - Import invalidateMemoriesCache from MemoryFeed.
+//   - Call invalidateMemoriesCache(spaceId) after successful save so the
+//     feed shows the new memory on navigation back (D-4 cache fix).
 //
 // Changes from v2.3:
 //   - Session 2 feedback routing. Four narrow additions, no logic removed:
@@ -76,6 +80,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import SuccessScreen from '../components/SuccessScreen';
+import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { PhotoIcon } from '../components/BrandIcons';
 // v2.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
 // feedback branch stubbed for Session 2).
@@ -240,6 +245,9 @@ export default function PhotoPage() {
       //    URL is still alive and renders in the success card).
       setSaving(false);
       setSaved(true);
+      // D-4 fix: Invalidate the MemoryFeed cache so the feed fetches fresh
+      // data and shows this newly saved memory on navigation back.
+      invalidateMemoriesCache(spaceId);
     } catch (err) {
       console.error('Photo save error:', err);
       setError("Something didn't save. Please try again.");

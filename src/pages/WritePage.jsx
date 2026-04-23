@@ -1,5 +1,9 @@
 // WritePage.jsx — /spaces/:id/write
-// v1.4 — Session 2 (April 19, 2026)
+// v1.5 — D-4 cache invalidation fix (April 22, 2026)
+// Changes from v1.4:
+//   - Import invalidateMemoriesCache from MemoryFeed.
+//   - Call invalidateMemoriesCache(spaceId) after successful save so the
+//     feed shows the new memory on navigation back (D-4 cache fix).
 //
 // Changes from v1.3:
 //   - Session 2 feedback routing. Four narrow additions, no logic removed:
@@ -66,6 +70,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import DictateButton from '../components/DictateButton';
 import SuccessScreen from '../components/SuccessScreen';
+import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { WriteIcon } from '../components/BrandIcons';
 // v1.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
 // feedback branch stubbed for Session 2).
@@ -227,6 +232,9 @@ export default function WritePage() {
         memoryId: createdMemory.id,
       });
       setSaved(true);
+      // D-4 fix: Invalidate the MemoryFeed cache so the feed fetches fresh
+      // data and shows this newly saved memory on navigation back.
+      invalidateMemoriesCache(spaceId);
       setSaving(false);
     } catch (err) {
       console.error('Save error:', err);

@@ -1,6 +1,13 @@
 // App.jsx — Anamoria SPA
-// v1.14 — Phase D: MyRequestsPage route (April 21, 2026)
-// Changes from v1.13:
+// v1.15 — Tier A Frontend Optimizations (April 22, 2026)
+// Changes from v1.14:
+//   - A-1: Parallelize bootstrap — /pilot/me + /spaces via Promise.all
+//     (~600-1,000ms cold, ~200ms warm savings vs serial awaits)
+//   - A-4: Added updateSpaces callback to AppContext so SpacePage sidebar
+//     and CreateSpaceModal can update the spaces list without re-fetching.
+//   - Zero route changes, zero auth changes.
+//
+// Previous changes (v1.14):
 //   - Added MyRequestsPage import and /settings/my-requests protected route
 //   - Zero bootstrap or context changes
 //
@@ -148,8 +155,12 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     const api = createApiClient(getAccessTokenSilently);
 
     try {
-      const meData = await api.get('/pilot/me');
-      const spacesData = await api.get('/spaces');
+      // A-1: Parallel bootstrap — /pilot/me and /spaces are independent.
+      // Saves ~600-1,000ms cold, ~200ms warm vs serial awaits.
+      const [meData, spacesData] = await Promise.all([
+        api.get('/pilot/me'),
+        api.get('/spaces'),
+      ]);
       const spaces = spacesData.spaces || [];
       const currentSpace = spaces[0] || null;
 
@@ -268,9 +279,15 @@ function AppRoutes() {
     });
   }, [setAppState]);
 
+  // A-4: Callback for SpacePage/CreateSpaceModal to update the spaces list
+  // in context after creating a new space. Avoids re-fetching /spaces.
+  const updateSpaces = useCallback((newSpaces) => {
+    setAppState(prev => ({ ...prev, spaces: newSpaces }));
+  }, [setAppState]);
+
   const contextValue = useMemo(
-    () => ({ ...appState, sessionTag, updateProfile }),
-    [appState, sessionTag, updateProfile]
+    () => ({ ...appState, sessionTag, updateProfile, updateSpaces }),
+    [appState, sessionTag, updateProfile, updateSpaces]
   );
 
   if (isLoading) {

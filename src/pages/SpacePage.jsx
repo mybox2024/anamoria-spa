@@ -1,9 +1,18 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.15 — Voice card theme passthrough to MemoryFeed (April 21, 2026)
-// Changes from v2.14:
+// v2.16 — Tier A Frontend Optimizations (April 22, 2026)
+// Changes from v2.15:
+//   - A-3: Module-level cache for space detail + prompt via apiCache.js.
+//     Return visits skip /spaces/:id and /prompt API calls (cache hit).
+//     Owner memory count always fetched fresh (changes on every create/delete).
+//     Prompt cache updated on skip/advance. Space cache invalidated via
+//     invalidateCache (SpaceSettings carry-forward CF-1).
+//   - A-4: Sidebar spaces list reads from AppContext instead of local state.
+//     Removed local spaces/loadingSpaces state. loadSpaces kept as defensive
+//     fallback (OQ-3). No /spaces API call on sidebar open.
+//     B7 soft gate space count reads from appState.spaces.
+//
+// Previous changes (v2.15):
 //   - Pass space.voiceCardTheme to MemoryFeed component.
-//     MemoryFeed forwards it to VoiceCard for 4-theme rendering.
-//     Default: 'warm' (backward compatible if field is null).
 //
 // Previous changes (v2.14):
 //   - Butterfly reserved for entry-point states.
@@ -30,6 +39,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import { useAppContext } from '../App';
 import { useBillingStatus, getPlanLabel } from '../hooks/useBillingStatus';
+import { getCached, setCache, invalidateCache, SPACE_DETAIL_CACHE_TTL, PROMPT_CACHE_TTL } from '../utils/apiCache';
 import PromptCard from '../components/PromptCard';
 import BottomNav from '../components/BottomNav';
 import MemoryFeed from '../components/MemoryFeed';
@@ -151,8 +161,6 @@ export default function SpacePage() {
 
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [spaces, setSpaces] = useState([]);
-  const [loadingSpaces, setLoadingSpaces] = useState(false);
 
   // Create space modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -168,6 +176,25 @@ export default function SpacePage() {
 
   useEffect(() => {
     async function load() {
+      // A-3: Check cache for space detail and prompt.
+      // Owner memory count is always fetched fresh (changes on every create/delete).
+      const cachedSpace = getCached(`space:${spaceId}`);
+      const cachedPrompt = getCached(`prompt:${spaceId}`);
+
+      // If both are cached, only fetch the count.
+      if (cachedSpace.hit && cachedPrompt.hit) {
+        setSpace(cachedSpace.value);
+        setPrompt(cachedPrompt.value);
+        // Still fetch count fresh — it changes on every memory create/delete.
+        try {
+          const api = getApi();
+          const countData = await api.get(`/spaces/${spaceId}/memories/count`).catch(() => ({ count: 0 }));
+          setOwnerMemoryCount(countData?.count ?? 0);
+        } catch { /* count is non-critical */ }
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError('');
       try {
@@ -180,6 +207,10 @@ export default function SpacePage() {
           // Runs in parallel with space + prompt — no extra round trip.
           api.get(`/spaces/${spaceId}/memories/count`).catch(() => ({ count: 0 })),
         ]);
+        // A-3: Cache space detail and prompt for return visits.
+        setCache(`space:${spaceId}`, spaceData, SPACE_DETAIL_CACHE_TTL);
+        setCache(`prompt:${spaceId}`, promptData, PROMPT_CACHE_TTL);
+
         setSpace(spaceData);
         setPrompt(promptData);
         // v2.11: Store owner-only count. API returns { count: N }.
@@ -194,21 +225,21 @@ export default function SpacePage() {
     load();
   }, [spaceId, getApi]);
 
-  /* ─── Load spaces list for sidebar ─── */
+  /* ─── Load spaces list for sidebar (A-4: fallback only) ─── */
 
+  // A-4: Primary source is appState.spaces (populated at bootstrap).
+  // Fallback fetch only if context is empty (defensive — should not happen in normal flow).
   const loadSpaces = useCallback(async () => {
-    if (spaces.length > 0) return; // already loaded
-    setLoadingSpaces(true);
+    if ((appState?.spaces?.length || 0) > 0) return;
     try {
       const api = getApi();
       const data = await api.get('/spaces');
-      setSpaces(data.spaces || []);
+      const fetched = data.spaces || [];
+      if (appState?.updateSpaces) appState.updateSpaces(fetched);
     } catch (err) {
-      console.error('Spaces list error:', err);
-    } finally {
-      setLoadingSpaces(false);
+      console.error('Spaces list fallback error:', err);
     }
-  }, [getApi, spaces.length]);
+  }, [getApi, appState]);
 
   /* ─── Sidebar toggle ─── */
 
@@ -255,6 +286,8 @@ export default function SpacePage() {
       const nextPrompt = await api.post(`/spaces/${spaceId}/prompt/advance`);
       if (nextPrompt) {
         setPrompt(nextPrompt);
+        // A-3: Update prompt cache with the new prompt.
+        setCache(`prompt:${spaceId}`, nextPrompt, PROMPT_CACHE_TTL);
       }
     } catch (err) {
       console.error('Skip prompt error:', err);
@@ -266,7 +299,7 @@ export default function SpacePage() {
   function handleCreateSpace() {
     // B7: Check free tier space limit before opening create modal
     if (billing?.tier === 'free' && billing?.limits?.spaces) {
-      if (spaces.length >= billing.limits.spaces) {
+      if ((appState?.spaces?.length || 0) >= billing.limits.spaces) {
         setSoftGateResource('spaces');
         setShowSoftGate(true);
         return;
@@ -430,14 +463,7 @@ export default function SpacePage() {
             <div className={styles.sidebarSection}>
               <p className={styles.sidebarSectionTitle}>SWITCH SPACE</p>
 
-              {loadingSpaces && (
-                <div className={styles.sidebarLoading}>
-                  {/* Small inline spinner — component-level wait, not brand moment. */}
-                  <div className="app-loading-spinner" />
-                </div>
-              )}
-
-              {!loadingSpaces && spaces.map((s) => {
+              {(appState?.spaces || []).map((s) => {
                 const sInitial = (s.name || '?').charAt(0).toUpperCase();
                 const isActive = s.id === spaceId;
                 return (

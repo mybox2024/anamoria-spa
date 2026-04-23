@@ -1,15 +1,26 @@
 // components/CreateSpaceModal.jsx — Anamoria SPA
-// v1.0 — Ported from LWC create-space-modal (axr_MemoryVaultV2)
-// April 1, 2026
+// v1.1 — A-4: Update AppContext spaces list after creation (April 22, 2026)
+// Changes from v1.0:
+//   - Import useAppContext and read appState inside component.
+//   - After successful space creation, append new space to appState.spaces
+//     via updateSpaces callback so sidebar reflects the new space immediately
+//     without requiring a page reload or /spaces re-fetch.
+//   - Stub object (id, name, privacyMode) is sufficient for sidebar rendering.
+//     Full space detail is fetched by SpacePage on mount via GET /spaces/:id.
+//
+// v1.0 — April 1, 2026
+//   - Ported from LWC create-space-modal (axr_MemoryVaultV2).
 //
 // Opens as overlay on Space page. After creation, navigates to new space.
 
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../App';
 import styles from './CreateSpaceModal.module.css';
 
 export default function CreateSpaceModal({ getApi, onClose }) {
   const navigate = useNavigate();
+  const appState = useAppContext();
   const fileInputRef = useRef(null);
 
   const [name, setName] = useState('');
@@ -59,6 +70,14 @@ export default function CreateSpaceModal({ getApi, onClose }) {
 
       const newSpaceId = result.id || result.spaceId;
       if (newSpaceId) {
+        // A-4: Update spaces list in AppContext so sidebar reflects the new space
+        // without requiring a page reload or /spaces re-fetch.
+        // Stub object is sufficient for sidebar rendering (reads id, name, privacyMode).
+        // Full space detail is fetched by SpacePage on mount via GET /spaces/:id.
+        if (appState?.updateSpaces && appState?.spaces) {
+          const newSpace = { id: newSpaceId, name: name.trim(), privacyMode: 'private' };
+          appState.updateSpaces([...appState.spaces, newSpace]);
+        }
         onClose();
         navigate(`/spaces/${newSpaceId}`);
       }

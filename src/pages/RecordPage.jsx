@@ -1,5 +1,10 @@
 // pages/RecordPage.jsx — Anamoria SPA
-// v5.4 — Session 2 (April 19, 2026)
+// v5.5 — D-4 cache invalidation fix (April 22, 2026)
+// Changes from v5.4:
+//   - Import invalidateMemoriesCache from MemoryFeed.
+//   - Call invalidateMemoriesCache(spaceId) after successful voice save
+//     (both create and edit paths) so the feed shows the new/updated memory
+//     on navigation back (D-4 cache fix).
 //
 // Changes from v5.3:
 //   - Session 2 feedback routing. Three narrow additions:
@@ -81,6 +86,7 @@ import LovedOneBar from '../components/LovedOneBar';
 import PromptBanner from '../components/PromptBanner';
 import BottomNav from '../components/BottomNav';
 import SuccessScreen from '../components/SuccessScreen';
+import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { RecordIcon } from '../components/BrandIcons';
 // v5.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
 // feedback branch stubbed for Session 2).
@@ -321,6 +327,9 @@ export default function RecordPage() {
       setSavedDuration(durationFormatted);
       setUploading(false);
       setSaved(true);
+      // D-4 fix: Invalidate the MemoryFeed cache so the feed fetches fresh
+      // data and shows this newly saved memory on navigation back.
+      invalidateMemoriesCache(spaceId);
     } catch (err) {
       console.error('Save error:', err);
       if (s3KeySaved) {
@@ -385,6 +394,9 @@ export default function RecordPage() {
 
       setUploading(false);
       setSaved(true);
+      // D-4 fix: Invalidate the MemoryFeed cache so the feed shows the
+      // updated memory on navigation back.
+      invalidateMemoriesCache(spaceId);
     } catch (err) {
       console.error('Edit save error:', err);
       setUploadError('Save failed. Please try again.');
