@@ -1,4 +1,12 @@
 /* components/MemoryFeed.module.css
+   v2.4 — Tabs sticky at top:0 (April 24, 2026)
+
+   Changes from v2.3:
+     - .tabs top value stays at 0. With v2.4 architecture (prompt outside
+       scroll container), nothing sits above the tabs inside <main>.
+       The --sticky-tabs-top CSS variable is no longer needed.
+     - No other changes. All other classes byte-identical to v2.3.
+
    v2.3 — Sticky tabs for collapsible prompt layout (April 24, 2026)
 
    Changes from v2.2:

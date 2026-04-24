@@ -1,12 +1,25 @@
 // pages/SpacePage.jsx — Anamoria SPA
+// v2.18 — F3: Collapsible prompt outside scroll container (April 24, 2026)
+//
+// Changes from v2.17.1:
+//   - F3 fix: Moved prompt section from inside <main> (scroll container)
+//     to between <header> and <main> in the .page flex column.
+//     This eliminates the scroll-position feedback loop that caused
+//     shimmer/oscillation when collapsing a sticky element inside
+//     its own scroll container (confirmed via 6 Chrome DevTools traces).
+//   - F3 fix: Collapse/expand uses a ref (promptCollapsedRef) + direct
+//     DOM class toggle via data attribute. NO React state changes on
+//     scroll = NO re-renders = NO layout thrashing.
+//   - F3 fix: Both PromptCard and MiniPromptBar are rendered in JSX
+//     at all times. Visibility toggled via CSS class on the wrapper.
+//   - F3 fix: Scroll listener dependency is [loading] so it attaches
+//     once mainRef.current exists after initial render.
+//   - F3 fix: Header changed from position: sticky to position: relative
+//     + flex-shrink: 0 (sits above scroll container in flex column).
+//   - F3 fix: Prompt section uses position: relative + flex-shrink: 0
+//     (sits between header and scroll container, not inside it).
+//
 // v2.17.1 — Fix photo URL resolution (April 24, 2026)
-//
-// Changes from v2.17:
-//   - Fix: Removed encodeURIComponent() from 2 photo URL resolution calls.
-//     The {key+} greedy path parameter in API Gateway accepts raw slashes.
-//     encodeURIComponent was encoding / to %2F causing 403 from the Lambda.
-//     Affected: header photo resolve, sidebar photo resolve.
-//
 // v2.17 — Space Photo + Pin-to-Top + Collapsible Prompt (April 24, 2026)
 // Previous changes (v2.16): Tier A Frontend Optimizations.
 // Route: /spaces/:spaceId (protected — JWT required)
@@ -191,8 +204,13 @@ export default function SpacePage() {
   const sidebarPhotoCache = useRef({});
   const [sidebarPhotos, setSidebarPhotos] = useState({});
 
-  // v2.17: Collapsible prompt state
-  const [promptCollapsed, setPromptCollapsed] = useState(false);
+  // v2.18: Collapsible prompt — ref-only, no React state.
+  // promptCollapsedRef tracks collapse for the scroll handler.
+  // promptSectionRef is the DOM element to toggle data attribute on.
+  // No useState for collapse = no re-renders on scroll.
+  const promptCollapsedRef = useRef(false);
+  const cumulativeUpRef = useRef(0);
+  const promptSectionRef = useRef(null);
   const mainRef = useRef(null);
   const lastScrollY = useRef(0);
 
@@ -238,8 +256,13 @@ export default function SpacePage() {
       }
     }
     load();
-    setPromptCollapsed(false);
+    // v2.18: Reset collapse state on space change
+    promptCollapsedRef.current = false;
+    cumulativeUpRef.current = 0;
     lastScrollY.current = 0;
+    if (promptSectionRef.current) {
+      promptSectionRef.current.removeAttribute('data-collapsed');
+    }
   }, [spaceId, getApi]);
 
   /* ─── v2.17: Resolve space photo S3 key to CloudFront signed URL ─── */
@@ -305,7 +328,12 @@ export default function SpacePage() {
     return () => { cancelled = true; };
   }, [sidebarOpen, appState?.spaces, getApi]);
 
-  /* ─── v2.17: Scroll direction tracking for collapsible prompt ─── */
+  /* ─── v2.18: Scroll direction tracking for collapsible prompt ─── */
+  /* The prompt section is OUTSIDE the scroll container (.main), so
+     changing its height does not affect main.scrollTop — no oscillation.
+     Uses a ref + data attribute toggle instead of React state to avoid
+     re-renders on every scroll event. Dependency is [loading] so the
+     listener attaches once mainRef.current exists after initial render. */
 
   useEffect(() => {
     const el = mainRef.current;
@@ -315,17 +343,36 @@ export default function SpacePage() {
       const currentY = el.scrollTop;
       const delta = currentY - lastScrollY.current;
 
-      if (delta > 0 && currentY > 50 && !promptCollapsed) {
-        setPromptCollapsed(true);
-      } else if (delta < -30 && promptCollapsed) {
-        setPromptCollapsed(false);
+      if (delta > 0) {
+        // Scrolling down — reset cumulative up counter
+        cumulativeUpRef.current = 0;
+
+        if (currentY > 50 && !promptCollapsedRef.current) {
+          promptCollapsedRef.current = true;
+          if (promptSectionRef.current) {
+            promptSectionRef.current.setAttribute('data-collapsed', '');
+          }
+        }
+      } else if (delta < 0 && promptCollapsedRef.current) {
+        // Scrolling up — accumulate distance
+        cumulativeUpRef.current += Math.abs(delta);
+
+        if (cumulativeUpRef.current > 50 || currentY < 10) {
+          promptCollapsedRef.current = false;
+          cumulativeUpRef.current = 0;
+          if (promptSectionRef.current) {
+            promptSectionRef.current.removeAttribute('data-collapsed');
+          }
+        }
       }
+
+      if (delta > 0) cumulativeUpRef.current = 0;
       lastScrollY.current = currentY;
     }
 
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [promptCollapsed]);
+  }, [loading]);
 
   /* ─── Load spaces list for sidebar (A-4: fallback only) ─── */
 
@@ -507,45 +554,57 @@ export default function SpacePage() {
       </header>
 
       {/* ═══════════════════════════════════════
-          MAIN CONTENT (scroll container)
+          PROMPT SECTION (outside scroll container)
+          v2.18: Sits between header and main in the flex column.
+          Collapse/expand changes this element's height without
+          affecting main.scrollTop — eliminates oscillation.
+          Both full prompt and mini bar rendered; CSS toggles visibility
+          via data-collapsed attribute. No React state on scroll.
           ═══════════════════════════════════════ */}
-      <main className={styles.main} ref={mainRef}>
-
-        {/* v2.17: Sticky prompt section — collapses on scroll */}
-        <div className={`${styles.stickyPrompt} ${promptCollapsed ? styles.stickyPromptCollapsed : ''}`}>
+      <div className={styles.promptSection} ref={promptSectionRef}>
+        {/* Full prompt — hidden when collapsed */}
+        <div className={styles.promptFull}>
           <div className={styles.promptArea}>
-            {promptCollapsed ? (
-              <MiniPromptBar
+            {prompt ? (
+              <PromptCard
                 prompt={prompt}
                 spaceName={space.name}
                 onRecord={handleRecord}
+                onSkip={handleSkipPrompt}
               />
             ) : (
-              prompt ? (
-                <PromptCard
-                  prompt={prompt}
-                  spaceName={space.name}
-                  onRecord={handleRecord}
-                  onSkip={handleSkipPrompt}
-                />
-              ) : (
-                <div className={styles.noPromptCta}>
-                  <button className={styles.recordBtn} onClick={handleRecord}>
-                    <span className={styles.recordBtnIcon}>
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-                        <path className={styles.recordBtnFill} d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                        <path d="M18 10.5v.5a6 6 0 0 1-12 0v-.5" strokeWidth="1.5" stroke="white" />
-                        <path d="M12 17v4" strokeWidth="1.5" stroke="white" />
-                      </svg>
-                    </span>
-                    Record a voice note
-                  </button>
-                </div>
-              )
+              <div className={styles.noPromptCta}>
+                <button className={styles.recordBtn} onClick={handleRecord}>
+                  <span className={styles.recordBtnIcon}>
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
+                      <path className={styles.recordBtnFill} d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                      <path d="M18 10.5v.5a6 6 0 0 1-12 0v-.5" strokeWidth="1.5" stroke="white" />
+                      <path d="M12 17v4" strokeWidth="1.5" stroke="white" />
+                    </svg>
+                  </span>
+                  Record a voice note
+                </button>
+              </div>
             )}
           </div>
         </div>
 
+        {/* Mini prompt bar — shown when collapsed */}
+        <div className={styles.promptMini}>
+          <MiniPromptBar
+            prompt={prompt}
+            spaceName={space.name}
+            onRecord={handleRecord}
+          />
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════
+          MAIN CONTENT (scroll container)
+          v2.18: Only contains MemoryFeed (tabs + masonry).
+          Prompt is above, outside this scroll container.
+          ═══════════════════════════════════════ */}
+      <main className={styles.main} ref={mainRef}>
         {/* Memory feed — full width masonry */}
         <MemoryFeed
           spaceId={spaceId}

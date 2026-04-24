@@ -1,14 +1,22 @@
 /* pages/SpacePage.module.css
+   v2.4 — F3: Prompt outside scroll container (April 24, 2026)
+
+   Changes from v2.3:
+     - F3 fix: .header changed from position: sticky; top: 0 to
+       position: relative; flex-shrink: 0.
+     - F3 fix: Replaced .stickyPrompt/.stickyPromptCollapsed with
+       .promptSection/.promptFull/.promptMini. The prompt section is
+       now a flex child between header and main (outside scroll container).
+     - F3 fix: Added [data-collapsed] rules to toggle full/mini prompt
+       visibility using max-height + opacity transitions (300ms ease
+       simultaneous cross-dissolve). Safe because prompt is outside
+       the scroll container — no scroll position feedback loop.
+     - F3 fix: prefers-reduced-motion disables transitions on
+       promptFull and promptMini.
+     - Removed .stickyPrompt, .stickyPromptCollapsed (no longer used).
+
    v2.3 — Space Photo + Pin-to-Top + Collapsible Prompt (April 24, 2026)
-
-   Changes from v2.2:
-     - F1: Added sidebarAvatarImg for photo rendering in sidebar space list.
-     - F2: Added pinBtn, pinBtnPinned, pinDivider for pin-to-top UI.
-     - F3: Added stickyPrompt, stickyPromptCollapsed, miniPrompt, miniPromptText,
-       miniPromptBtn for collapsible prompt behavior.
-     - Changed .main to overflow-y: auto (scroll container for sticky prompt).
-
-   Previous changes (v2.2): Whitespace and sidebar border fixes.
+   v2.2 — Whitespace and sidebar border fixes.
    Sources: axr_MemoryVaultV2.css (sidebar, header), LWC screenshots
 */
 
@@ -37,8 +45,10 @@
   justify-content: space-between;
   padding: 12px 16px;
   background: var(--color-bg, #faf9f7);
-  position: sticky;
-  top: 0;
+  /* v2.4: Header is a flex child above the scroll container, not sticky.
+     flex-shrink: 0 prevents compression when .main content grows. */
+  position: relative;
+  flex-shrink: 0;
   z-index: 10;
   border-bottom: 1px solid var(--color-border-light, #edebe7);
 }
@@ -155,14 +165,44 @@
 }
 
 /* ═══════════════════════════════════════
-   STICKY PROMPT SECTION
-   v2.3: Sticks below header, collapses on scroll down
+   PROMPT SECTION (outside scroll container)
+   v2.4: Flex child between header and main.
+   Collapse toggles data-collapsed attribute.
+   Both full and mini prompt are always in the DOM;
+   CSS toggles visibility — no React re-renders on scroll.
    ═══════════════════════════════════════ */
 
-.stickyPrompt {
-  position: sticky;
-  top: 0;
+.promptSection {
+  position: relative;
+  flex-shrink: 0;
   z-index: 9;
+}
+
+/* Full prompt — visible by default, smooth collapse */
+.promptFull {
+  max-height: 300px;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-out;
+}
+
+/* Mini prompt — hidden by default, smooth expand */
+.promptMini {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in;
+}
+
+/* Collapsed state — simultaneous cross-dissolve via data attribute */
+.promptSection[data-collapsed] .promptFull {
+  max-height: 0;
+  opacity: 0;
+}
+
+.promptSection[data-collapsed] .promptMini {
+  max-height: 60px;
+  opacity: 1;
 }
 
 /* Prompt area — full-width sage background */
@@ -182,11 +222,6 @@
 }
 @media (min-width: 1600px) {
   .promptArea { padding: 32px 56px; }
-}
-
-/* ─── Collapsed state ─── */
-.stickyPromptCollapsed .promptArea {
-  padding: 0;
 }
 
 /* ─── Mini prompt bar (collapsed state) ─── */
@@ -727,7 +762,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
   .sidebarBackdrop,
-  .stickyPrompt {
+  .promptSection,
+  .promptFull,
+  .promptMini {
     animation: none !important;
     transition: none !important;
   }

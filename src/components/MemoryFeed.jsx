@@ -1,4 +1,11 @@
 // components/MemoryFeed.jsx — Anamoria SPA
+// v2.9 — Tabs sticky at top:0, prompt outside scroll container (April 24, 2026)
+//
+// Changes from v2.8:
+//   - No logic changes. Version bump to match MemoryFeed.module.css v2.4.
+//   - With v2.4 architecture, the prompt section is above <main>, so
+//     tabs stick at top:0 with nothing above them in the scroll container.
+//
 // v2.8 — Sticky tabs + feedPad wrapper (April 24, 2026)
 //
 // Changes from v2.7:
