@@ -1,14 +1,14 @@
 /* pages/SpacePage.module.css
-   v2.2 — Whitespace and sidebar border fixes (April 15, 2026)
-   Changes from v2.1:
-     - Fix 2: Removed top padding from .main (kept bottom + sides) so the
-       prompt area sits flush against the header border. All breakpoints updated.
-     - Fix 4: Removed border-top from .sidebarFooterNav to eliminate double
-       border with .sidebarUserWrapper at the bottom of the sidebar.
+   v2.3 — Space Photo + Pin-to-Top + Collapsible Prompt (April 24, 2026)
 
-   Previous changes (v2.1): Profile menu styles (April 7, 2026) —
-   sidebarUser → interactive button; userMenu panel added.
+   Changes from v2.2:
+     - F1: Added sidebarAvatarImg for photo rendering in sidebar space list.
+     - F2: Added pinBtn, pinBtnPinned, pinDivider for pin-to-top UI.
+     - F3: Added stickyPrompt, stickyPromptCollapsed, miniPrompt, miniPromptText,
+       miniPromptBtn for collapsible prompt behavior.
+     - Changed .main to overflow-y: auto (scroll container for sticky prompt).
 
+   Previous changes (v2.2): Whitespace and sidebar border fixes.
    Sources: axr_MemoryVaultV2.css (sidebar, header), LWC screenshots
 */
 
@@ -19,11 +19,11 @@
 .page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--color-bg, #faf9f7);
   padding-top: var(--safe-area-top);
   padding-bottom: calc(var(--bottom-nav-height, 64px) + var(--safe-area-bottom));
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* ═══════════════════════════════════════
@@ -47,7 +47,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0; /* allow text truncation */
+  min-width: 0;
 }
 
 /* Hamburger + Add buttons */
@@ -104,7 +104,7 @@
 
 /* Name + subtitle */
 .headerInfo {
-  min-width: 0; /* allow truncation */
+  min-width: 0;
 }
 
 .headerName {
@@ -135,80 +135,113 @@
 
 /* ═══════════════════════════════════════
    MAIN CONTENT
-   Full width for masonry — prompt area centered
-   v2.2: Top padding removed so prompt area sits flush against header.
-   Bottom + side padding retained.
+   v2.3: overflow-y: auto makes this the scroll container
+   for sticky prompt and scroll direction tracking.
    ═══════════════════════════════════════ */
 
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 20px 16px 20px;
+  gap: 0;
+  padding: 0;
   width: 100%;
   box-sizing: border-box;
+  overflow-y: auto;
+  /* v2.3: min-height: 0 forces flex child to respect overflow
+     instead of expanding to content height. Without this,
+     flex: 1 grows .main to fit all content and overflow never triggers. */
+  min-height: 0;
 }
 
-/* Responsive feed padding — matches LWC --feed-pad token */
-/* v2.2: Top padding = 0 at all breakpoints */
-@media (min-width: 640px) {
-  .main { padding: 0 24px 16px 24px; }
-}
-@media (min-width: 900px) {
-  .main { padding: 0 32px 20px 32px; }
-}
-@media (min-width: 1280px) {
-  .main { padding: 0 48px 20px 48px; }
-}
-@media (min-width: 1600px) {
-  .main { padding: 0 56px 24px 56px; }
+/* ═══════════════════════════════════════
+   STICKY PROMPT SECTION
+   v2.3: Sticks below header, collapses on scroll down
+   ═══════════════════════════════════════ */
+
+.stickyPrompt {
+  position: sticky;
+  top: 0;
+  z-index: 9;
 }
 
-/* Prompt area — full-width sage background stretches edge-to-edge */
-/* Uses negative margins to break out of .main padding */
+/* Prompt area — full-width sage background */
 .promptArea {
-  width: calc(100% + 40px);
-  margin-left: -20px;
-  margin-right: -20px;
   background: var(--color-sage-light, #e8f0eb);
   padding: 24px 20px;
 }
 
 @media (min-width: 640px) {
-  .promptArea {
-    width: calc(100% + 48px);
-    margin-left: -24px;
-    margin-right: -24px;
-    padding: 28px 24px;
-  }
+  .promptArea { padding: 28px 24px; }
 }
 @media (min-width: 900px) {
-  .promptArea {
-    width: calc(100% + 64px);
-    margin-left: -32px;
-    margin-right: -32px;
-    padding: 28px 32px;
-  }
+  .promptArea { padding: 28px 32px; }
 }
 @media (min-width: 1280px) {
-  .promptArea {
-    width: calc(100% + 96px);
-    margin-left: -48px;
-    margin-right: -48px;
-    padding: 32px 48px;
-  }
+  .promptArea { padding: 32px 48px; }
 }
 @media (min-width: 1600px) {
-  .promptArea {
-    width: calc(100% + 112px);
-    margin-left: -56px;
-    margin-right: -56px;
-    padding: 32px 56px;
-  }
+  .promptArea { padding: 32px 56px; }
 }
 
-/* ─── Standalone record CTA ─── */
+/* ─── Collapsed state ─── */
+.stickyPromptCollapsed .promptArea {
+  padding: 0;
+}
+
+/* ─── Mini prompt bar (collapsed state) ─── */
+
+.miniPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--color-sage-light, #e8f0eb);
+}
+
+@media (min-width: 640px) {
+  .miniPrompt { padding: 10px 24px; }
+}
+@media (min-width: 900px) {
+  .miniPrompt { padding: 10px 32px; }
+}
+
+.miniPromptText {
+  flex: 1;
+  font-size: 14px;
+  font-style: italic;
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  color: var(--color-text-primary, #2d3436);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.miniPromptBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-sage-dark, #5b7a65);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  transition: background 0.15s ease;
+}
+
+.miniPromptBtn:hover {
+  background: #4a6954;
+}
+
+/* ─── Standalone record CTA (no prompt available) ─── */
 
 .noPromptCta {
   display: flex;
@@ -369,6 +402,7 @@
   cursor: pointer;
   transition: background 0.15s ease;
   text-align: left;
+  position: relative;
 }
 
 .sidebarSpace:hover {
@@ -396,11 +430,20 @@
   font-weight: 700;
   color: var(--color-sage-dark, #5b7a65);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .sidebarAvatarActive {
   background: var(--color-sage-dark, #5b7a65);
   color: white;
+}
+
+/* v2.3: Photo inside sidebar avatar */
+.sidebarAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .sidebarSpaceName {
@@ -410,12 +453,62 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-/* Footer nav (Settings, Dashboard) */
-/* v2.2: border-top removed — .sidebarUserWrapper provides the separator.
-   Previously, both elements had border-top, creating a visible double line
-   when the footer nav contained items. */
+/* ─── v2.3: Pin button ─── */
+
+.pinBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: var(--color-text-subtle, #737373);
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+/* Show on hover (desktop) */
+.sidebarSpace:hover .pinBtn {
+  opacity: 1;
+}
+
+.pinBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+/* Pinned state — always visible */
+.pinBtnPinned {
+  opacity: 1;
+  color: var(--color-sage-dark, #5b7a65);
+}
+
+.pinBtnPinned:hover {
+  color: var(--color-text-subtle, #737373);
+}
+
+/* Divider between pinned and un-pinned */
+.pinDivider {
+  height: 1px;
+  background: var(--color-border-light, #edebe7);
+  margin: 8px 12px;
+}
+
+/* Mobile: always show pin button */
+@media (max-width: 767px) {
+  .pinBtn {
+    opacity: 0.6;
+  }
+}
+
+/* Footer nav */
 .sidebarFooterNav {
   padding: 8px 12px;
   flex-shrink: 0;
@@ -448,14 +541,14 @@
   flex-shrink: 0;
 }
 
-/* User info at bottom — wrapper holds menu + button together */
+/* User info at bottom */
 .sidebarUserWrapper {
   border-top: 1px solid var(--color-border-light, #edebe7);
   flex-shrink: 0;
   position: relative;
 }
 
-/* Profile button (replaces static div) */
+/* Profile button */
 .sidebarUser {
   width: 100%;
   padding: 14px 18px;
@@ -521,15 +614,15 @@
   align-items: center;
   flex-shrink: 0;
   transition: transform var(--transition-fast, 0.15s ease);
-  transform: rotate(180deg); /* points down by default (chevron-up rotated) */
+  transform: rotate(180deg);
 }
 
 .sidebarUserChevronUp {
-  transform: rotate(0deg); /* points up when menu is open */
+  transform: rotate(0deg);
 }
 
 /* ═══════════════════════════════════════
-   USER MENU (appears above profile button)
+   USER MENU
    ═══════════════════════════════════════ */
 
 .userMenu {
@@ -544,7 +637,6 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Plan badge row */
 .userMenuPlan {
   display: flex;
   align-items: center;
@@ -583,7 +675,6 @@
   margin: 0 12px 6px;
 }
 
-/* Menu items */
 .userMenuItem {
   width: 100%;
   display: flex;
@@ -635,7 +726,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
-  .sidebarBackdrop {
+  .sidebarBackdrop,
+  .stickyPrompt {
     animation: none !important;
+    transition: none !important;
   }
 }

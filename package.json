@@ -1,7 +1,7 @@
 {
   "name": "anamoria-spa",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4",
-    "vite": "^5"
+    "vite": "^5",
+    "vite-plugin-pwa": "^1"
   }
 }

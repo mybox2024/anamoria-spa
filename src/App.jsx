@@ -1,6 +1,10 @@
 // App.jsx — Anamoria SPA
-// v1.15 — Tier A Frontend Optimizations (April 22, 2026)
-// Changes from v1.14:
+// v1.16 — PWA Conversion (April 23, 2026)
+// Changes from v1.15:
+//   - Added PWAUpdatePrompt import + render (shows "new version available" banner)
+//   - Zero route changes, zero auth changes, zero bootstrap changes.
+//
+// Previous changes (v1.15):
 //   - A-1: Parallelize bootstrap — /pilot/me + /spaces via Promise.all
 //     (~600-1,000ms cold, ~200ms warm savings vs serial awaits)
 //   - A-4: Added updateSpaces callback to AppContext so SpacePage sidebar
@@ -97,6 +101,7 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 import UpgradeSuccessPage from './pages/UpgradeSuccessPage';
 
 import ButterflyLoader from './components/ButterflyLoader';
+import PWAUpdatePrompt from './components/PWAUpdatePrompt';
 
 // ─── App context — shared state across all pages ──────────────────────────
 
@@ -472,6 +477,8 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/join" replace />} />
         </Routes>
       </Suspense>
+      {/* v1.16: PWA update banner — renders null unless new SW detected */}
+      <PWAUpdatePrompt />
     </AppContext.Provider>
   );
 }

@@ -1,0 +1,78 @@
+/* PWAUpdatePrompt.module.css — v1.0
+   PWA Conversion (April 23, 2026)
+   Non-intrusive bottom banner for app update notification.
+   Contrast: all text meets WCAG AA 4.5:1 minimum. */
+
+.banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2d3436;
+  color: #ffffff;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 9990;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+  /* Safe area for iOS notched devices */
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+.message {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  color: #ffffff;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.refreshBtn {
+  background: #5b7a65;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.refreshBtn:hover {
+  background: #4a6954;
+}
+
+.refreshBtn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.laterBtn {
+  background: transparent;
+  color: #b2bec3;
+  border: 1px solid #636e72;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.laterBtn:hover {
+  color: #ffffff;
+  border-color: #b2bec3;
+}
+
+.laterBtn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}

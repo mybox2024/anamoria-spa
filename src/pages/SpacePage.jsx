@@ -1,39 +1,17 @@
 // pages/SpacePage.jsx — Anamoria SPA
-// v2.16 — Tier A Frontend Optimizations (April 22, 2026)
-// Changes from v2.15:
-//   - A-3: Module-level cache for space detail + prompt via apiCache.js.
-//     Return visits skip /spaces/:id and /prompt API calls (cache hit).
-//     Owner memory count always fetched fresh (changes on every create/delete).
-//     Prompt cache updated on skip/advance. Space cache invalidated via
-//     invalidateCache (SpaceSettings carry-forward CF-1).
-//   - A-4: Sidebar spaces list reads from AppContext instead of local state.
-//     Removed local spaces/loadingSpaces state. loadSpaces kept as defensive
-//     fallback (OQ-3). No /spaces API call on sidebar open.
-//     B7 soft gate space count reads from appState.spaces.
+// v2.17.1 — Fix photo URL resolution (April 24, 2026)
 //
-// Previous changes (v2.15):
-//   - Pass space.voiceCardTheme to MemoryFeed component.
+// Changes from v2.17:
+//   - Fix: Removed encodeURIComponent() from 2 photo URL resolution calls.
+//     The {key+} greedy path parameter in API Gateway accepts raw slashes.
+//     encodeURIComponent was encoding / to %2F causing 403 from the Lambda.
+//     Affected: header photo resolve, sidebar photo resolve.
 //
-// Previous changes (v2.14):
-//   - Butterfly reserved for entry-point states.
-//
-// Previous changes (v2.13):
-//   - Imported ButterflyLoader and replaced page-level loading state.
-//     (Reverted in v2.14 — see above.)
-//
-// Previous changes (v2.12):
-//   - Sidebar profile button reads displayName from appState (DB source of truth).
-//
-// Previous changes (v2.11):
-//   - Fix 5: B7 soft gate uses ownerMemoryCount (from GET /spaces/:id/memories/count).
-//
+// v2.17 — Space Photo + Pin-to-Top + Collapsible Prompt (April 24, 2026)
+// Previous changes (v2.16): Tier A Frontend Optimizations.
 // Route: /spaces/:spaceId (protected — JWT required)
-//
-// Previous changes (v2.10): Tier-aware sidebar plan link.
-// Previous changes (v2.9): B7 Soft Gate integration.
-// Previous changes (v2.8): Profile menu tier badge from GET /billing/subscription.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
@@ -115,6 +93,55 @@ function SignOutIcon() {
   );
 }
 
+// v2.17: Pin icon — filled when pinned, outline when not
+function PinIcon({ filled }) {
+  if (filled) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2C12 2 8 6 8 10c0 1.1.3 2.1.8 3H4l1 2 3 3v4h8v-4l3-3 1-2h-4.8c.5-.9.8-1.9.8-3 0-4-4-8-4-8z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 8 6 8 10c0 1.1.3 2.1.8 3H4l1 2 3 3v4h8v-4l3-3 1-2h-4.8c.5-.9.8-1.9.8-3 0-4-4-8-4-8z" />
+    </svg>
+  );
+}
+
+/* ─── Utility: sort spaces with pin-to-top logic ─── */
+
+function sortSpaces(spaces) {
+  return [...spaces].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    if (a.isPinned && b.isPinned) {
+      return new Date(a.pinnedAt || 0) - new Date(b.pinnedAt || 0);
+    }
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
+}
+
+/* ─── MiniPromptBar: collapsed single-line prompt ─── */
+
+function MiniPromptBar({ prompt, spaceName, onRecord }) {
+  const promptText = prompt?.text
+    ? prompt.text.replace(/{name}/gi, spaceName || '')
+    : 'Record a voice note';
+
+  return (
+    <div className={styles.miniPrompt}>
+      <p className={styles.miniPromptText}>{promptText}</p>
+      <button className={styles.miniPromptBtn} onClick={onRecord}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+        </svg>
+        Record
+      </button>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════
    SPACE PAGE COMPONENT
    ═══════════════════════════════════════ */
@@ -125,17 +152,14 @@ export default function SpacePage() {
   const { getAccessTokenSilently, logout, user } = useAuth0();
   const appState = useAppContext();
 
-  // Stable getApi function for child components
   const getApi = useCallback(
     () => createApiClient(getAccessTokenSilently),
     [getAccessTokenSilently]
   );
 
-  // Billing status — drives profile menu tier badge + B7 soft gate
   const { billing } = useBillingStatus(getApi);
   const planLabel = getPlanLabel(billing);
 
-  // v2.10: Tier-aware sidebar plan link (replaces showUpgradeLink boolean)
   const currentTier = billing?.tier || 'free';
   const planLink = (() => {
     if (currentTier === 'forever') {
@@ -144,7 +168,6 @@ export default function SpacePage() {
     if (currentTier === 'premium') {
       return { label: 'Change Plan →', route: `/settings/upgrade?from=${spaceId}` };
     }
-    // free (or unknown/loading)
     return { label: 'Upgrade →', route: `/settings/upgrade?from=${spaceId}` };
   })();
 
@@ -153,39 +176,36 @@ export default function SpacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [memoryCount, setMemoryCount] = useState(0);
-
-  // v2.11 (Fix 5): Owner-only memory count for B7 soft gate.
-  // Separate from memoryCount (total feed count used in header display).
-  // Fetched from GET /spaces/:id/memories/count which counts WHERE creator_user_id = owner.
   const [ownerMemoryCount, setOwnerMemoryCount] = useState(0);
 
-  // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Create space modal
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Profile / user menu inside sidebar
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  // v2.9: B7 Soft Gate state
   const [showSoftGate, setShowSoftGate] = useState(false);
   const [softGateResource, setSoftGateResource] = useState('memories');
+
+  // v2.17: Space photo — resolved CloudFront signed URL for header avatar
+  const [spacePhotoUrl, setSpacePhotoUrl] = useState(null);
+
+  // v2.17: Sidebar photo URL cache — keyed by spaceId, avoids re-fetching
+  const sidebarPhotoCache = useRef({});
+  const [sidebarPhotos, setSidebarPhotos] = useState({});
+
+  // v2.17: Collapsible prompt state
+  const [promptCollapsed, setPromptCollapsed] = useState(false);
+  const mainRef = useRef(null);
+  const lastScrollY = useRef(0);
 
   /* ─── Load space + prompt + owner memory count ─── */
 
   useEffect(() => {
     async function load() {
-      // A-3: Check cache for space detail and prompt.
-      // Owner memory count is always fetched fresh (changes on every create/delete).
       const cachedSpace = getCached(`space:${spaceId}`);
       const cachedPrompt = getCached(`prompt:${spaceId}`);
 
-      // If both are cached, only fetch the count.
       if (cachedSpace.hit && cachedPrompt.hit) {
         setSpace(cachedSpace.value);
         setPrompt(cachedPrompt.value);
-        // Still fetch count fresh — it changes on every memory create/delete.
         try {
           const api = getApi();
           const countData = await api.get(`/spaces/${spaceId}/memories/count`).catch(() => ({ count: 0 }));
@@ -202,18 +222,13 @@ export default function SpacePage() {
         const [spaceData, promptData, countData] = await Promise.all([
           api.get(`/spaces/${spaceId}`),
           api.get(`/spaces/${spaceId}/prompt`).catch(() => null),
-          // v2.11: Fetch owner-only memory count for B7 soft gate.
-          // This endpoint returns COUNT(*) WHERE creator_user_id = authenticated user.
-          // Runs in parallel with space + prompt — no extra round trip.
           api.get(`/spaces/${spaceId}/memories/count`).catch(() => ({ count: 0 })),
         ]);
-        // A-3: Cache space detail and prompt for return visits.
         setCache(`space:${spaceId}`, spaceData, SPACE_DETAIL_CACHE_TTL);
         setCache(`prompt:${spaceId}`, promptData, PROMPT_CACHE_TTL);
 
         setSpace(spaceData);
         setPrompt(promptData);
-        // v2.11: Store owner-only count. API returns { count: N }.
         setOwnerMemoryCount(countData?.count ?? 0);
       } catch (err) {
         console.error('SpacePage load error:', err);
@@ -223,12 +238,97 @@ export default function SpacePage() {
       }
     }
     load();
+    setPromptCollapsed(false);
+    lastScrollY.current = 0;
   }, [spaceId, getApi]);
+
+  /* ─── v2.17: Resolve space photo S3 key to CloudFront signed URL ─── */
+  /* v2.17.1: Removed encodeURIComponent — {key+} accepts raw slashes */
+
+  useEffect(() => {
+    if (!space?.photoUrl) {
+      setSpacePhotoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    async function resolve() {
+      try {
+        const api = getApi();
+        const data = await api.get(`/media/playback/${space.photoUrl}`);
+        if (!cancelled && data?.playbackUrl) {
+          setSpacePhotoUrl(data.playbackUrl);
+        }
+      } catch (err) {
+        console.error('Failed to resolve space photo:', err);
+        if (!cancelled) setSpacePhotoUrl(null);
+      }
+    }
+    resolve();
+    return () => { cancelled = true; };
+  }, [space?.photoUrl, getApi]);
+
+  /* ─── v2.17: Resolve sidebar space photos ─── */
+  /* v2.17.1: Removed encodeURIComponent — {key+} accepts raw slashes */
+
+  useEffect(() => {
+    if (!sidebarOpen || !appState?.spaces) return;
+    let cancelled = false;
+
+    async function resolvePhotos() {
+      const spacesWithPhotos = appState.spaces.filter(
+        (s) => s.photoUrl && !sidebarPhotoCache.current[s.id]
+      );
+      if (spacesWithPhotos.length === 0) return;
+
+      const api = getApi();
+      const results = {};
+
+      await Promise.all(
+        spacesWithPhotos.map(async (s) => {
+          try {
+            const data = await api.get(`/media/playback/${s.photoUrl}`);
+            if (data?.playbackUrl) {
+              results[s.id] = data.playbackUrl;
+              sidebarPhotoCache.current[s.id] = data.playbackUrl;
+            }
+          } catch {
+            // Photo resolution failure is non-critical — fall back to initial
+          }
+        })
+      );
+
+      if (!cancelled && Object.keys(results).length > 0) {
+        setSidebarPhotos((prev) => ({ ...prev, ...results }));
+      }
+    }
+    resolvePhotos();
+    return () => { cancelled = true; };
+  }, [sidebarOpen, appState?.spaces, getApi]);
+
+  /* ─── v2.17: Scroll direction tracking for collapsible prompt ─── */
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+
+    function handleScroll() {
+      const currentY = el.scrollTop;
+      const delta = currentY - lastScrollY.current;
+
+      if (delta > 0 && currentY > 50 && !promptCollapsed) {
+        setPromptCollapsed(true);
+      } else if (delta < -30 && promptCollapsed) {
+        setPromptCollapsed(false);
+      }
+      lastScrollY.current = currentY;
+    }
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [promptCollapsed]);
 
   /* ─── Load spaces list for sidebar (A-4: fallback only) ─── */
 
-  // A-4: Primary source is appState.spaces (populated at bootstrap).
-  // Fallback fetch only if context is empty (defensive — should not happen in normal flow).
   const loadSpaces = useCallback(async () => {
     if ((appState?.spaces?.length || 0) > 0) return;
     try {
@@ -241,8 +341,6 @@ export default function SpacePage() {
     }
   }, [getApi, appState]);
 
-  /* ─── Sidebar toggle ─── */
-
   const openSidebar = useCallback(() => {
     setSidebarOpen(true);
     loadSpaces();
@@ -253,19 +351,40 @@ export default function SpacePage() {
     setShowUserMenu(false);
   }, []);
 
-  /* ─── Navigate to space ─── */
-
   const switchSpace = useCallback((id) => {
     closeSidebar();
     navigate(`/spaces/${id}`);
   }, [navigate, closeSidebar]);
 
-  /* ─── Record (v2.11: B7 soft gate uses ownerMemoryCount) ─── */
+  /* ─── v2.17: Pin/unpin space (optimistic update) ─── */
+
+  const handleTogglePin = useCallback(async (e, targetSpace) => {
+    e.stopPropagation();
+    const newPinned = !targetSpace.isPinned;
+
+    if (appState?.updateSpaces && appState?.spaces) {
+      const updated = appState.spaces.map((s) =>
+        s.id === targetSpace.id
+          ? { ...s, isPinned: newPinned, pinnedAt: newPinned ? new Date().toISOString() : null }
+          : s
+      );
+      appState.updateSpaces(sortSpaces(updated));
+    }
+
+    try {
+      const api = getApi();
+      await api.patch(`/spaces/${targetSpace.id}`, { isPinned: newPinned });
+    } catch (err) {
+      console.error('Pin toggle failed:', err);
+      try {
+        const api = getApi();
+        const data = await api.get('/spaces');
+        if (appState?.updateSpaces) appState.updateSpaces(data.spaces || []);
+      } catch { /* revert best-effort */ }
+    }
+  }, [appState, getApi]);
 
   function handleRecord() {
-    // B7: Check free tier memory limit before navigating to record.
-    // v2.11: Uses ownerMemoryCount (owner-created only) instead of memoryCount (total feed).
-    // This matches the backend enforcement which counts WHERE creator_user_id = owner.
     if (billing?.tier === 'free' && billing?.limits?.memoriesPerSpace) {
       if (ownerMemoryCount >= billing.limits.memoriesPerSpace) {
         setSoftGateResource('memories');
@@ -278,15 +397,12 @@ export default function SpacePage() {
     });
   }
 
-  /* ─── Skip / advance prompt ─── */
-
   const handleSkipPrompt = useCallback(async () => {
     try {
       const api = getApi();
       const nextPrompt = await api.post(`/spaces/${spaceId}/prompt/advance`);
       if (nextPrompt) {
         setPrompt(nextPrompt);
-        // A-3: Update prompt cache with the new prompt.
         setCache(`prompt:${spaceId}`, nextPrompt, PROMPT_CACHE_TTL);
       }
     } catch (err) {
@@ -294,10 +410,7 @@ export default function SpacePage() {
     }
   }, [getApi, spaceId]);
 
-  /* ─── Create new space (v2.9: B7 soft gate check — unchanged) ─── */
-
   function handleCreateSpace() {
-    // B7: Check free tier space limit before opening create modal
     if (billing?.tier === 'free' && billing?.limits?.spaces) {
       if ((appState?.spaces?.length || 0) >= billing.limits.spaces) {
         setSoftGateResource('spaces');
@@ -308,13 +421,9 @@ export default function SpacePage() {
     setShowCreateModal(true);
   }
 
-  /* ─── Memory count callback (total feed count — unchanged, drives header display) ─── */
-
   const handleMemoryCount = useCallback((count) => {
     setMemoryCount(count);
   }, []);
-
-  /* ─── Error state (v2.14: error takes priority over loading) ─── */
 
   if (error) {
     return (
@@ -328,11 +437,6 @@ export default function SpacePage() {
     );
   }
 
-  /* ─── Loading state (v2.14: render nothing during intra-app nav) ─── */
-  // Previous page stays visible via React Router while SpacePage fetches.
-  // Butterfly is reserved for entry-point states in App.jsx (after login /
-  // bootstrap), not intra-app navigation.
-
   if (loading || !space) {
     return null;
   }
@@ -340,12 +444,15 @@ export default function SpacePage() {
   const isShared = space.privacyMode === 'shared';
   const initial = (space.name || '?').charAt(0).toUpperCase();
 
+  const sortedSpaces = sortSpaces(appState?.spaces || []);
+  const pinnedSpaces = sortedSpaces.filter((s) => s.isPinned);
+  const unpinnedSpaces = sortedSpaces.filter((s) => !s.isPinned);
+
   return (
     <div className={styles.page}>
 
       {/* ═══════════════════════════════════════
           HEADER BAR
-          Matches LWC: hamburger | avatar + name + subtitle | + button
           ═══════════════════════════════════════ */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
@@ -358,8 +465,8 @@ export default function SpacePage() {
           </button>
 
           <div className={styles.headerAvatar}>
-            {space.photoUrl ? (
-              <img src={space.photoUrl} alt="" className={styles.avatarImg} />
+            {spacePhotoUrl ? (
+              <img src={spacePhotoUrl} alt="" className={styles.avatarImg} />
             ) : (
               <span className={styles.avatarInitial}>{initial}</span>
             )}
@@ -385,7 +492,6 @@ export default function SpacePage() {
                   {' '}Private
                 </>
               )}
-              {/* Header still shows total memoryCount (all creators) — unchanged */}
               {' · '}{memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}
             </p>
           </div>
@@ -401,33 +507,43 @@ export default function SpacePage() {
       </header>
 
       {/* ═══════════════════════════════════════
-          MAIN CONTENT
+          MAIN CONTENT (scroll container)
           ═══════════════════════════════════════ */}
-      <main className={styles.main}>
+      <main className={styles.main} ref={mainRef}>
 
-        {/* Prompt card or standalone CTA */}
-        <div className={styles.promptArea}>
-          {prompt ? (
-            <PromptCard
-              prompt={prompt}
-              spaceName={space.name}
-              onRecord={handleRecord}
-              onSkip={handleSkipPrompt}
-            />
-          ) : (
-            <div className={styles.noPromptCta}>
-              <button className={styles.recordBtn} onClick={handleRecord}>
-                <span className={styles.recordBtnIcon}>
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
-                    <path className={styles.recordBtnFill} d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                    <path d="M18 10.5v.5a6 6 0 0 1-12 0v-.5" strokeWidth="1.5" stroke="white" />
-                    <path d="M12 17v4" strokeWidth="1.5" stroke="white" />
-                  </svg>
-                </span>
-                Record a voice note
-              </button>
-            </div>
-          )}
+        {/* v2.17: Sticky prompt section — collapses on scroll */}
+        <div className={`${styles.stickyPrompt} ${promptCollapsed ? styles.stickyPromptCollapsed : ''}`}>
+          <div className={styles.promptArea}>
+            {promptCollapsed ? (
+              <MiniPromptBar
+                prompt={prompt}
+                spaceName={space.name}
+                onRecord={handleRecord}
+              />
+            ) : (
+              prompt ? (
+                <PromptCard
+                  prompt={prompt}
+                  spaceName={space.name}
+                  onRecord={handleRecord}
+                  onSkip={handleSkipPrompt}
+                />
+              ) : (
+                <div className={styles.noPromptCta}>
+                  <button className={styles.recordBtn} onClick={handleRecord}>
+                    <span className={styles.recordBtnIcon}>
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" strokeLinecap="round" strokeLinejoin="round">
+                        <path className={styles.recordBtnFill} d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                        <path d="M18 10.5v.5a6 6 0 0 1-12 0v-.5" strokeWidth="1.5" stroke="white" />
+                        <path d="M12 17v4" strokeWidth="1.5" stroke="white" />
+                      </svg>
+                    </span>
+                    Record a voice note
+                  </button>
+                </div>
+              )
+            )}
+          </div>
         </div>
 
         {/* Memory feed — full width masonry */}
@@ -443,7 +559,6 @@ export default function SpacePage() {
 
       {/* ═══════════════════════════════════════
           SIDEBAR DRAWER
-          Matches LWC: space list + settings + dashboard + user
           ═══════════════════════════════════════ */}
       {sidebarOpen && (
         <>
@@ -463,9 +578,50 @@ export default function SpacePage() {
             <div className={styles.sidebarSection}>
               <p className={styles.sidebarSectionTitle}>SWITCH SPACE</p>
 
-              {(appState?.spaces || []).map((s) => {
+              {/* Pinned spaces */}
+              {pinnedSpaces.length > 0 && (
+                <>
+                  {pinnedSpaces.map((s) => {
+                    const sInitial = (s.name || '?').charAt(0).toUpperCase();
+                    const isActive = s.id === spaceId;
+                    const photoSrc = sidebarPhotos[s.id] || sidebarPhotoCache.current[s.id] || null;
+                    return (
+                      <button
+                        key={s.id}
+                        className={`${styles.sidebarSpace} ${isActive ? styles.sidebarSpaceActive : ''}`}
+                        onClick={() => switchSpace(s.id)}
+                      >
+                        <span className={`${styles.sidebarAvatar} ${isActive ? styles.sidebarAvatarActive : ''}`}>
+                          {photoSrc ? (
+                            <img src={photoSrc} alt="" className={styles.sidebarAvatarImg} />
+                          ) : (
+                            sInitial
+                          )}
+                        </span>
+                        <span className={styles.sidebarSpaceName}>{s.name}</span>
+                        <span
+                          className={`${styles.pinBtn} ${styles.pinBtnPinned}`}
+                          onClick={(e) => handleTogglePin(e, s)}
+                          title="Unpin space"
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <PinIcon filled />
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {unpinnedSpaces.length > 0 && (
+                    <div className={styles.pinDivider} />
+                  )}
+                </>
+              )}
+
+              {/* Un-pinned spaces */}
+              {unpinnedSpaces.map((s) => {
                 const sInitial = (s.name || '?').charAt(0).toUpperCase();
                 const isActive = s.id === spaceId;
+                const photoSrc = sidebarPhotos[s.id] || sidebarPhotoCache.current[s.id] || null;
                 return (
                   <button
                     key={s.id}
@@ -473,15 +629,28 @@ export default function SpacePage() {
                     onClick={() => switchSpace(s.id)}
                   >
                     <span className={`${styles.sidebarAvatar} ${isActive ? styles.sidebarAvatarActive : ''}`}>
-                      {sInitial}
+                      {photoSrc ? (
+                        <img src={photoSrc} alt="" className={styles.sidebarAvatarImg} />
+                      ) : (
+                        sInitial
+                      )}
                     </span>
                     <span className={styles.sidebarSpaceName}>{s.name}</span>
                     {s.privacyMode === 'private' && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" style={{ marginLeft: 'auto', opacity: 0.5 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" style={{ marginLeft: 'auto', opacity: 0.5, flexShrink: 0 }}>
                         <rect x="5" y="11" width="14" height="10" rx="2" />
                         <path d="M8 11V7a4 4 0 0 1 8 0v4" />
                       </svg>
                     )}
+                    <span
+                      className={styles.pinBtn}
+                      onClick={(e) => handleTogglePin(e, s)}
+                      title="Pin to top"
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <PinIcon filled={false} />
+                    </span>
                   </button>
                 );
               })}
@@ -502,14 +671,10 @@ export default function SpacePage() {
             {user && (
               <div className={styles.sidebarUserWrapper}>
 
-                {/* ─── User menu (shown above profile button when open) ─── */}
                 {showUserMenu && (
                   <div className={styles.userMenu}>
-
-                    {/* Plan badge — driven by GET /billing/subscription */}
                     <div className={styles.userMenuPlan}>
                       <span className={styles.userMenuPlanBadge}>{planLabel}</span>
-                      {/* v2.10: Always visible, label and route vary by tier */}
                       <button
                         className={styles.userMenuUpgradeLink}
                         onClick={() => {
@@ -523,7 +688,6 @@ export default function SpacePage() {
 
                     <div className={styles.userMenuDivider} />
 
-                    {/* Settings */}
                     <button
                       className={styles.userMenuItem}
                       onClick={() => {
@@ -535,8 +699,6 @@ export default function SpacePage() {
                       Settings
                     </button>
 
-                    {/* Sign out — v2.12: returnTo uses origin only (Auth0 requires exact match).
-                         App.jsx fallback route redirects to /join automatically. */}
                     <button
                       className={`${styles.userMenuItem} ${styles.userMenuItemSignOut}`}
                       onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
@@ -544,11 +706,9 @@ export default function SpacePage() {
                       <SignOutIcon />
                       Sign out
                     </button>
-
                   </div>
                 )}
 
-                {/* ─── Profile button ─── */}
                 <button
                   className={`${styles.sidebarUser} ${showUserMenu ? styles.sidebarUserOpen : ''}`}
                   onClick={() => setShowUserMenu((v) => !v)}
@@ -560,7 +720,6 @@ export default function SpacePage() {
                   </div>
                   <div className={styles.sidebarUserInfo}>
                     <span className={styles.sidebarUserName}>{appState?.displayName || user.name || 'User'}</span>
-                    {/* Plan label — driven by GET /billing/subscription */}
                     <span className={styles.sidebarUserEmail}>{planLabel}</span>
                   </div>
                   <span className={`${styles.sidebarUserChevron} ${showUserMenu ? styles.sidebarUserChevronUp : ''}`}>
@@ -574,9 +733,6 @@ export default function SpacePage() {
         </>
       )}
 
-      {/* ═══════════════════════════════════════
-          CREATE SPACE MODAL
-          ═══════════════════════════════════════ */}
       {showCreateModal && (
         <CreateSpaceModal
           getApi={getApi}
@@ -584,9 +740,6 @@ export default function SpacePage() {
         />
       )}
 
-      {/* ═══════════════════════════════════════
-          B7 SOFT GATE MODAL (v2.9)
-          ═══════════════════════════════════════ */}
       {showSoftGate && (
         <SoftGateModal
           isOpen={showSoftGate}

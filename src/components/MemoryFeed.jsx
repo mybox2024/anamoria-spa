@@ -1,11 +1,13 @@
 // components/MemoryFeed.jsx — Anamoria SPA
-// v2.7 — D-5: Image dimensions for CLS fix (April 22, 2026)
+// v2.8 — Sticky tabs + feedPad wrapper (April 24, 2026)
 //
-// Changes from v2.6:
-//   - Photo card .photoImageWrap gets inline aspect-ratio from memory.imageWidth / imageHeight
-//   - Fallback to 4/3 for photos without dimensions
-//   - BlurHashCanvas receives correct aspect ratio from image dimensions
-//   - Eliminates CLS (layout shift) caused by masonry recalculating on image decode
+// Changes from v2.7:
+//   - Wrapped empty state and masonry grid in .feedPad div for side padding.
+//     SpacePage .main no longer has padding (removed for full-width sticky prompt).
+//   - Tabs now sticky via CSS (position: sticky in MemoryFeed.module.css v2.3).
+//   - No logic changes. All rendering, caching, Macy, and interactions unchanged.
+//
+// v2.7 — D-5: Image dimensions for CLS fix (April 22, 2026)
 //
 // v2.6 — D-4: AbortController + fetchpriority + client-side cache (April 22, 2026)
 //   - 6A: AbortController cleanup in memories fetch useEffect
@@ -419,6 +421,10 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
         </button>
       </div>
 
+      {/* v2.8: feedPad wraps content below sticky tabs — provides side padding
+          since SpacePage .main no longer has padding (removed for full-width sticky prompt) */}
+      <div className={styles.feedPad}>
+
       {/* ─── Empty state ─── */}
       {filteredMemories.length === 0 && (
         <div className={styles.empty}>
@@ -600,6 +606,8 @@ export default function MemoryFeed({ spaceId, getApi, onMemoryCount, voiceCardTh
         </div>
         );
       })()}
+
+      </div>{/* end feedPad */}
     </div>
   );
 }
