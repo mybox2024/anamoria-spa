@@ -1,37 +1,162 @@
 /* pages/JoinPage.module.css — Anamoria SPA
-   v1.3 — April 15, 2026
-   Changes from v1.2:
-     - Added .groupBadge (group name pill shown on step 2)
-     - Added .nameInput (name field — similar to .input but normal casing)
-     - All existing styles unchanged
+   v1.5 — April 25, 2026
+   Changes from v1.4:
+     LAYOUT — Responsive split-screen at ≥ 1024px, centered stack at < 1024px.
+       - .page: flex container hosts brand panel + form panel side-by-side at
+         desktop; flex-direction: column at mobile (brand panel hidden).
+       - New .brandPanel + .brandPanelInner — sage left half on desktop, hidden
+         on mobile. Contains cream butterfly + ANAMORIA wordmark + tagline.
+       - New .formPanel — right side on desktop, full-width content stack on
+         mobile. Houses logo section (mobile only), form sections, trust badge.
+       - .logoSection: now hidden on desktop (≥ 1024px) because .brandPanel
+         takes over brand presence.
+
+     LAYOUT REFINEMENTS (within v1.5, post initial draft):
+       - Brand/form proportion changed from 50/50 → 40/60. Sage panel is
+         flex: 0 0 40% (locked at 40% width). Form panel is flex: 1 1 60%.
+       - Form panel alignment changed from center → flex-start (left-aligned).
+         Form column now anchors to the left side of the form panel with
+         128px horizontal padding on desktop. Mobile media query overrides
+         this back to 24px and re-centers (justify-content: center) to
+         preserve mobile centered-stack behaviour.
+       - Tagline italic removed (both desktop and mobile). font-style: italic
+         declarations removed from .brandPanelTagline and .tagline. Serif
+         font-family preserved.
+       - Butterfly cream asset (/butterfly-cream.svg) updated to use
+         #faf9f7 fill (matches --color-bg) instead of #FFF7D4 (yellow-cream).
+       - .logoSection default changed from display: flex to display: none.
+         Mobile media query now explicitly shows it (display: flex) at
+         < 1024px. On desktop, brand panel is the only brand presence
+         (logo no longer duplicated inside form panel on desktop).
+       - .section text-align changed from center to left (desktop default).
+         Mobile media query overrides back to center for centered-stack
+         appearance. Sections now read as left-anchored copy on desktop,
+         matching design target.
+       - .error text-align changed from center to inherit (so errors
+         follow the parent section's alignment — left on desktop, center
+         on mobile).
+
+     STEP 1 — Restructured to dual-section parallel paths.
+       - New .section — wraps each parallel path (Returning / Just Joining).
+       - New .sectionLabel — small uppercase tracked-out label
+         ("RETURNING", "JUST JOINING?"). 13px / 600 / 0.12em / no italic.
+       - New .sectionSubtitle — sentence-case body text below section label.
+       - New .sectionHeading — bold heading for "Enter your access code"
+         (used only in Just Joining section).
+       - New .sectionDivider — 1px hairline rule between the two sections.
+       - New .codeInputRow — desktop: flex row (input + button inline).
+         Mobile: flex column (stacked, full-width each).
+       - New .btnContinue — secondary-style Continue button on Just Joining
+         section (sage-light background, dark text). Distinct from primary
+         .btn used by Sign In and Step 2 Continue.
+       - New .btnSpinnerDark — spinner variant for .btnContinue (dark on
+         light background, vs .btnSpinner which is white on dark).
+       - New .signInIcon — right-arrow-into-box icon for Sign In button.
+
+     STEP 2 — Typography only.
+       - New .step2Heading — bold serif heading for "What should we call you?".
+         Consumes var(--font-serif) from variables.css v1.1. Replaces .title
+         on Step 2 only.
+       - All other Step 2 styles unchanged.
+
+     REMOVED:
+       - .inlineLink class — no longer needed (v1.4 inline sign-in eliminated
+         in v1.5 Step 1 restructure).
+
+   Changes from v1.3:
+     - .inlineLink (added v1.4, removed v1.5)
+     - .groupBadge mixed-case (v1.4)
+     - .nameInput (v1.3)
 */
 
-/* ─── Page: full height, vertically centered ─── */
+/* ─── Page: split-screen container at desktop, stack at mobile ─── */
 
 .page {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+/* ═══════════════════════════════════════
+   Brand panel (v1.5) — desktop split-screen left half
+   Hidden on mobile (< 1024px) via media query below.
+   Contains cream butterfly + ANAMORIA wordmark + tagline on sage background.
+   ═══════════════════════════════════════ */
+
+.brandPanel {
+  flex: 0 0 32%;
+  background: var(--color-sage-dark);
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100dvh;
-  padding: 32px 24px;
+  padding: 48px;
+  padding-top: calc(48px + var(--safe-area-top));
+  padding-bottom: calc(48px + var(--safe-area-bottom));
+}
+
+.brandPanelInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 360px;
+}
+
+.brandPanelButterfly {
+  width: 96px;
+  height: auto;
+  margin-bottom: 28px;
+  /* v1.5 — uses /butterfly-cream.svg (cream-colored asset for sage panel).
+     No filter needed; asset is pre-colored for the brand panel context. */
+}
+
+.brandPanelWordmark {
+  font-family: var(--font-sans);
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  color: #ffffff;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.brandPanelTagline {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 16px 0 0;
+  letter-spacing: 0.01em;
+}
+
+/* ═══════════════════════════════════════
+   Form panel (v1.5) — right half on desktop, full width on mobile
+   ═══════════════════════════════════════ */
+
+.formPanel {
+  flex: 1 1 68%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 48px;
   padding-top: calc(32px + var(--safe-area-top));
   padding-bottom: calc(32px + var(--safe-area-bottom));
-  background: var(--color-bg);
 }
 
 .content {
   width: 100%;
-  max-width: 400px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
   gap: 28px;
 }
 
-/* ─── Logo section (v1.2) ─── */
+/* ─── Mobile logo section (v1.2 — visible only < 1024px via media query) ─── */
 
 .logoSection {
-  display: flex;
+  display: none; /* Hidden by default (desktop) — brand panel handles brand presence */
   flex-direction: column;
   align-items: center;
   text-align: center;
@@ -45,34 +170,105 @@
 }
 
 .wordmark {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   font-size: 26px;
   font-weight: 300;
   letter-spacing: 0.3em;
-  color: #313e3a;
+  color: var(--color-logo);
   text-transform: uppercase;
   margin: 0;
   line-height: 1.2;
 }
 
 .tagline {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-serif);
   font-size: 15px;
   font-weight: 400;
-  color: #5a6a64;
+  color: var(--color-text-subtle);
   margin: 8px 0 0;
   letter-spacing: 0.01em;
 }
 
-/* ─── Header ─── */
+/* ═══════════════════════════════════════
+   Step 1 — parallel sections (v1.5)
+   ═══════════════════════════════════════ */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.sectionLabel {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.sectionSubtitle {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-body);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sectionHeading {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-body);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* v1.5 — helper text below sectionHeading (e.g., "Your group leader will have
+   shared one with you."). Smaller than sectionHeading, tighter top margin
+   to sit close to the heading rather than feeling like a parallel line. */
+.sectionHint {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text-subtle);
+  line-height: 1.4;
+  margin: -4px 0 0 0;
+}
+
+.sectionDivider {
+  width: 100%;
+  height: 1px;
+  border: none;
+  background: var(--color-border-light);
+  margin: 20px 0;
+}
+
+/* ─── Code input row (v1.5) — desktop inline, mobile stacked ─── */
+
+.codeInputRow {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* ═══════════════════════════════════════
+   Step 2 — header (unchanged from v1.4)
+   ═══════════════════════════════════════ */
 
 .header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
   text-align: center;
 }
 
+/* .title kept for backward compatibility but no longer used in v1.5 */
 .title {
   font-size: 22px;
   font-weight: 600;
@@ -88,16 +284,33 @@
   margin: 0;
 }
 
-/* ─── Group badge (v1.3 — shown on step 2) ─── */
+/* v1.5 — pull subtitle closer to heading inside .header (Step 2).
+   .header has gap: 20px which is too loose between heading and subtitle.
+   Negative margin compensates without affecting group-badge → heading gap. */
+.header .subtitle {
+  margin-top: -10px;
+}
+
+/* ─── Step 2 serif heading (v1.5) ─── */
+
+.step2Heading {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* ─── Group badge (v1.3, restyled in v1.4 — mixed case, softer tracking) ─── */
 
 .groupBadge {
   display: inline-block;
   align-self: center;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-sage-dark, #5b7a65);
+  letter-spacing: 0.01em;
+  color: var(--color-sage-dark);
   background: rgba(124, 152, 133, 0.12);
   padding: 6px 16px;
   border-radius: 20px;
@@ -109,7 +322,21 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
+}
+
+/* v1.5 — extra breathing room between Step 2 header (subtitle) and Your name field.
+   Adjacent sibling selector: only applies when .form directly follows .header,
+   which only happens on Step 2. Step 1 unaffected. */
+.header + .form {
+  margin-top: 12px;
+}
+
+/* v1.5 — breathing room above form input in Step 1 Just Joining section.
+   Form sits below the hint text inside .section. Adds 16px on top of the
+   12px section gap for a total ~28px between hint and code input. */
+.section > .form {
+  margin-top: 16px;
 }
 
 .fieldGroup {
@@ -126,6 +353,7 @@
 }
 
 .input {
+  flex: 1 1 auto;
   width: 100%;
   height: 52px;
   padding: 0 16px;
@@ -138,8 +366,7 @@
   border-radius: 12px;
   outline: none;
   transition: border-color var(--transition-fast);
-  /* Prevent iOS zoom on focus */
-  font-size: 18px;
+  /* Prevent iOS zoom on focus (16px+ required) */
 }
 
 .input::placeholder {
@@ -172,8 +399,6 @@
   border-radius: 12px;
   outline: none;
   transition: border-color var(--transition-fast);
-  /* Prevent iOS zoom on focus */
-  font-size: 18px;
 }
 
 .nameInput::placeholder {
@@ -189,15 +414,21 @@
   font-size: 13px;
   color: var(--color-red);
   line-height: 1.4;
+  margin: 0;
+  text-align: inherit;
 }
 
-/* ─── Submit button ─── */
+/* ═══════════════════════════════════════
+   Buttons
+   ═══════════════════════════════════════ */
 
+/* Primary button — Sign In, Step 2 Continue */
 .btn {
   width: 100%;
   height: 52px;
   background: var(--color-sage-dark);
   color: var(--color-text-white);
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 600;
   border: none;
@@ -207,6 +438,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 
 .btn:hover:not(:disabled) {
@@ -218,7 +450,42 @@
   cursor: not-allowed;
 }
 
-/* Loading spinner inside button */
+.signInIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Secondary button (v1.5) — Just Joining Continue. Mid-tone sage, dark text. */
+.btnContinue {
+  flex: 0 0 auto;
+  height: 52px;
+  padding: 0 24px;
+  background: #c5d4ca;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 26px;
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btnContinue:hover:not(:disabled) {
+  background: #b3c4ba;
+}
+
+.btnContinue:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Loading spinner inside primary button (white on dark) */
 .btnSpinner {
   width: 20px;
   height: 20px;
@@ -228,16 +495,27 @@
   animation: spin 0.7s linear infinite;
 }
 
+/* Loading spinner for .btnContinue (v1.5) — dark on light */
+.btnSpinnerDark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(45, 52, 54, 0.25);
+  border-top-color: var(--color-text-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* ─── Footer ─── */
+/* ─── Footer (Step 2 Back link) ─── */
 
 .footer {
   font-size: 13px;
   color: var(--color-text-subtle);
   text-align: center;
+  margin: 0;
 }
 
 .footerLink {
@@ -256,27 +534,90 @@
   color: #4a6954;
 }
 
-/* ─── Trust badge (v1.2) ─── */
+/* ─── Trust badge ───
+   Default (Step 1): left-aligned with form content on desktop, centered on mobile.
+   .trustBadgeCenter modifier (Step 2): centered on both desktop and mobile.
+*/
 
 .trustBadge {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: #8a9a94;
+  color: var(--color-sage-dark);
   letter-spacing: 0.02em;
+  margin-top: 24px;
+}
+
+.trustBadgeCenter {
+  justify-content: center;
 }
 
 .trustIcon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #8a9a94;
+  color: var(--color-sage-dark);
 }
 
-/* ─── Mobile adjustments ─── */
+/* ═══════════════════════════════════════
+   Responsive — Mobile (< 1024px)
+   Hide brand panel; form panel becomes full-width.
+   ═══════════════════════════════════════ */
+
+@media (max-width: 1023px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .brandPanel {
+    display: none;
+  }
+
+  .formPanel {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 100dvh;
+    /* v1.5: override desktop horizontal padding for mobile */
+    padding-left: 24px;
+    padding-right: 24px;
+    /* v1.5: center content on mobile (desktop is left-aligned via flex-start) */
+    justify-content: center;
+  }
+
+  /* v1.5 layout fix: show logo section on mobile (hidden by default for desktop) */
+  .logoSection {
+    display: flex;
+  }
+
+  /* v1.5 layout fix: center-align section text on mobile (left-aligned on desktop) */
+  .section {
+    text-align: center;
+  }
+
+  /* v1.5 layout fix: center trust badge on mobile (left-aligned on desktop) */
+  .trustBadge {
+    justify-content: center;
+  }
+
+  /* Mobile: stack code input + Continue vertically, full-width each */
+  .codeInputRow {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .btnContinue {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+/* ═══════════════════════════════════════
+   Responsive — Narrow mobile (< 480px)
+   Tighten typography for very small screens.
+   ═══════════════════════════════════════ */
 
 @media (max-width: 480px) {
   .butterfly {
@@ -293,7 +634,7 @@
     font-size: 14px;
   }
 
-  .title {
-    font-size: 20px;
+  .step2Heading {
+    font-size: 22px;
   }
 }

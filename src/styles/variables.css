@@ -1,4 +1,11 @@
 /* styles/variables.css — Anamoria SPA
+   v1.1 — April 25, 2026
+   Changes from v1.0:
+     - Added --font-serif: system-serif fallback chain (Option C font strategy).
+       No external font loading. Used for serif accents on JoinPage Step 2
+       heading and any future serif moments. Available globally; consumption
+       is per-component with explicit direction.
+
    Brand design tokens.
    Source of truth: axr_MemoryVaultV2.css v3.2 (lines 1–80, :host block).
    Converted from LWC :host scoping to :root for global use in React.
@@ -9,6 +16,17 @@
   /* ─── Typography ─── */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
+
+  /* Serif fallback chain (Option C — no external font loading).
+     New York: macOS 10.15+ / iOS 13+ (Apple system serif, screen-tuned).
+     Iowan Old Style: older Apple devices (iBooks reading font).
+     Sitka Text: Windows 10+ (Microsoft screen serif).
+     Georgia: universal fallback (designed for screens, present everywhere).
+     Cambria, Times New Roman, serif: progressive last-resorts.
+     Used for serif accents (e.g., page headings, italic prompts).
+     No external font load — zero performance/privacy cost. */
+  --font-serif: 'New York', 'Iowan Old Style', 'Sitka Text',
+    Georgia, Cambria, 'Times New Roman', serif;
 
   /* ─── Primary Brand — Sage Green ─── */
   --color-sage: #7c9885;
