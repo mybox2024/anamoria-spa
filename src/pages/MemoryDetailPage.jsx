@@ -1,55 +1,56 @@
 // MemoryDetailPage.jsx — /spaces/:spaceId/memories/:memId
-// v2.3 — Post-save "Updated" confirmation moved from inline form position to
-//        a banner under the sticky header. Duration 3s before navigate to feed.
-//        (April 17, 2026)
+// v2.4 — View mode removed, LovedOneBar header, PromptBanner, navigate(-1),
+//         leave-without-saving modal (April 26, 2026)
 //
-// Changes from v2.2:
-//   - Removed the inline .successToast block that sat inside .content above the
-//     Save button. It displaced form content and looked like form validation.
-//   - Added an .updatedBanner element rendered OUTSIDE .content, immediately
-//     after the sticky header, so it appears under the header bar. The banner
-//     is page-level status chrome, not form content.
-//   - SAVED_TOAST_MS bumped from 1500 to 3000 to align with Red Hat /
-//     Material Design 3 guidance for transient success confirmations (~3s is
-//     the documented range for readable success toasts).
-//   - No other behavior changes. PATCH, state, handlers, effects identical to v2.2.
+// Changes from v2.3:
+//   - I-5 fix: Removed the entire view-mode render block. Component always
+//     renders in edit mode. If mounted without editing:true in location.state,
+//     auto-sets editing = true. No intermediate view page ever appears.
+//     Back arrow uses navigate(-1) (browser history pop) instead of
+//     setEditing(false).
 //
-// Intentionally UNTOUCHED from v2.2 (regression avoidance):
-//   - handleBack (view-mode back arrow) — still navigate(`/spaces/${spaceId}`)
-//   - Edit-mode header back arrow (←) — still setEditing(false) — separate concern
-//   - handleCancelEdit — still navigate(`/spaces/${spaceId}`) immediately
-//   - Voice redirect useEffect
-//   - Photo/text load, photo signed URL fetch
-//   - PATCH payload, field diffing, `memory` state update on success
-//   - All view-mode rendering
-//   - setTimeout cleanup on unmount
-//   - Save/Cancel/input disable-during-toast-window behavior
+//   - I-4 fix: Replaced plain "Edit Memory" header with shared <LovedOneBar>
+//     component showing space avatar + name + contextual subtitle
+//     ("Edit text memory" / "Edit photo memory").
 //
-// v2.2 — Save shows "Updated" toast on edit screen then navigates to feed
-//        after 1.5s. Cancel navigates to feed immediately. (April 17, 2026)
+//   - I-7 fix: Added <PromptBanner> after LovedOneBar showing the memory's
+//     denormalized promptText (populated by migration 019 + Lambda v2.5).
+//     Memories without promptText simply don't show the banner.
+//
+//   - I-6: Added LeaveConfirmModal. Back arrow checks for unsaved changes
+//     (comparing current form state to original memory values). If dirty,
+//     shows modal; if clean, navigates back directly.
+//
+//   - Removed: handleBack (view-mode), handleFavorite, setEditing(true/false)
+//     calls, formatDate helper, spaceInitial derived value — all view-mode
+//     only code.
+//
+//   - Kept unchanged: handleSaveEdit, handleCancelEdit, PATCH payload,
+//     field diffing, memory state update on success, savedToast/banner,
+//     setTimeout cleanup, voice redirect, photo signed URL fetch, loading,
+//     error states. All byte-identical to v2.3.
+//
+// Previous changes (v2.3 — Under-header "Updated" banner, April 17, 2026)
+// v2.2 — Save shows "Updated" toast then navigates to feed (April 17, 2026)
 // v2.1 — Edit mode displays photo above caption field (April 16, 2026)
 // v2.0 — Voice edit removed; voice memories route to RecordPage (April 3, 2026)
 //
-// APIs: PATCH /memories/:id, POST /memories/:id/favorite, GET /media/playback/:key
+// APIs: PATCH /memories/:id, GET /media/playback/:key
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useResolvedPhotoUrl } from '../hooks/useResolvedPhotoUrl';
+import LovedOneBar from '../components/LovedOneBar';
+import PromptBanner from '../components/PromptBanner';
+import LeaveConfirmModal from '../components/LeaveConfirmModal';
+import DictateButton from '../components/DictateButton';
 import styles from './MemoryDetailPage.module.css';
 
 // v2.3: Toast duration before auto-navigate to feed after successful save.
 // Bumped from 1500 → 3000 (Red Hat / Material Design 3 guidance).
 const SAVED_TOAST_MS = 3000;
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  } catch { return ''; }
-}
 
 export default function MemoryDetailPage() {
   const { spaceId, memId } = useParams();
@@ -60,8 +61,12 @@ export default function MemoryDetailPage() {
   // Memory data
   const [memory, setMemory] = useState(location.state?.memory || null);
   const [space, setSpace] = useState(null);
-  // Edit mode
-  const [editing, setEditing] = useState(location.state?.editing || false);
+  // v2.4: Resolve S3 key to signed CloudFront URL for LovedOneBar avatar.
+  const resolvedPhotoUrl = useResolvedPhotoUrl(space, getAccessTokenSilently);
+  // v2.4: editing state is always true — view mode removed.
+  // Kept as state (not a constant) because the init-edit-fields effect
+  // depends on it, and the existing pattern works cleanly.
+  const [editing, setEditing] = useState(true);
   const [editTitle, setEditTitle] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editPrivate, setEditPrivate] = useState(true);
@@ -73,6 +78,9 @@ export default function MemoryDetailPage() {
   // UI
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!location.state?.memory);
+
+  // v2.6: Leave-without-saving modal state (I-6).
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // v2.2: Hold the pending-nav timer so we can clear it on unmount.
   const savedNavTimerRef = useRef(null);
@@ -159,20 +167,36 @@ export default function MemoryDetailPage() {
 
   // ─── Handlers ───
 
-  const handleBack = useCallback(() => {
-    navigate(`/spaces/${spaceId}`);
-  }, [navigate, spaceId]);
+  // v2.4: Dictation handler for text memory edit — appends transcript to
+  // editNote, matching WritePage's handleDictation pattern.
+  const handleDictation = useCallback((transcript) => {
+    setEditNote((prev) => {
+      const separator = prev && !prev.endsWith(' ') ? ' ' : '';
+      const next = prev + separator + transcript;
+      return next.length <= 5000 ? next : next.substring(0, 5000);
+    });
+  }, []);
 
-  const handleFavorite = useCallback(async () => {
-    if (!memory) return;
-    try {
-      const api = createApiClient(getAccessTokenSilently);
-      const result = await api.post(`/memories/${memory.id}/favorite`, {});
-      setMemory(prev => ({ ...prev, isFavorite: result.isFavorite }));
-    } catch (err) {
-      console.error('Favorite error:', err);
+  // v2.4: Dirty detection for leave-without-saving modal (I-6).
+  // Compares current form state to original memory values.
+  const hasUnsavedChanges = useCallback(() => {
+    if (!memory) return false;
+    return (
+      editTitle !== (memory.title || '') ||
+      editNote !== (memory.note || '') ||
+      editPrivate !== (memory.isPrivate ?? true)
+    );
+  }, [editTitle, editNote, editPrivate, memory]);
+
+  // v2.4: Edit-mode back arrow handler (I-5 + I-6).
+  // If dirty, show leave-confirm modal. If clean, navigate(-1).
+  const handleEditBack = useCallback(() => {
+    if (hasUnsavedChanges()) {
+      setShowLeaveConfirm(true);
+    } else {
+      navigate(-1);
     }
-  }, [memory, getAccessTokenSilently]);
+  }, [hasUnsavedChanges, navigate]);
 
   // v2.2: Cancel from feed-originated edit → go back to feed. No view mode.
   const handleCancelEdit = useCallback(() => {
@@ -219,7 +243,6 @@ export default function MemoryDetailPage() {
   const category = (memory?.category || '').toLowerCase();
   const isText = category === 'text';
   const isPhoto = category === 'photo';
-  const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
 
   // ─── Loading ───
   if (loading) {
@@ -235,7 +258,7 @@ export default function MemoryDetailPage() {
     return (
       <div className={styles.errorScreen}>
         <p>{error || 'Memory not found.'}</p>
-        <button className={styles.btnPrimary} onClick={handleBack}>Go back</button>
+        <button className={styles.btnPrimary} onClick={() => navigate(`/spaces/${spaceId}`)}>Go back</button>
       </div>
     );
   }
@@ -244,54 +267,68 @@ export default function MemoryDetailPage() {
   if (category === 'voice') return null;
 
   // ═══════════════════════════════════════
-  //  EDIT MODE (text/photo only)
+  //  EDIT MODE (always — view mode removed in v2.4)
   // ═══════════════════════════════════════
-  if (editing) {
-    return (
-      <div className={styles.screen}>
-        <div className={styles.header}>
-          <div className={styles.headerInner}>
-            <button className={styles.backBtn} onClick={() => setEditing(false)}>←</button>
-            <span className={styles.headerTitle}>Edit Memory</span>
+  return (
+    <div className={styles.screen}>
+      {/* v2.4 I-4 fix: Shared LovedOneBar replaces plain "Edit Memory" header.
+          Back arrow uses dirty-check guard (I-5 + I-6). */}
+      <LovedOneBar
+        spaceName={space?.name || ''}
+        spacePhotoUrl={resolvedPhotoUrl}
+        subtitle={`Edit ${isPhoto ? 'photo' : 'text'} memory`}
+        onBack={handleEditBack}
+        backLabel="Back"
+      />
+
+      {/* v2.4 I-7 fix: PromptBanner showing the memory's denormalized
+          promptText (populated by migration 019 + Lambda v2.5).
+          Memories without promptText simply don't show the banner. */}
+      {memory.promptText && (
+        <PromptBanner
+          prompt={{ text: memory.promptText, title: memory.promptTitle || 'CONTRIBUTE' }}
+          showSkip={false}
+          fullWidth
+        />
+      )}
+
+      {/* v2.3: Under-header "Updated" banner — page-level status chrome.
+          Rendered between header and .content so it sits under the sticky
+          header and above the form. Auto-dismiss is handled by the
+          setTimeout in handleSaveEdit which then navigates to the feed. */}
+      {savedToast && (
+        <div
+          className={styles.updatedBanner}
+          role="status"
+          aria-live="polite"
+        >
+          <div className={styles.updatedBannerInner}>
+            <span className={styles.updatedBannerIcon} aria-hidden="true">✓</span>
+            <span className={styles.updatedBannerText}>Updated</span>
           </div>
         </div>
+      )}
 
-        {/* v2.3: Under-header "Updated" banner — page-level status chrome.
-            Rendered between .header and .content so it sits under the sticky
-            header and above the form. Auto-dismiss is handled by the
-            setTimeout in handleSaveEdit which then navigates to the feed. */}
-        {savedToast && (
-          <div
-            className={styles.updatedBanner}
-            role="status"
-            aria-live="polite"
-          >
-            <div className={styles.updatedBannerInner}>
-              <span className={styles.updatedBannerIcon} aria-hidden="true">✓</span>
-              <span className={styles.updatedBannerText}>Updated</span>
-            </div>
-          </div>
-        )}
+      <div className={styles.content}>
+        {/* Title */}
+        <div className={styles.field}>
+          <label className={styles.fieldLabel}>Title</label>
+          <input
+            type="text"
+            className={styles.fieldInput}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="Give it a title (optional)"
+            maxLength={75}
+            disabled={savedToast}
+          />
+        </div>
 
-        <div className={styles.content}>
-          {/* Title */}
+        {/* Note (text memories) — with dictation support */}
+        {isText && (
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>Title</label>
-            <input
-              type="text"
-              className={styles.fieldInput}
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="Give it a title (optional)"
-              maxLength={75}
-              disabled={savedToast}
-            />
-          </div>
-
-          {/* Note (text memories) */}
-          {isText && (
-            <div className={styles.field}>
-              <label className={styles.fieldLabel}>Memory text</label>
+            <label className={styles.fieldLabel}>Memory text</label>
+            <div className={styles.textareaWrap}>
               <textarea
                 className={styles.fieldTextarea}
                 value={editNote}
@@ -301,151 +338,90 @@ export default function MemoryDetailPage() {
                 rows={8}
                 disabled={savedToast}
               />
-            </div>
-          )}
-
-          {/* Caption (photo memories) */}
-          {isPhoto && (
-            <>
-              {/* v2.1: Show the photo above the caption field in edit mode. */}
-              {photoUrl && (
-                <div className={styles.photoContainer}>
-                  <img
-                    src={photoUrl}
-                    alt={memory.title || 'Photo'}
-                    className={styles.photoImg}
-                  />
+              {!savedToast && (
+                <div className={styles.dictatePosition}>
+                  <DictateButton onTranscript={handleDictation} size="medium" />
                 </div>
               )}
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Caption</label>
-                <textarea
-                  className={styles.fieldTextarea}
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder="What's the story behind this photo?"
-                  maxLength={2000}
-                  rows={4}
-                  disabled={savedToast}
+            </div>
+          </div>
+        )}
+
+        {/* Caption (photo memories) */}
+        {isPhoto && (
+          <>
+            {/* v2.1: Show the photo above the caption field in edit mode. */}
+            {photoUrl && (
+              <div className={styles.photoContainer}>
+                <img
+                  src={photoUrl}
+                  alt={memory.title || 'Photo'}
+                  className={styles.photoImg}
                 />
               </div>
-            </>
-          )}
-
-          {/* Privacy toggle */}
-          <div
-            className={styles.privacyRow}
-            onClick={() => { if (!savedToast) setEditPrivate((p) => !p); }}
-          >
-            <div className={styles.privacyLabel}>
-              <span className={styles.privacyIcon}>{editPrivate ? '🔒' : '👥'}</span>
-              <span className={styles.privacyText}>
-                {editPrivate ? 'Private — only you' : 'Shared with family'}
-              </span>
-            </div>
-            <div className={`${styles.toggleTrack} ${editPrivate ? styles.togglePrivate : styles.toggleShared}`}>
-              <div className={styles.toggleThumb} />
-            </div>
-          </div>
-
-          {error && <div className={styles.errorBanner}>{error}</div>}
-
-          {/* v2.3: The inline .successToast block from v2.2 has been removed
-              from here. Confirmation is now the under-header banner above. */}
-
-          <div className={styles.actions}>
-            <button
-              className={styles.btnPrimary}
-              onClick={handleSaveEdit}
-              disabled={saving || savedToast}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              className={styles.btnGhost}
-              onClick={handleCancelEdit}
-              disabled={saving || savedToast}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════
-  //  VIEW MODE (text/photo only)
-  // ═══════════════════════════════════════
-  return (
-    <div className={styles.screen}>
-      <div className={styles.header}>
-        <div className={styles.headerInner}>
-          <button className={styles.backBtn} onClick={handleBack}>←</button>
-          {space && (
-            <div className={styles.headerSpace}>
-              <div className={styles.headerAvatar}>
-                {space.photoUrl ? (
-                  <img src={space.photoUrl} alt={space.name} className={styles.headerAvatarImg} />
-                ) : (
-                  <span className={styles.headerAvatarInitial}>{spaceInitial}</span>
-                )}
-              </div>
-              <span className={styles.headerName}>{space.name}</span>
-            </div>
-          )}
-          <div className={styles.headerActions}>
-            <button
-              className={`${styles.favBtn} ${memory.isFavorite ? styles.favActive : ''}`}
-              onClick={handleFavorite}
-              aria-label={memory.isFavorite ? 'Unfavorite' : 'Favorite'}
-            >
-              ♥
-            </button>
-            <button className={styles.editBtn} onClick={() => setEditing(true)} aria-label="Edit">
-              ✏️
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.content}>
-        {/* Category + date */}
-        <div className={styles.meta}>
-          <span className={styles.metaCategory}>{(memory.category || '').toUpperCase()}</span>
-          <span className={styles.metaDate}>{formatDate(memory.createdAt)}</span>
-        </div>
-
-        {/* Title */}
-        {memory.title && (
-          <h1 className={styles.title}>{memory.title}</h1>
-        )}
-
-        {/* Photo image */}
-        {isPhoto && (
-          <div className={styles.photoContainer}>
-            {photoUrl ? (
-              <img src={photoUrl} alt={memory.title || 'Photo'} className={styles.photoImg} />
-            ) : (
-              <div className={styles.photoPlaceholder}>
-                <span>Loading photo...</span>
-              </div>
             )}
-          </div>
+            <div className={styles.field}>
+              <label className={styles.fieldLabel}>Caption</label>
+              <textarea
+                className={styles.fieldTextarea}
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder="What's the story behind this photo?"
+                maxLength={2000}
+                rows={4}
+                disabled={savedToast}
+              />
+            </div>
+          </>
         )}
 
-        {/* Text/note body */}
-        {memory.note && (
-          <div className={styles.noteBody}>
-            <p className={styles.noteText}>{memory.note}</p>
+        {/* Privacy toggle */}
+        <div
+          className={styles.privacyRow}
+          onClick={() => { if (!savedToast) setEditPrivate((p) => !p); }}
+        >
+          <div className={styles.privacyLabel}>
+            <span className={styles.privacyIcon}>{editPrivate ? '🔒' : '👥'}</span>
+            <span className={styles.privacyText}>
+              {editPrivate ? 'Private — only you' : 'Shared with family'}
+            </span>
           </div>
-        )}
+          <div className={`${styles.toggleTrack} ${editPrivate ? styles.togglePrivate : styles.toggleShared}`}>
+            <div className={styles.toggleThumb} />
+          </div>
+        </div>
 
-        {/* Privacy badge */}
-        <div className={styles.privacyBadge}>
-          {memory.isPrivate ? '🔒 Private' : '👥 Shared with family'}
+        {error && <div className={styles.errorBanner}>{error}</div>}
+
+        <div className={styles.actions}>
+          <button
+            className={styles.btnPrimary}
+            onClick={handleSaveEdit}
+            disabled={saving || savedToast}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button
+            className={styles.btnGhost}
+            onClick={handleCancelEdit}
+            disabled={saving || savedToast}
+          >
+            Cancel
+          </button>
         </div>
       </div>
+
+      {/* v2.4 I-6: Leave-without-saving modal */}
+      <LeaveConfirmModal
+        open={showLeaveConfirm}
+        message="Your changes won't be saved if you leave now."
+        icon="edit"
+        onKeepEditing={() => setShowLeaveConfirm(false)}
+        onLeave={() => {
+          setShowLeaveConfirm(false);
+          navigate(-1);
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,35 @@
 // pages/PhotoPage.jsx — /spaces/:spaceId/photo
-// v2.5 — D-4 cache invalidation fix (April 22, 2026)
+// v2.6 — Header consistency, leave-without-saving modal, promptText in
+//         POST body (April 26, 2026)
+//
+// Changes from v2.5:
+//   - F-1 fix: Replaced inline .lovedOneBar header with shared <LovedOneBar>
+//     component. PhotoPage had the same inline header pattern as WritePage
+//     (confirmed during file review). Now uses the shared component for
+//     consistency across all capture screens.
+//
+//   - I-6: Added LeaveConfirmModal import + showLeaveConfirm state. Back/cancel
+//     actions check for unsaved work (title or caption has content). If dirty,
+//     shows the modal; if clean, navigates directly. Per F-Q1 decision: photo
+//     selected alone is NOT dirty — the user hasn't invested effort yet.
+//
+//   - §4 (promptText at creation): handleSave POST body now includes
+//     promptText and promptTitle for the denormalized memories table columns
+//     (migration 019). PhotoPage doesn't fetch/display prompts, but if a
+//     promptId were passed via location.state in a future iteration, the
+//     plumbing would be ready. Currently sends null for both.
+//
+//   - Added imports: LovedOneBar, LeaveConfirmModal.
+//
+//   - Removed unused spaceInitial derived value (was only used by deleted
+//     inline header).
+//
+//   - No other changes. Save handler logic (except promptText), file
+//     validation, preview derivation, success screen, handleViewAllMemories,
+//     handleAddAnotherPhoto, postSaveGating integration — all byte-identical
+//     to v2.5.
+//
+// Previous changes (v2.5 — D-4 cache invalidation fix, April 22, 2026):
 // Changes from v2.4:
 //   - Import invalidateMemoriesCache from MemoryFeed.
 //   - Call invalidateMemoriesCache(spaceId) after successful save so the
@@ -79,7 +109,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useResolvedPhotoUrl } from '../hooks/useResolvedPhotoUrl';
 import SuccessScreen from '../components/SuccessScreen';
+import LovedOneBar from '../components/LovedOneBar';
+import LeaveConfirmModal from '../components/LeaveConfirmModal';
 import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { PhotoIcon } from '../components/BrandIcons';
 // v2.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
@@ -99,6 +132,8 @@ export default function PhotoPage() {
 
   // ─── Space data ───
   const [space, setSpace] = useState(null);
+  // v2.6: Resolve S3 key to signed CloudFront URL for LovedOneBar avatar.
+  const resolvedPhotoUrl = useResolvedPhotoUrl(space, getAccessTokenSilently);
 
   // ─── File + preview (canonical pattern) ─────────────────────
   // File is the source of truth. Preview is DERIVED by a useEffect keyed
@@ -122,6 +157,9 @@ export default function PhotoPage() {
   // own id. Not populated on edit path — PhotoPage has none (edits flow
   // through MemoryDetailPage).
   const [savedMemoryId, setSavedMemoryId] = useState(null);
+
+  // v2.6: Leave-without-saving modal state (I-6).
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // ─── Refs ───
   const fileInputRef = useRef(null);               // in-form "Change photo"
@@ -196,16 +234,29 @@ export default function PhotoPage() {
     fileInputRef.current?.click();
   }, []);
 
+  // v2.6: X button opens file picker to swap the image instead of navigating
+  // away. If the user selects a new file, handleFileSelect → validateAndSetFile
+  // handles it. If they cancel the picker, nothing happens — they stay on the
+  // page with their current photo.
   const handleRemovePhoto = useCallback(() => {
-    // Removing the photo drops the user back to the feed (form cannot be
-    // submitted without a photo). Cleanup effect will revoke the blob URL
-    // when the component unmounts.
-    navigate(`/spaces/${spaceId}`, { replace: true });
-  }, [navigate, spaceId]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  }, []);
+
+  // v2.6: Back/cancel with unsaved-work guard (I-6).
+  // Dirty = user has typed title or caption content. Photo selected alone
+  // is NOT dirty (per F-Q1 decision — user hasn't invested effort yet).
+  const hasUnsavedWork = title.trim().length > 0 || caption.trim().length > 0;
 
   const handleCancel = useCallback(() => {
-    navigate(`/spaces/${spaceId}`);
-  }, [navigate, spaceId]);
+    if (hasUnsavedWork) {
+      setShowLeaveConfirm(true);
+    } else {
+      navigate(`/spaces/${spaceId}`);
+    }
+  }, [hasUnsavedWork, navigate, spaceId]);
 
   // ─── Save ───
   const handleSave = useCallback(async () => {
@@ -238,6 +289,13 @@ export default function PhotoPage() {
         title: title.trim() || null,
         note: caption.trim() || null,
         isPrivate,
+        // v2.6: Send denormalized prompt text for the memories table
+        // (prompt_text + prompt_title columns, migration 019).
+        // PhotoPage doesn't currently display prompts, so these are null.
+        // If a promptId is passed via location.state in a future iteration,
+        // this plumbing is ready.
+        promptText: null,
+        promptTitle: null,
       });
       setSavedMemoryId(createdMemory.id);
 
@@ -331,7 +389,6 @@ export default function PhotoPage() {
   }, [spaceId, space, navigate, getAccessTokenSilently, savedMemoryId]);
 
   // ─── Derived ───
-  const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
 
   // ─── Loading (space fetch) ───
   if (!space) {
@@ -358,7 +415,7 @@ export default function PhotoPage() {
       <>
         <SuccessScreen
           spaceName={space.name}
-          spacePhotoUrl={space.photoUrl}
+          spacePhotoUrl={resolvedPhotoUrl}
           subtitle={subtitle}
           onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
           backLabel="Back to feed"
@@ -426,29 +483,15 @@ export default function PhotoPage() {
         onChange={handleFileSelect}
       />
 
-      {/* LovedOneBar */}
-      <div className={styles.lovedOneBar}>
-        <div className={styles.lovedOneBarInner}>
-          <button
-            className={styles.barBackLink}
-            onClick={handleCancel}
-            aria-label="Back to feed"
-          >
-            ←
-          </button>
-          <div className={styles.barAvatar}>
-            {space.photoUrl ? (
-              <img src={space.photoUrl} alt={space.name} className={styles.barAvatarImg} />
-            ) : (
-              <span className={styles.barAvatarInitial}>{spaceInitial}</span>
-            )}
-          </div>
-          <div className={styles.barInfo}>
-            <span className={styles.barName}>{space.name}</span>
-            <span className={styles.barSub}>Add a photo</span>
-          </div>
-        </div>
-      </div>
+      {/* v2.6 F-1 fix: Shared LovedOneBar replaces inline header.
+          onBack uses the leave-guard (handleCancel checks hasUnsavedWork). */}
+      <LovedOneBar
+        spaceName={space.name}
+        spacePhotoUrl={resolvedPhotoUrl}
+        subtitle="Add a photo"
+        onBack={handleCancel}
+        backLabel="Back to feed"
+      />
 
       {/* Content */}
       <div className={styles.content}>
@@ -536,6 +579,18 @@ export default function PhotoPage() {
           </button>
         </div>
       </div>
+
+      {/* v2.6 I-6: Leave-without-saving modal */}
+      <LeaveConfirmModal
+        open={showLeaveConfirm}
+        message="Your photo details won't be saved if you leave now."
+        icon="photo"
+        onKeepEditing={() => setShowLeaveConfirm(false)}
+        onLeave={() => {
+          setShowLeaveConfirm(false);
+          navigate(`/spaces/${spaceId}`);
+        }}
+      />
     </div>
   );
 }

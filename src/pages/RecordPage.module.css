@@ -1,5 +1,19 @@
 /* pages/RecordPage.module.css
-   v5.1 — Success-screen classes moved to SuccessScreen.module.css (April 16, 2026)
+   v5.2 — Prompt position fix: remove negative-margin hack and
+          recordingContent top padding (April 26, 2026)
+
+   Changes from v5.1:
+     - I-1 fix: Removed .recordingContent > .promptWrap negative-margin rules
+       (lines 80–96 in v5.1). The prompt is no longer inside .recordingContent
+       (moved to direct child of .page in RecordPage.jsx v5.6), so these are
+       dead code.
+     - Changed .recordingContent top padding from 20px to 0. The prompt now
+       sits above .recordingContent; the prompt's own bottom margin provides
+       spacing. The circleArea flex: 1 centers the recording UI vertically
+       in the remaining space.
+     - No other rules changed. All other classes byte-identical to v5.1.
+
+   Previous changes (v5.1 — Success-screen classes moved, April 16, 2026):
 
    Changes from v5.0:
      - Removed classes now owned by SuccessScreen.module.css v1.0:
@@ -22,7 +36,7 @@
      - No max-width on containers — follows SpacePage .main padding pattern
      - Responsive padding at breakpoints matching SpacePage: 20, 24, 32, 48, 56
      - Review: prompt sits outside reviewBody (full width naturally)
-     - Recording: prompt inside recordingContent (negative margins to break out)
+     - Recording: prompt sits outside recordingContent (v5.2, full width naturally)
      - Circle uses exact LWC values
 */
 
@@ -58,42 +72,28 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px 20px 32px;
+  padding: 0 20px 32px;
   width: 100%;
   box-sizing: border-box;
 }
 
 @media (min-width: 640px) {
-  .recordingContent { padding: 20px 24px 32px; }
+  .recordingContent { padding: 0 24px 32px; }
 }
 @media (min-width: 900px) {
-  .recordingContent { padding: 24px 32px 32px; }
+  .recordingContent { padding: 0 32px 32px; }
 }
 @media (min-width: 1280px) {
-  .recordingContent { padding: 28px 48px 32px; }
+  .recordingContent { padding: 0 48px 32px; }
 }
 @media (min-width: 1600px) {
-  .recordingContent { padding: 32px 56px 32px; }
+  .recordingContent { padding: 0 56px 32px; }
 }
 
-/* Prompt inside recordingContent — break out of padding */
-.recordingContent > .promptWrap {
-  margin-left: -20px;
-  margin-right: -20px;
-}
-
-@media (min-width: 640px) {
-  .recordingContent > .promptWrap { margin-left: -24px; margin-right: -24px; }
-}
-@media (min-width: 900px) {
-  .recordingContent > .promptWrap { margin-left: -32px; margin-right: -32px; }
-}
-@media (min-width: 1280px) {
-  .recordingContent > .promptWrap { margin-left: -48px; margin-right: -48px; }
-}
-@media (min-width: 1600px) {
-  .recordingContent > .promptWrap { margin-left: -56px; margin-right: -56px; }
-}
+/* v5.2: Removed .recordingContent > .promptWrap negative-margin rules.
+   Prompt is no longer inside .recordingContent (moved to direct child of
+   .page in RecordPage.jsx v5.6). The 5 responsive breakpoint overrides
+   for the negative margins are also removed. */
 
 /* Circle area — centers in remaining vertical space */
 .circleArea {

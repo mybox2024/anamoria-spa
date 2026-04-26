@@ -1,5 +1,35 @@
 // WritePage.jsx — /spaces/:id/write
-// v1.5 — D-4 cache invalidation fix (April 22, 2026)
+// v1.6 — Prompt placement, header consistency, leave-without-saving modal,
+//         promptText in POST body (April 26, 2026)
+//
+// Changes from v1.5:
+//   - I-2 fix (compose screen): Replaced inline .lovedOneBar header with
+//     shared <LovedOneBar> component. Replaced inline .promptBanner with
+//     shared <PromptBanner fullWidth> moved OUTSIDE .composeContent so it
+//     spans full width, matching RecordPage.
+//
+//   - I-3 fix (review screen): Replaced inline .lovedOneBar header with
+//     shared <LovedOneBar>. Added <PromptBanner showSkip={false} fullWidth>
+//     between header and review content, matching RecordPage review (5b).
+//
+//   - I-6: Added LeaveConfirmModal import + showLeaveConfirm state. Compose
+//     screen back/cancel actions check for unsaved work (text or title has
+//     content). If dirty, shows the modal; if clean, navigates directly.
+//     Review screen does not need this — user explicitly navigated there;
+//     "← Edit" goes back to compose, not away.
+//
+//   - §4 (promptText at creation): handleSave POST body now includes
+//     promptText and promptTitle for the denormalized memories table columns
+//     (migration 019). Depends on anamoria-memories Lambda v2.5.
+//
+//   - Added imports: LovedOneBar, PromptBanner, LeaveConfirmModal.
+//
+//   - No other changes. Save handler logic (except promptText), dictation,
+//     text/title state, success screen, handleViewAllMemories,
+//     handleWriteAnother, postSaveGating integration — all byte-identical
+//     to v1.5.
+//
+// Previous changes (v1.5 — D-4 cache invalidation fix, April 22, 2026):
 // Changes from v1.4:
 //   - Import invalidateMemoriesCache from MemoryFeed.
 //   - Call invalidateMemoriesCache(spaceId) after successful save so the
@@ -68,8 +98,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useResolvedPhotoUrl } from '../hooks/useResolvedPhotoUrl';
 import DictateButton from '../components/DictateButton';
 import SuccessScreen from '../components/SuccessScreen';
+import LovedOneBar from '../components/LovedOneBar';
+import PromptBanner from '../components/PromptBanner';
+import LeaveConfirmModal from '../components/LeaveConfirmModal';
 import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { WriteIcon } from '../components/BrandIcons';
 // v1.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
@@ -90,6 +124,8 @@ export default function WritePage() {
 
   // Space data
   const [space, setSpace] = useState(null);
+  // v1.6: Resolve S3 key to signed CloudFront URL for LovedOneBar avatar.
+  const resolvedPhotoUrl = useResolvedPhotoUrl(space, getAccessTokenSilently);
   // Prompt data
   const [prompt, setPrompt] = useState(null);
   // Form state
@@ -106,6 +142,9 @@ export default function WritePage() {
   // for feedback routing. Additive — all v1.1 consumers still work.
   const [saved, setSaved] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(null);
+
+  // v1.6: Leave-without-saving modal state (I-6).
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const textareaRef = useRef(null);
 
@@ -166,9 +205,17 @@ export default function WritePage() {
     }
   }, []);
 
+  // v1.6: Compose screen back/cancel with unsaved-work guard (I-6).
+  // Dirty = user has typed any text or title content.
+  const hasUnsavedWork = text.trim().length > 0 || title.trim().length > 0;
+
   const handleCancel = useCallback(() => {
-    navigate(`/spaces/${spaceId}`);
-  }, [navigate, spaceId]);
+    if (hasUnsavedWork) {
+      setShowLeaveConfirm(true);
+    } else {
+      navigate(`/spaces/${spaceId}`);
+    }
+  }, [hasUnsavedWork, navigate, spaceId]);
 
   const handleReview = useCallback(() => {
     if (!text.trim()) return;
@@ -208,6 +255,12 @@ export default function WritePage() {
         title: title.trim() || null,
         isPrivate,
         promptId: prompt?.promptId || null,
+        // v1.6: Send denormalized prompt text for the memories table
+        // (prompt_text + prompt_title columns, migration 019).
+        ...(prompt?.promptId ? {
+          promptText: prompt.text || null,
+          promptTitle: prompt.title || prompt.category || null,
+        } : {}),
       });
 
       // 2. Record prompt response (if prompt was active)
@@ -313,7 +366,6 @@ export default function WritePage() {
   const charCount = text.length;
   const nearLimit = charCount > 9000;
   const canReview = text.trim().length > 0;
-  const spaceInitial = space?.name ? space.name.charAt(0).toUpperCase() : '?';
 
   // ─── Loading state ───
   if (!space) {
@@ -355,7 +407,7 @@ export default function WritePage() {
     return (
       <SuccessScreen
         spaceName={space.name}
-        spacePhotoUrl={space.photoUrl}
+        spacePhotoUrl={resolvedPhotoUrl}
         subtitle={subtitle}
         onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
         backLabel="Back to feed"
@@ -396,22 +448,20 @@ export default function WritePage() {
   if (step === 'review') {
     return (
       <div className={styles.reviewScreen}>
-        {/* LovedOneBar */}
-        <div className={styles.lovedOneBar}>
-          <div className={styles.lovedOneBarInner}>
-            <div className={styles.barAvatar}>
-              {space.photoUrl ? (
-                <img src={space.photoUrl} alt={space.name} className={styles.barAvatarImg} />
-              ) : (
-                <span className={styles.barAvatarInitial}>{spaceInitial}</span>
-              )}
-            </div>
-            <div className={styles.barInfo}>
-              <span className={styles.barName}>{space.name}</span>
-              <span className={styles.barSub}>Review your memory</span>
-            </div>
-          </div>
-        </div>
+        {/* v1.6 I-3 fix: Shared LovedOneBar replaces inline header */}
+        <LovedOneBar
+          spaceName={space.name}
+          spacePhotoUrl={resolvedPhotoUrl}
+          subtitle="Review your memory"
+          onBack={handleBackToCompose}
+          backLabel="Back to compose"
+        />
+
+        {/* v1.6 I-3 fix: PromptBanner on review screen, matching
+            RecordPage review (5b). No skip link on review. */}
+        {prompt && prompt.text && (
+          <PromptBanner prompt={prompt} showSkip={false} fullWidth />
+        )}
 
         {/* Review content */}
         <div className={styles.reviewContent}>
@@ -471,45 +521,30 @@ export default function WritePage() {
   // ═══════════════════════════════════════════════════
   return (
     <div className={styles.composeScreen}>
-      {/* LovedOneBar */}
-      <div className={styles.lovedOneBar}>
-        <div className={styles.lovedOneBarInner}>
-          <button
-            className={styles.barBackLink}
-            onClick={handleCancel}
-            aria-label="Back to feed"
-          >
-            ←
-          </button>
-          <div className={styles.barAvatar}>
-            {space.photoUrl ? (
-              <img src={space.photoUrl} alt={space.name} className={styles.barAvatarImg} />
-            ) : (
-              <span className={styles.barAvatarInitial}>{spaceInitial}</span>
-            )}
-          </div>
-          <div className={styles.barInfo}>
-            <span className={styles.barName}>{space.name}</span>
-            <span className={styles.barSub}>Write a memory</span>
-          </div>
-        </div>
-      </div>
+      {/* v1.6 I-2 fix: Shared LovedOneBar replaces inline header.
+          onBack uses the leave-guard (handleCancel checks hasUnsavedWork). */}
+      <LovedOneBar
+        spaceName={space.name}
+        spacePhotoUrl={resolvedPhotoUrl}
+        subtitle="Write a memory"
+        onBack={handleCancel}
+        backLabel="Back to feed"
+      />
+
+      {/* v1.6 I-2 fix: Shared PromptBanner replaces inline .promptBanner.
+          Moved OUTSIDE .composeContent so it spans full width, matching
+          RecordPage. */}
+      {prompt && prompt.text && (
+        <PromptBanner
+          prompt={prompt}
+          onSkip={handleSkipPrompt}
+          showSkip
+          fullWidth
+        />
+      )}
 
       {/* Compose content */}
       <div className={styles.composeContent}>
-        {/* Prompt banner */}
-        {prompt && prompt.text && (
-          <div className={styles.promptBanner}>
-            <span className={styles.promptCategory}>
-              {prompt.title || "TODAY'S REMEMBRANCE"}
-            </span>
-            <p className={styles.promptText}>{prompt.text}</p>
-            <button className={styles.promptSkip} onClick={handleSkipPrompt}>
-              Try a different prompt
-            </button>
-          </div>
-        )}
-
         {/* Title input */}
         <input
           type="text"
@@ -554,6 +589,18 @@ export default function WritePage() {
           </div>
         </div>
       </div>
+
+      {/* v1.6 I-6: Leave-without-saving modal */}
+      <LeaveConfirmModal
+        open={showLeaveConfirm}
+        message="Your writing won't be saved if you leave now."
+        icon="write"
+        onKeepEditing={() => setShowLeaveConfirm(false)}
+        onLeave={() => {
+          setShowLeaveConfirm(false);
+          navigate(`/spaces/${spaceId}`);
+        }}
+      />
     </div>
   );
 }

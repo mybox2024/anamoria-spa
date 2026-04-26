@@ -1,5 +1,30 @@
 // pages/RecordPage.jsx — Anamoria SPA
-// v5.5 — D-4 cache invalidation fix (April 22, 2026)
+// v5.6 — Prompt placement fix, leave-without-saving modal, promptText in
+//         POST body (April 26, 2026)
+//
+// Changes from v5.5:
+//   - I-1 fix: Moved the PromptBanner on the Record screen (5a) from inside
+//     .recordingContent to outside it — direct child of .page, immediately
+//     after <LovedOneBar>. Eliminates the gap caused by .recordingContent's
+//     top padding. Matches the Review screen (5b) which already had the
+//     prompt outside .reviewBody.
+//
+//   - I-6: Added LeaveConfirmModal import + showLeaveConfirm state. The
+//     Record screen (5a) LovedOneBar onBack now checks for unsaved work
+//     (recording in progress, paused, or stopped-with-blob). If dirty,
+//     shows the modal; if clean, navigates directly. In-app only — no
+//     beforeunload (per Q-1 decision).
+//
+//   - §4 (promptText at creation): handleSave POST body now includes
+//     promptText and promptTitle so the denormalized columns on the
+//     memories table are populated at creation time. Depends on
+//     anamoria-memories Lambda v2.5 (already deployed).
+//
+//   - No other changes. Review screen, Edit Review, Success, Uploading,
+//     Loading, all handlers except handleSave (promptText addition) and
+//     the record-screen onBack wrapper — all byte-identical to v5.5.
+//
+// Previous changes (v5.5 — D-4 cache invalidation fix, April 22, 2026):
 // Changes from v5.4:
 //   - Import invalidateMemoriesCache from MemoryFeed.
 //   - Call invalidateMemoriesCache(spaceId) after successful voice save
@@ -81,6 +106,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useRecorder } from '../hooks/useRecorder';
+import { useResolvedPhotoUrl } from '../hooks/useResolvedPhotoUrl';
 import { createApiClient } from '../api/client';
 import LovedOneBar from '../components/LovedOneBar';
 import PromptBanner from '../components/PromptBanner';
@@ -88,6 +114,7 @@ import BottomNav from '../components/BottomNav';
 import SuccessScreen from '../components/SuccessScreen';
 import { invalidateMemoriesCache } from '../components/MemoryFeed';
 import { RecordIcon } from '../components/BrandIcons';
+import LeaveConfirmModal from '../components/LeaveConfirmModal';
 // v5.3: Session 1A.5 post-save gating helper (DB-backed reminder branch;
 // feedback branch stubbed for Session 2).
 // v5.4: postSaveGating is now v1.2 — feedback branch implemented.
@@ -248,6 +275,9 @@ export default function RecordPage() {
   // Not populated on edit path (handleEditSave) — edits never gate.
   const [savedMemoryId, setSavedMemoryId] = useState(null);
 
+  // v5.6: Leave-without-saving modal state (I-6).
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
   useEffect(() => {
     if (audioBlob && recordingState === 'stopped') {
       const url = URL.createObjectURL(audioBlob);
@@ -317,6 +347,12 @@ export default function RecordPage() {
         isPrivate,
         ...(memoryLabel.trim() ? { title: memoryLabel.trim() } : {}),
         ...(activePromptId ? { promptId: activePromptId } : {}),
+        // v5.6: Send denormalized prompt text for the memories table
+        // (prompt_text + prompt_title columns, migration 019).
+        ...(activePromptId && prompt ? {
+          promptText: prompt.text || null,
+          promptTitle: prompt.title || prompt.category || null,
+        } : {}),
       });
       setSavedMemoryId(createdMemory.id);
 
@@ -467,7 +503,8 @@ export default function RecordPage() {
                                      'Ready to record';
 
   const spaceName = space?.name || 'Space';
-  const spacePhotoUrl = space?.photoUrl || null;
+  // v5.6: Resolve S3 key to signed CloudFront URL for LovedOneBar avatar.
+  const spacePhotoUrl = useResolvedPhotoUrl(space, getAccessTokenSilently);
 
   // ─── Record another (from success screen) ─────────────────
 
@@ -482,6 +519,25 @@ export default function RecordPage() {
     setSavedMemoryId(null);
     reRecord();
   }
+
+  // v5.6: Unsaved work detection for leave-without-saving modal (I-6).
+  // Recording in progress, paused, or stopped-with-blob all count as
+  // unsaved work. Idle state with no blob = nothing to lose.
+  const hasUnsavedWork =
+    recordingState === 'recording' ||
+    recordingState === 'paused' ||
+    (recordingState === 'stopped' && audioBlob !== null);
+
+  // v5.6: Back arrow handler for Record screen (5a). If dirty, shows
+  // modal; if clean, navigates directly. Only used on the record screen —
+  // Review, Edit Review, Success, Uploading all have their own back handlers.
+  const handleRecordBackArrow = useCallback(() => {
+    if (hasUnsavedWork) {
+      setShowLeaveConfirm(true);
+    } else {
+      navigate(`/spaces/${spaceId}`, { replace: true });
+    }
+  }, [hasUnsavedWork, navigate, spaceId]);
 
   // ─── View all memories (post-save gating, v5.4) ──────────
   // Called from SuccessScreen.tertiaryCta.onClick.
@@ -973,22 +1029,27 @@ export default function RecordPage() {
         spaceName={spaceName}
         spacePhotoUrl={spacePhotoUrl}
         subtitle={barSubtitle}
-        onBack={() => navigate(`/spaces/${spaceId}`, { replace: true })}
+        onBack={handleRecordBackArrow}
         backLabel="Back to feed"
       />
 
-      <div className={styles.recordingContent}>
-        {prompt && (
-          <div className={styles.promptWrap}>
-            <PromptBanner
-              prompt={prompt}
-              onSkip={handleSkipPrompt}
-              showSkip={recordingState === 'idle'}
-              fullWidth
-            />
-          </div>
-        )}
+      {/* v5.6 I-1 fix: Prompt moved OUTSIDE .recordingContent so it sits
+          directly after LovedOneBar with no gap. Previously inside
+          .recordingContent where the 20px top padding created a visual gap.
+          Matches the Review screen (5b) which already has prompt outside
+          .reviewBody. */}
+      {prompt && (
+        <div className={styles.promptWrap}>
+          <PromptBanner
+            prompt={prompt}
+            onSkip={handleSkipPrompt}
+            showSkip={recordingState === 'idle'}
+            fullWidth
+          />
+        </div>
+      )}
 
+      <div className={styles.recordingContent}>
         <div className={styles.circleArea}>
           <button
             className={circleClass}
@@ -1029,6 +1090,18 @@ export default function RecordPage() {
           )}
         </div>
       </div>
+
+      {/* v5.6 I-6: Leave-without-saving modal */}
+      <LeaveConfirmModal
+        open={showLeaveConfirm}
+        message="Your recording won't be saved if you leave now."
+        icon="record"
+        onKeepEditing={() => setShowLeaveConfirm(false)}
+        onLeave={() => {
+          setShowLeaveConfirm(false);
+          navigate(`/spaces/${spaceId}`, { replace: true });
+        }}
+      />
 
       <BottomNav spaceId={spaceId} activeTab="record" />
     </div>
