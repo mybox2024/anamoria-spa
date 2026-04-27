@@ -1,6 +1,19 @@
 // App.jsx — Anamoria SPA
-// v1.16 — PWA Conversion (April 23, 2026)
-// Changes from v1.15:
+// v1.17 — BP-1a Fix 5: Bootstrap join error recovery (April 27, 2026)
+// Changes from v1.16:
+//   - 409 USER_ALREADY_EXISTS recovery: retry GET /pilot/me + /spaces,
+//     route normally instead of showing generic error screen.
+//   - 403 join errors (GROUP_NOT_ACTIVE, EMAIL_NOT_ALLOWED, USER_DEACTIVATED):
+//     show specific empathetic message + "Start over" link to /join.
+//     These are non-retryable — retrying won't help.
+//   - bootstrapError shape changed from string to object:
+//     { code, message, retryable } — no downstream consumers affected
+//     (only read by the error screen in AppRoutes).
+//   - Generic bootstrap error screen updated:
+//     "We couldn't open Anamoria just now." + "Your memories are safe."
+//   - Zero route changes, zero import changes, zero context shape changes.
+//
+// Previous changes (v1.16):
 //   - Added PWAUpdatePrompt import + render (shows "new version available" banner)
 //   - Zero route changes, zero auth changes, zero bootstrap changes.
 //
@@ -138,6 +151,13 @@ function LoadingFallback() {
 //   - 404 = new user → check sessionStorage for groupId → POST /pilot/join
 //   - localStorage is never read or written for identity keys
 //
+// v1.17 (Fix 5): Join error recovery:
+//   - 409 USER_ALREADY_EXISTS → retry /me + /spaces → route normally
+//   - 403 GROUP_NOT_ACTIVE / EMAIL_NOT_ALLOWED / USER_DEACTIVATED →
+//     specific empathetic message, non-retryable, "Start over" link
+//   - All other errors → generic retryable error screen
+//   - bootstrapError shape: { code, message, retryable } (was string)
+//
 // v1.12: Returns { appState, setAppState } instead of appState alone.
 // setAppState is consumed by AppRoutes to create the updateProfile callback.
 
@@ -230,19 +250,84 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
           return;
         } catch (joinErr) {
           console.error('Join error:', joinErr);
+
+          // v1.17 Fix 5: 409 = user already exists (double-tap, race condition).
+          // The first request created the user; retry /me to pick them up.
+          if (joinErr.status === 409 && joinErr.error === 'USER_ALREADY_EXISTS') {
+            try {
+              const [retryMe, retrySpaces] = await Promise.all([
+                api.get('/pilot/me'),
+                api.get('/spaces'),
+              ]);
+              const spaces = retrySpaces.spaces || [];
+              setAppState({
+                bootstrapped: true,
+                bootstrapError: null,
+                userId: retryMe.userId,
+                displayName: retryMe.displayName || null,
+                email: retryMe.email || null,
+                pilotRole: retryMe.pilotRole,
+                groupId: retryMe.groupId,
+                groupName: retryMe.groupName,
+                spaces,
+                currentSpace: spaces[0] || null,
+              });
+              if (spaces.length === 0) {
+                navigate('/spaces/new', { replace: true });
+              } else {
+                navigate(`/spaces/${spaces[0].id}`, { replace: true });
+              }
+              return;
+            } catch (retryErr) {
+              console.error('409 retry failed:', retryErr);
+              // Fall through to generic error below
+            }
+          }
+
+          // v1.17 Fix 5: 403 = access denied. Show specific empathetic message.
+          // These are NOT transient — retrying won't help.
+          if (joinErr.status === 403) {
+            const JOIN_403_MESSAGES = {
+              GROUP_NOT_ACTIVE: "This space isn't open just yet. Your group leader will know when it's ready.",
+              EMAIL_NOT_ALLOWED: "We couldn't find your email in this space. Your group leader can add you, or help sort it out.",
+              USER_DEACTIVATED: "Your access to this space is paused. Your group leader can help you with next steps.",
+            };
+            const message = JOIN_403_MESSAGES[joinErr.error] || null;
+            setAppState(prev => ({
+              ...prev,
+              bootstrapped: true,
+              bootstrapError: {
+                code: joinErr.error || 'ACCESS_DENIED',
+                message: message || "We weren't able to set up your account. Your group leader can help.",
+                retryable: false,
+              },
+            }));
+            return;
+          }
+
+          // All other join errors — generic retryable
           setAppState(prev => ({
             ...prev,
             bootstrapped: true,
-            bootstrapError: joinErr.error || 'JOIN_FAILED',
+            bootstrapError: {
+              code: joinErr.error || 'JOIN_FAILED',
+              message: null,
+              retryable: true,
+            },
           }));
           return;
         }
       }
 
+      // v1.17: All other bootstrap errors — generic retryable
       setAppState(prev => ({
         ...prev,
         bootstrapped: true,
-        bootstrapError: err.error || 'BOOTSTRAP_FAILED',
+        bootstrapError: {
+          code: err.error || 'BOOTSTRAP_FAILED',
+          message: null,
+          retryable: true,
+        },
       }));
     }
   }, [getAccessTokenSilently, navigate, auth0User]);
@@ -304,15 +389,43 @@ function AppRoutes() {
   }
 
   if (isAuthenticated && appState.bootstrapError) {
+    const { message, retryable } = appState.bootstrapError;
+
+    // v1.17 Fix 5: Non-retryable errors (403 join failures) —
+    // show specific message + "Start over" link. No retry button.
+    if (!retryable && message) {
+      return (
+        <div className="app-error">
+          <p className="app-error-message">{message}</p>
+          <a
+            className="app-error-link"
+            href="/join"
+            onClick={(e) => {
+              e.preventDefault();
+              // Clear stale session data so the join flow starts fresh
+              sessionStorage.removeItem('ana_groupId');
+              sessionStorage.removeItem('ana_groupName');
+              sessionStorage.removeItem('ana_displayName');
+              window.location.href = '/join';
+            }}
+          >
+            Start over with a different code
+          </a>
+        </div>
+      );
+    }
+
+    // v1.17 Fix 5: Retryable errors (500, network, unknown) —
+    // updated copy per Error Message Catalog v1.0, Category 3.
     return (
       <div className="app-error">
-        <h2>Something went wrong</h2>
-        <p>We couldn't load your account. Please try again.</p>
+        <h2>We couldn't open Anamoria just now.</h2>
+        <p>Your memories are safe. Try once more, or come back in a few minutes.</p>
         <button
           className="app-error-btn"
           onClick={() => window.location.reload()}
         >
-          Retry
+          Try once more
         </button>
       </div>
     );

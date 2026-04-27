@@ -1,4 +1,6 @@
-/* styles/global.css — Anamoria SPA
+/* styles/global.css — Anamoria SPA — v1.1
+   v1.1 — BP-1a Fix 5: Added .app-error-message and .app-error-link
+          for 403 join error screen (April 27, 2026)
    Reset, base typography, and layout primitives.
    Imports variables.css so this file is the single import in main.jsx.
 */
@@ -173,6 +175,28 @@ select {
 
 .app-error-btn:hover {
   background: #4a6954;
+}
+
+/* v1.1: 403 join error — empathetic message (no heading, message is primary content) */
+.app-error-message {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text-body);
+  max-width: 300px;
+}
+
+/* v1.1: 403 join error — "Start over with a different code" link */
+.app-error-link {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-sage-dark);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.app-error-link:hover {
+  color: #4a6954;
 }
 
 /* ─── Utility classes ─── */
