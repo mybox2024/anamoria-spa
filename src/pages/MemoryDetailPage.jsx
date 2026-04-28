@@ -1,8 +1,14 @@
 // MemoryDetailPage.jsx — /spaces/:spaceId/memories/:memId
-// v2.4 — View mode removed, LovedOneBar header, PromptBanner, navigate(-1),
-//         leave-without-saving modal (April 26, 2026)
+// v2.5 — Defensive {name} substitution in PromptBanner prop (April 27, 2026)
 //
-// Changes from v2.3:
+// Changes from v2.4:
+//   - Defensive .replace('{name}', space.name) on memory.promptText before
+//     passing to PromptBanner. Handles any stored prompt_text rows that
+//     contain the raw {name} placeholder (migration 019 backfill edge case).
+//     Data was also fixed server-side (UPDATE 87 rows). This is a safety net.
+//   - One-line change only. Zero other modifications.
+//
+// Previous changes (v2.4):
 //   - I-5 fix: Removed the entire view-mode render block. Component always
 //     renders in edit mode. If mounted without editing:true in location.state,
 //     auto-sets editing = true. No intermediate view page ever appears.
@@ -286,7 +292,7 @@ export default function MemoryDetailPage() {
           Memories without promptText simply don't show the banner. */}
       {memory.promptText && (
         <PromptBanner
-          prompt={{ text: memory.promptText, title: memory.promptTitle || 'CONTRIBUTE' }}
+          prompt={{ text: memory.promptText?.replace('{name}', space?.name || ''), title: memory.promptTitle || 'CONTRIBUTE' }}
           showSkip={false}
           fullWidth
         />
