@@ -1,4 +1,16 @@
 /* pages/SpacePage.module.css
+   v2.5 — UI polish: header, sidebar, collapsed prompt (April 29, 2026)
+
+   Changes from v2.4:
+     - Header avatar: 36px → 42px, initial font 15px → 17px
+     - Header name: 18px → 21px
+     - Sidebar avatar: border-radius 10px → 50% (circular, matches header)
+     - Sidebar user info: name 13px → 14px, plan 11px → 12px
+     - Collapsed prompt text: 14px → 15px, color → #3d4a3f, weight → 400
+     - Prompt area padding: reduced top/bottom (~8px less per breakpoint)
+       to reclaim feed real estate
+     - Lora fallback cleanup: var(--font-serif, 'Lora', ...) → var(--font-serif)
+
    v2.4 — F3: Prompt outside scroll container (April 24, 2026)
 
    Changes from v2.3:
@@ -88,8 +100,8 @@
 
 /* Avatar circle */
 .headerAvatar {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: var(--color-sage-light, #e8f0eb);
   display: flex;
@@ -106,7 +118,7 @@
 }
 
 .avatarInitial {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-sage-dark, #5b7a65);
   line-height: 1;
@@ -118,7 +130,7 @@
 }
 
 .headerName {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 600;
   color: var(--color-text-primary, #2d3436);
   margin: 0;
@@ -206,22 +218,23 @@
 }
 
 /* Prompt area — full-width sage background */
+/* v2.5: Reduced top/bottom padding to reclaim feed real estate */
 .promptArea {
   background: var(--color-sage-light, #e8f0eb);
-  padding: 24px 20px;
+  padding: 16px 20px;
 }
 
 @media (min-width: 640px) {
-  .promptArea { padding: 28px 24px; }
+  .promptArea { padding: 18px 24px; }
 }
 @media (min-width: 900px) {
-  .promptArea { padding: 28px 32px; }
+  .promptArea { padding: 20px 32px; }
 }
 @media (min-width: 1280px) {
-  .promptArea { padding: 32px 48px; }
+  .promptArea { padding: 22px 48px; }
 }
 @media (min-width: 1600px) {
-  .promptArea { padding: 32px 56px; }
+  .promptArea { padding: 22px 56px; }
 }
 
 /* ─── Mini prompt bar (collapsed state) ─── */
@@ -244,10 +257,11 @@
 
 .miniPromptText {
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   font-style: italic;
-  font-family: var(--font-serif, 'Lora', Georgia, serif);
-  color: var(--color-text-primary, #2d3436);
+  font-weight: 400;
+  font-family: var(--font-serif);
+  color: var(--color-text-body, #3d4a3f);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -456,7 +470,7 @@
 .sidebarAvatar {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: var(--color-bg-warm, #f5f5f4);
   display: flex;
   align-items: center;
@@ -629,13 +643,13 @@
 }
 
 .sidebarUserName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary, #2d3436);
 }
 
 .sidebarUserEmail {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-subtle, #737373);
   white-space: nowrap;
   overflow: hidden;

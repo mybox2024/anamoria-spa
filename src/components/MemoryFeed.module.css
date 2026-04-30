@@ -1,4 +1,12 @@
 /* components/MemoryFeed.module.css
+   v2.5 — Lora fallback cleanup (April 29, 2026)
+
+   Changes from v2.4:
+     - .textTitle font-family: removed stale 'Lora' fallback from var().
+       Lora is not loaded (Option C: system fonts only).
+       --font-serif is defined in variables.css v1.1 with full chain.
+     - No visual changes.
+
    v2.4 — Tabs sticky at top:0 (April 24, 2026)
 
    Changes from v2.3:
@@ -250,7 +258,7 @@
 .textTitle {
   font-size: 15px;
   font-weight: 600;
-  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  font-family: var(--font-serif);
   color: var(--color-text-primary, #2d3436);
   margin: 0 0 6px 0;
   line-height: 1.3;

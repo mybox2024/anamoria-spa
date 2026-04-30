@@ -1,4 +1,12 @@
 // pages/SettingsPage.jsx — Anamoria SPA
+// v2.9 — UI polish: Need Help goes directly to request form (April 29, 2026)
+// Changes from v2.8:
+//   - 'need-help' case now renders RequestPanel directly with title + subtitle
+//     header, instead of the interim NeedHelpPanel landing page that just
+//     showed a "Submit a request" button. Eliminates one unnecessary click.
+//   - NeedHelpPanel import retained but no longer rendered (stable import path).
+//   - No other changes.
+//
 // v2.8 — Phase D: AccountPanel pending list + cancel + view all (April 21, 2026)
 // Changes from v2.7:
 //   - AccountPanel Requests section expanded with inline pending list
@@ -485,15 +493,18 @@ function AccountPanel({ user, appState, getApi, onOpenRequest }) {
           </span>
         )}
 
-        <button
-          className={styles.viewAllRequestsLink}
-          onClick={() => {
-            const fromParam = new URLSearchParams(window.location.search).get('from');
-            navigate(fromParam ? `/settings/my-requests?from=${fromParam}` : '/settings/my-requests');
-          }}
-        >
-          View all requests →
-        </button>
+        {/* v2.9: Only show "View all requests" when there are requests to view */}
+        {pendingRequests.length > 0 && (
+          <button
+            className={styles.viewAllRequestsLink}
+            onClick={() => {
+              const fromParam = new URLSearchParams(window.location.search).get('from');
+              navigate(fromParam ? `/settings/my-requests?from=${fromParam}` : '/settings/my-requests');
+            }}
+          >
+            View all requests →
+          </button>
+        )}
       </div>
 
       {/* ── Section 5: Delete account danger zone ── */}
@@ -1004,7 +1015,17 @@ export default function SettingsPage() {
         return (
           <div className={styles.panel}>
             <h2 className={styles.panelTitle}>Need Help</h2>
-            <NeedHelpPanel space={space} onRequestHelp={(spaceName) => openRequestPanel('other', spaceName)} />
+            <p className={styles.panelHint}>
+              If you have questions about this space or need a hand, we're here to help.
+            </p>
+            <RequestPanel
+              initialType="other"
+              spaceName={space?.name || null}
+              getApi={getApi}
+              appState={appState}
+              onSuccess={handleRequestSuccess}
+              onCancel={() => setActiveSection('need-help')}
+            />
           </div>
         );
 

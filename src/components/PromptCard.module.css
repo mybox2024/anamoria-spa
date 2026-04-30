@@ -1,4 +1,14 @@
 /* components/PromptCard.module.css
+   v2.1 — UI polish: prompt text 19px + Lora fallback cleanup (April 29, 2026)
+
+   Changes from v2.0:
+     - .text font-size: 17px → 19px (approved feed adjustment)
+     - .text font-family: removed stale 'Lora' fallback from var().
+       Lora is not loaded (Option C: system fonts only).
+       --font-serif is defined in variables.css v1.1 with full chain.
+     - Responsive: 900px text 16px → 18px, 1280px text 17px → 19px
+       (proportional scaling preserved)
+
    v2.0 — Faithful port from LWC axr_MemoryVaultV2.css
    Source: .prompt-card-wrapper, .prompt-card, .prompt-label, .prompt-text,
            .prompt-actions, .btn-primary, .skip-prompt-link
@@ -52,9 +62,9 @@
 /* LWC: .prompt-text — serif, italic, 500 weight, primary color */
 
 .text {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 500;
-  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  font-family: var(--font-serif);
   color: var(--color-text-primary, #2d3436);
   font-style: italic;
   line-height: 1.4;
@@ -149,7 +159,7 @@
 
 @media (min-width: 900px) {
   .text {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .recordBtn {
@@ -160,7 +170,7 @@
 
 @media (min-width: 1280px) {
   .text {
-    font-size: 17px;
+    font-size: 19px;
   }
 
   .label {

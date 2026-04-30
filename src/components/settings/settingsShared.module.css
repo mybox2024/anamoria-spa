@@ -1,4 +1,16 @@
 /* components/settings/settingsShared.module.css
+   v1.1 — UI polish: text sizes, section heading consistency, breathing room (April 29, 2026)
+   
+   Changes from v1.0:
+     - .sectionTitle: 11px/700 → 14px/600, letter-spacing 1.2px → 0.5px
+       (matches .accountSectionTitle for consistency across all panels)
+     - .section padding: 20px → 28px (more breathing room)
+     - .hint: 13px → 14px
+     - .formLabel: 13px → 14px
+     - .toggleDesc: 13px → 14px
+     - .saveBtn: 14px → 15px
+     - .errorMsg / .successMsg: 13px → 14px
+
    v1.0 — Shared UI primitives for settings panels (April 11, 2026)
    
    Extracted from SpaceSettings.module.css v1.0 to provide a single
@@ -13,7 +25,7 @@
    ═══════════════════════════════════════ */
 
 .section {
-  padding: 20px 0;
+  padding: 28px 0;
   border-bottom: 1px solid var(--color-border-light, #edebe7);
 }
 
@@ -22,17 +34,17 @@
 }
 
 .sectionTitle {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 0.5px;
   color: var(--color-text-subtle, #737373);
   margin: 0 0 16px;
   font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
 }
 
 .hint {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-subtle, #737373);
   line-height: 1.5;
   margin: 0 0 12px;
@@ -48,7 +60,7 @@
 
 .formLabel {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary, #2d3436);
   margin-bottom: 6px;
@@ -121,7 +133,7 @@
 }
 
 .toggleDesc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-subtle, #737373);
   line-height: 1.4;
 }
@@ -163,7 +175,7 @@
 .saveBtn {
   padding: 10px 28px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   background: var(--color-sage-dark, #5b7a65);
   color: white;
@@ -187,13 +199,13 @@
    ═══════════════════════════════════════ */
 
 .errorMsg {
-  font-size: 13px;
+  font-size: 14px;
   color: #b85450;
   margin: 12px 0 0;
 }
 
 .successMsg {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-sage-dark, #5b7a65);
   margin: 12px 0 0;
 }

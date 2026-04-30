@@ -1,4 +1,11 @@
 // InvitePage.jsx — /spaces/:spaceId/invite
+// v1.2 — UI polish: header consistency with Write page (April 29, 2026)
+//
+// Changes from v1.1:
+//   - Replaced inline header with shared LovedOneBar component
+//     (circular avatar with space photo, consistent with Write/Record pages)
+//   - Subtitle shows "Invite someone"
+//
 // v1.1 — Invite UX cleanup. (April 17, 2026)
 //
 // Changes from v1.0:
@@ -33,6 +40,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import styles from './InvitePage.module.css';
+import LovedOneBar from '../components/LovedOneBar';
+import { useResolvedPhotoUrl } from '../hooks/useResolvedPhotoUrl';
 
 // v1.1: Toast auto-dismiss duration — Red Hat / Material Design 3 guidance
 // for transient success confirmations.
@@ -44,6 +53,8 @@ export default function InvitePage() {
   const { getAccessTokenSilently } = useAuth0();
 
   const [space, setSpace] = useState(null);
+  // v1.2: Resolve S3 key to signed CloudFront URL for LovedOneBar avatar.
+  const resolvedPhotoUrl = useResolvedPhotoUrl(space, getAccessTokenSilently);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -142,19 +153,13 @@ export default function InvitePage() {
 
   return (
     <div className={styles.screen}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerInner}>
-          <button className={styles.backBtn} onClick={() => navigate(`/spaces/${spaceId}`)}>←</button>
-          <div className={styles.headerAvatar}>
-            <span className={styles.headerInitial}>{spaceInitial}</span>
-          </div>
-          <div className={styles.headerInfo}>
-            <span className={styles.headerName}>{space?.name}</span>
-            <span className={styles.headerSub}>Invite someone</span>
-          </div>
-        </div>
-      </div>
+      {/* v1.2: Shared LovedOneBar — consistent with Write/Record pages */}
+      <LovedOneBar
+        spaceName={space?.name}
+        spacePhotoUrl={resolvedPhotoUrl}
+        subtitle="Invite someone"
+        onBack={() => navigate(`/spaces/${spaceId}`)}
+      />
 
       <div className={styles.content}>
         {/* Invite form */}

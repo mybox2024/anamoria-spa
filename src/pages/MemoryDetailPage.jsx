@@ -7,6 +7,7 @@
 //     contain the raw {name} placeholder (migration 019 backfill edge case).
 //     Data was also fixed server-side (UPDATE 87 rows). This is a safety net.
 //   - One-line change only. Zero other modifications.
+//   - SC-x banner polish: "Updated" → "Your changes are saved"
 //
 // Previous changes (v2.4):
 //   - I-5 fix: Removed the entire view-mode render block. Component always
@@ -310,7 +311,7 @@ export default function MemoryDetailPage() {
         >
           <div className={styles.updatedBannerInner}>
             <span className={styles.updatedBannerIcon} aria-hidden="true">✓</span>
-            <span className={styles.updatedBannerText}>Updated</span>
+            <span className={styles.updatedBannerText}>Your changes are saved</span>
           </div>
         </div>
       )}

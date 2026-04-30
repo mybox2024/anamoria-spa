@@ -1,4 +1,11 @@
 // components/VoiceCard.jsx — Anamoria SPA
+// v2.3 — UI polish: warm theme label "VOICE MEMORY" → "VOICE" (April 29, 2026)
+//
+// Changes from v2.2:
+//   - Warm theme label text changed from "VOICE MEMORY" to "VOICE"
+//     for consistency with "TEXT" card label brevity.
+//   - No other changes.
+//
 // v2.2 — Inline signed URL support (April 22, 2026)
 // Changes from v2.1:
 //   - handlePlayPause uses memory.voiceNote.playbackUrl when available
@@ -222,7 +229,7 @@ export default function VoiceCard({ memory, getApi, theme = 'warm', onFavorite, 
         <div className={styles.headerTop}>
           {/* Warm: amber dot + "VOICE MEMORY" label */}
           {isWarm && <span className={styles.dot} />}
-          {isWarm && <span className={styles.label}>VOICE MEMORY</span>}
+          {isWarm && <span className={styles.label}>VOICE</span>}
 
           {/* Story: pause icon */}
           {isStory && <span className={styles.pauseIcon}>❙❙</span>}

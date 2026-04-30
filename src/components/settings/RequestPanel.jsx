@@ -1,4 +1,13 @@
 // components/settings/RequestPanel.jsx — Anamoria SPA
+// v1.1 — UI polish: remove context box, update hint text (April 29, 2026)
+//
+// Changes from v1.0:
+//   - Removed "SUBMITTING AS" context box — redundant, user is already
+//     logged in and this is their space.
+//   - Changed hint text from "We'll send you a receipt and respond within
+//     30 days." to "We will send an email to confirm we have your request"
+//   - No other changes.
+//
 // v1.0 — Phase C: Account request form panel (April 21, 2026)
 //
 // Renders inside SettingsPage right panel (not a standalone route).
@@ -151,13 +160,6 @@ export default function RequestPanel({ initialType, spaceName, getApi, appState,
     <div>
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
 
-        {/* User context */}
-        <div className={styles.contextBox}>
-          <span className={styles.contextLabel}>SUBMITTING AS</span>
-          <span className={styles.contextValue}>{userName}</span>
-          <span className={styles.contextDetail}>{userEmail}{userId ? ` · ${userId}` : ''}</span>
-        </div>
-
         {/* Type picklist */}
         <div className={styles.field}>
           <label className={styles.label} htmlFor="request-type">Request type</label>
@@ -263,7 +265,7 @@ export default function RequestPanel({ initialType, spaceName, getApi, appState,
         </div>
 
         <p className={styles.hint}>
-          We'll send you a receipt and respond within 30 days.
+          We will send an email to confirm we have your request
         </p>
       </form>
     </div>
