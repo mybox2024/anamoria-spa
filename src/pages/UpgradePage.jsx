@@ -1,17 +1,18 @@
 // pages/UpgradePage.jsx — Anamoria SPA
-// v1.4 — Downgrade routing + billing-aware toggle default (April 15, 2026)
+// v1.6 — Premium → Lifetime upgrade opens UpgradeToLifetimeModal inline (April 30, 2026)
 //
-// Changes from v1.3:
-//   - Fix 1: Free card "Downgrade" button now navigates to Settings billing panel
-//     with ?action=cancel to auto-open CancelModal (B6). Previously was always
-//     disabled with hardcoded `disabled: true`. Uses existing cancel flow
-//     (pause-first → confirm) — industry standard for SaaS downgrades.
-//   - Fix 2: BillingToggle defaults to user's current billing period instead of
-//     always defaulting to Annual. Monthly subscribers land on Monthly tab and see
-//     "Current plan" immediately. Free/Forever/Annual users still default to Annual
-//     (best-value conversion view). Uses useEffect sync after billing loads.
+// Changes from v1.5:
+//   - Fix 6: Premium subscribers clicking "Choose Lifetime" now opens
+//     UpgradeToLifetimeModal inline instead of navigating to CheckoutPage.
+//     Modal shows proration preview (credit from current plan), existing card,
+//     and calls POST /billing/forever-upgrade. Backend charges existing card,
+//     cancels subscription, upgrades tier to forever.
+//     CheckoutPage now only handles free→paid flows.
 //
-// Previous changes (v1.3):
+// Previous changes (v1.5):
+//   - Fix 5 (now unchanged): Monthly↔Annual switch opens SwitchPlanModal inline.
+//
+// Changes from v1.3 (carried forward):
 //   - goBack() uses navigate(-1) to return to actual previous page
 //   - Fallback to /settings if no history (direct URL visit)
 //
@@ -32,6 +33,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
 import { useBillingStatus } from '../hooks/useBillingStatus';
+import SwitchPlanModal from '../components/billing/SwitchPlanModal';
+import UpgradeToLifetimeModal from '../components/billing/UpgradeToLifetimeModal';
 import styles from './UpgradePage.module.css';
 
 /* ─── Icons (unchanged) ─── */
@@ -183,12 +186,18 @@ export default function UpgradePage() {
   // v1.4: Default to annual; sync to user's billing period once loaded (Fix 2)
   const [isAnnual, setIsAnnual] = useState(true);
 
+  // v1.5 (Fix 5): State for inline SwitchPlanModal
+  const [showSwitchPlan, setShowSwitchPlan] = useState(false);
+
+  // v1.6 (Fix 6): State for inline UpgradeToLifetimeModal
+  const [showLifetimeUpgrade, setShowLifetimeUpgrade] = useState(false);
+
   const getApi = useCallback(
     () => createApiClient(getAccessTokenSilently),
     [getAccessTokenSilently]
   );
 
-  const { billing, loading } = useBillingStatus(getApi);
+  const { billing, loading, refetch } = useBillingStatus(getApi);
 
   // v1.4 (Fix 2): Sync toggle to user's actual billing period once billing loads.
   // Monthly subscribers land on the Monthly tab and see "Current plan" in focus.
@@ -223,6 +232,23 @@ export default function UpgradePage() {
       return;
     }
 
+    // v1.5 (Fix 5): Plan switch — existing Premium subscriber clicking the opposite
+    // billing period. Opens SwitchPlanModal inline with proration preview instead of
+    // navigating to CheckoutPage (which only handles new subscriptions).
+    if (currentTier === 'premium' && (planId === 'monthly' || planId === 'annual') && planId !== currentPeriod) {
+      setShowSwitchPlan(true);
+      return;
+    }
+
+    // v1.6 (Fix 6): Forever upgrade — existing Premium subscriber buying Lifetime.
+    // Opens UpgradeToLifetimeModal with proration preview, charges existing card,
+    // cancels subscription, upgrades tier. Does NOT route to CheckoutPage.
+    if (currentTier === 'premium' && planId === 'forever') {
+      setShowLifetimeUpgrade(true);
+      return;
+    }
+
+    // New subscription (free → paid) — route to CheckoutPage
     const fromParam = spaceId ? `&from=${spaceId}` : '';
     navigate(`/settings/upgrade/checkout?plan=${planId}${fromParam}`);
   }
@@ -394,6 +420,28 @@ export default function UpgradePage() {
             Cancel or change your plan any time. Memories are never deleted on downgrade.
           </p>
         </>
+      )}
+
+      {/* v1.5 (Fix 5): SwitchPlanModal — opens inline for Premium plan switches */}
+      {showSwitchPlan && (
+        <SwitchPlanModal
+          isOpen
+          onClose={() => setShowSwitchPlan(false)}
+          billing={billing}
+          getApi={getApi}
+          onSuccess={() => { refetch(); setShowSwitchPlan(false); }}
+        />
+      )}
+
+      {/* v1.6 (Fix 6): UpgradeToLifetimeModal — opens inline for Premium → Lifetime */}
+      {showLifetimeUpgrade && (
+        <UpgradeToLifetimeModal
+          isOpen
+          onClose={() => setShowLifetimeUpgrade(false)}
+          billing={billing}
+          getApi={getApi}
+          onSuccess={() => { refetch(); setShowLifetimeUpgrade(false); }}
+        />
       )}
 
     </div>
