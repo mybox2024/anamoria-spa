@@ -1,4 +1,11 @@
 // pages/UpgradePage.jsx — Anamoria SPA
+// v1.7 — BUX-4: Free plan "5 memories" → "15 memories" (May 1, 2026)
+//
+// Changes from v1.6:
+//   - FREE_FEATURES[0]: "Up to 5 memories" → "Up to 15 memories"
+//     Backend enforces FREE_TIER_MEMORY_LIMIT=15 (env var on anamoria-memories).
+//     Frontend was showing the old pre-BG-3 value.
+//
 // v1.6 — Premium → Lifetime upgrade opens UpgradeToLifetimeModal inline (April 30, 2026)
 //
 // Changes from v1.5:
@@ -57,10 +64,10 @@ function CheckIcon() {
   );
 }
 
-/* ─── Plan definitions (unchanged) ─── */
+/* ─── Plan definitions (v1.7: BUX-4 fix — 5→15 memories) ─── */
 
 const FREE_FEATURES = [
-  'Up to 5 memories',
+  'Up to 15 memories',
   '1 space',
   'Voice, photo & text memories',
   'Up to 2 contributors',

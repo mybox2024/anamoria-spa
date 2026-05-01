@@ -1,4 +1,14 @@
 // components/billing/CancelModal.jsx — Anamoria SPA
+// v1.1 — BUX-9: Downgrade language — "Cancel" → "Downgrade to Free" (May 1, 2026)
+//
+// Changes from v1.0:
+//   - All user-facing copy changed from "cancel" language to "downgrade" language
+//   - Step 1: "Taking a break?" → "Thinking about changing plans?"
+//   - Step 2: "Cancel your Premium subscription" → "Move to the free plan"
+//   - Buttons: "Keep my plan" → "Keep Premium", "Cancel at end of period" → "Move to Free on {date}"
+//   - Backend call unchanged (DELETE /billing/subscription → cancel_at_period_end: true)
+//   - No logic or styling changes
+//
 // v1.0 — B6 Cancel Subscription modal (April 14, 2026)
 //
 // Two-step flow per Billing Flow v1.1 §3.2:
@@ -78,15 +88,15 @@ export default function CancelModal({ isOpen, onClose, billing, getApi, onSucces
 
   return (
     <div className={styles.backdrop} onClick={handleBackdropClick}>
-      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Cancel subscription">
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Change plan">
 
         {step === 1 && (
           <>
             {/* Step 1 — Pause offered first */}
-            <h2 className={styles.heading}>Taking a break?</h2>
+            <h2 className={styles.heading}>Thinking about changing plans?</h2>
 
             <p className={styles.body}>
-              Your memories will be here when you come back. If you just need some time away, you can pause your billing instead of cancelling.
+              Your memories will be here when you come back. If you just need some time away, you can pause your billing instead of moving to the free plan.
             </p>
 
             {/* Pause quick-select buttons */}
@@ -107,7 +117,7 @@ export default function CancelModal({ isOpen, onClose, billing, getApi, onSucces
               className={styles.cancelInsteadLink}
               onClick={() => setStep(2)}
             >
-              Or if you'd prefer to cancel instead →
+              Or continue to the free plan →
             </button>
           </>
         )}
@@ -115,11 +125,11 @@ export default function CancelModal({ isOpen, onClose, billing, getApi, onSucces
         {step === 2 && (
           <>
             {/* Step 2 — Cancellation confirmation */}
-            <h2 className={styles.heading}>Cancel your Premium subscription</h2>
+            <h2 className={styles.heading}>Move to the free plan</h2>
 
             <p className={styles.body}>
               Your Premium access will continue until {formatDate(billing?.currentPeriodEnd)}.
-              After that, your account returns to the free plan. Your memories are never deleted
+              After that, you'll move to the free plan (up to 15 memories). Your memories are never deleted
               — you'll always be able to access everything you've already saved.
             </p>
 
@@ -139,14 +149,14 @@ export default function CancelModal({ isOpen, onClose, billing, getApi, onSucces
                 onClick={onClose}
                 disabled={submitting}
               >
-                Keep my plan
+                Keep Premium
               </button>
               <button
                 className={styles.confirmCancelBtn}
                 onClick={handleCancel}
                 disabled={submitting}
               >
-                {submitting ? 'Cancelling…' : 'Cancel at end of period'}
+                {submitting ? 'Processing…' : `Move to Free on ${formatDate(billing?.currentPeriodEnd)}`}
               </button>
             </div>
           </>

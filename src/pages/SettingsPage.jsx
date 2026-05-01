@@ -1,4 +1,20 @@
 // pages/SettingsPage.jsx — Anamoria SPA
+// v3.1 — BUX-1: Payment history includes Lifetime (PaymentIntent) payments (May 1, 2026)
+// Changes from v3.0:
+//   - Section header renamed "Your invoices" → "Payment history"
+//   - Invoice rows now show description text from backend (e.g., "Lifetime membership upgrade")
+//   - Download link: "PDF" for subscription invoices, "Receipt" for one-time payments
+//   - Backend get-invoices.mjs v2.0 now returns both invoices and PaymentIntents
+//
+// v3.0 — Forever tier billing panel: payment method, full invoices, Change plan (May 1, 2026)
+// Changes from v2.9:
+//   - Forever tier BillingPanel now shows full billing sections:
+//     Plan card with "Change plan" link, Payment method with Update,
+//     and full invoices list (not just first invoice).
+//     Previously showed minimal view with plan card + single invoice only.
+//   - UpdatePaymentModal renders for forever tier (already rendered for premium).
+//   - No "Manage subscription" section for forever (no subscription to manage).
+//
 // v2.9 — UI polish: Need Help goes directly to request form (April 29, 2026)
 // Changes from v2.8:
 //   - 'need-help' case now renders RequestPanel directly with title + subtitle
@@ -674,31 +690,62 @@ function BillingPanel({ spaceId, navigate, getApi, initialAction }) {
     return (
       <div className={styles.panel}>
         <h2 className={styles.panelTitle}>Plan &amp; Billing</h2>
+
         <div className={styles.planCard}>
           <div className={styles.planCardLeft}>
             <span className={styles.planName}>Lifetime Member ♾</span>
             <span className={styles.planLimits}>Member since {formatDate(billing.foreverPurchasedAt)}</span>
           </div>
+          <button className={styles.changePlanLink} onClick={goUpgrade}>Change plan</button>
         </div>
-        {invoices.length > 0 && (
+
+        {billing.cardBrand && billing.cardLast4 && (
           <div className={styles.billingSection}>
-            <h3 className={styles.billingSectionTitle}>Your invoice</h3>
+            <h3 className={styles.billingSectionTitle}>Payment method</h3>
+            <div className={styles.cardInfo}>
+              <span className={styles.cardBrand}>{capitalizeFirst(billing.cardBrand)}</span>
+              <span className={styles.cardLast4}>ending in {billing.cardLast4}</span>
+              <button className={styles.cardUpdateLink} onClick={() => setShowUpdatePayment(true)}>Update</button>
+            </div>
+          </div>
+        )}
+
+        {invoicesLoading ? (
+          <div className={styles.billingSection}>
+            <h3 className={styles.billingSectionTitle}>Payment history</h3>
+            <p className={styles.panelLoading}>Loading payment history…</p>
+          </div>
+        ) : invoices.length > 0 ? (
+          <div className={styles.billingSection}>
+            <h3 className={styles.billingSectionTitle}>Payment history</h3>
             <div className={styles.invoiceList}>
-              {invoices.slice(0, 1).map((inv) => (
+              {invoices.map((inv) => (
                 <div key={inv.id} className={styles.invoiceRow}>
                   <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
                   <span className={styles.invoiceAmount}>{formatAmount(inv.amount)}</span>
-                  {inv.pdfUrl && (
+                  <span className={styles.invoiceStatus}>{inv.description || inv.status}</span>
+                  {inv.pdfUrl ? (
                     <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
                       <DownloadIcon /> PDF
                     </a>
+                  ) : inv.receiptUrl ? (
+                    <a href={inv.receiptUrl} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
+                      <DownloadIcon /> Receipt
+                    </a>
+                  ) : (
+                    <span className={styles.invoiceLink} />
                   )}
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
+
         <p className={styles.panelHint}>You have lifetime access to Anamoria. No recurring charges.</p>
+
+        {showUpdatePayment && (
+          <UpdatePaymentModal isOpen onClose={() => setShowUpdatePayment(false)} getApi={getApi} onSuccess={refetch} />
+        )}
       </div>
     );
   }
@@ -718,7 +765,7 @@ function BillingPanel({ spaceId, navigate, getApi, initialAction }) {
       {billing.cancelAtPeriodEnd && (
         <div className={styles.cancelNotice}>
           <p className={styles.cancelNoticeText}>
-            Your plan cancels on {formatDate(billing.currentPeriodEnd)}. You'll move to the Free plan after that date.
+            Your plan moves to Free on {formatDate(billing.currentPeriodEnd)}. Your memories stay accessible.
           </p>
           <button className={styles.cancelNoticeAction} onClick={handleReactivate} disabled={reactivating}>
             {reactivating ? 'Reactivating…' : 'Reactivate'}
@@ -773,7 +820,7 @@ function BillingPanel({ spaceId, navigate, getApi, initialAction }) {
           )}
           {!billing.cancelAtPeriodEnd && (
             <button className={styles.managementLink} onClick={() => setShowCancel(true)}>
-              Cancel subscription
+              Downgrade to Free
             </button>
           )}
         </div>
@@ -781,22 +828,28 @@ function BillingPanel({ spaceId, navigate, getApi, initialAction }) {
 
       {invoicesLoading ? (
         <div className={styles.billingSection}>
-          <h3 className={styles.billingSectionTitle}>Your invoices</h3>
-          <p className={styles.panelLoading}>Loading invoices…</p>
+          <h3 className={styles.billingSectionTitle}>Payment history</h3>
+          <p className={styles.panelLoading}>Loading payment history…</p>
         </div>
       ) : invoices.length > 0 ? (
         <div className={styles.billingSection}>
-          <h3 className={styles.billingSectionTitle}>Your invoices</h3>
+          <h3 className={styles.billingSectionTitle}>Payment history</h3>
           <div className={styles.invoiceList}>
             {invoices.map((inv) => (
               <div key={inv.id} className={styles.invoiceRow}>
                 <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
                 <span className={styles.invoiceAmount}>{formatAmount(inv.amount)}</span>
-                <span className={styles.invoiceStatus}>{inv.status}</span>
-                {inv.pdfUrl && (
+                <span className={styles.invoiceStatus}>{inv.description || inv.status}</span>
+                {inv.pdfUrl ? (
                   <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
                     <DownloadIcon /> PDF
                   </a>
+                ) : inv.receiptUrl ? (
+                  <a href={inv.receiptUrl} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
+                    <DownloadIcon /> Receipt
+                  </a>
+                ) : (
+                  <span className={styles.invoiceLink} />
                 )}
               </div>
             ))}
