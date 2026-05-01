@@ -1,4 +1,12 @@
-/* pages/CreateSpacePage.module.css */
+/* pages/CreateSpacePage.module.css
+   v2.0 — May 1, 2026 — full rewrite
+     Page chrome only. Form body + CTA styles live in CreateSpaceForm.module.css.
+     - Page background, safe-area padding
+     - Responsive container: 640 / 780 / 880 / 960 (matches WritePage / InvitePage)
+     - .formCard provides the white rounded card the form sits inside —
+       same visual treatment as the modal body, minus the overlay/header.
+   v1.0 — Initial implementation.
+*/
 
 .page {
   display: flex;
@@ -13,160 +21,48 @@
 
 .content {
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
 }
 
-/* ─── Header ─── */
+/* ─── Responsive container width — matches WritePage / InvitePage ladder ─── */
 
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+@media (min-width: 1024px) {
+  .content { max-width: 780px; }
 }
 
-.brand {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-logo);
+@media (min-width: 1280px) {
+  .content { max-width: 880px; }
 }
 
-.title {
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  line-height: 1.2;
+@media (min-width: 1600px) {
+  .content { max-width: 960px; }
 }
 
-.subtitle {
-  font-size: 15px;
-  color: var(--color-text-subtle);
-  line-height: 1.5;
+/* ─── Form card ───
+   Same surface treatment as the modal body: white background, rounded corners,
+   soft shadow. Sits on the page background instead of an overlay backdrop.
+*/
+
+.formCard {
+  background: var(--color-bg-white, #ffffff);
+  border-radius: 20px;
+  border: 1px solid var(--color-border-light, #edebe7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 
-/* ─── Form ─── */
+/* ─── Mobile tightening ─── */
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+@media (max-width: 480px) {
+  .page {
+    padding: 32px 16px;
+    padding-top: calc(32px + var(--safe-area-top));
+    padding-bottom: calc(32px + var(--safe-area-bottom));
+  }
 
-.fieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-body);
-}
-
-.required {
-  color: var(--color-red);
-}
-
-.input {
-  width: 100%;
-  height: 52px;
-  padding: 0 16px;
-  font-size: 16px;
-  color: var(--color-text-primary);
-  background: var(--color-bg-white);
-  border: 1.5px solid var(--color-border);
-  border-radius: 12px;
-  outline: none;
-  transition: border-color var(--transition-fast);
-  font-family: inherit;
-}
-
-.input::placeholder {
-  color: var(--color-text-placeholder);
-}
-
-.input:focus {
-  border-color: var(--color-sage-dark);
-}
-
-.input:disabled {
-  opacity: 0.5;
-}
-
-/* Date inputs on iOS need extra height */
-input[type="date"].input {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-/* ─── Optional section ─── */
-
-.optionalSection {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  background: var(--color-bg-white);
-  border: 1px solid var(--color-border-light);
-  border-radius: 16px;
-}
-
-.optionalLabel {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-subtle);
-}
-
-/* ─── Error ─── */
-
-.error {
-  font-size: 13px;
-  color: var(--color-red);
-}
-
-/* ─── Button ─── */
-
-.btn {
-  width: 100%;
-  height: 52px;
-  background: var(--color-sage-dark);
-  color: var(--color-text-white);
-  font-size: 15px;
-  font-weight: 600;
-  border: none;
-  border-radius: 26px;
-  cursor: pointer;
-  transition: background var(--transition-fast), opacity var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn:hover:not(:disabled) {
-  background: #4a6954;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.btnSpinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  .formCard {
+    border-radius: 16px;
+  }
 }

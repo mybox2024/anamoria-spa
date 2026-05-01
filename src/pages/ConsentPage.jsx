@@ -1,6 +1,15 @@
 // pages/ConsentPage.jsx — Anamoria SPA
 // Route: /consent (protected — JWT required)
 //
+// v1.1 — May 1, 2026
+//   - Each policy section now renders as <h2> + <ul><li>… for scannability.
+//   - Responsive container width (640/780/880/960) — matches WritePage / InvitePage
+//     ladder so the form expands with viewport on ultrawide.
+//   - No behavior changes: same POST /pilot/consent payload, same age-confirmation
+//     state, same navigation on success, same policy version "1.0".
+//
+// v1.0 — Initial implementation.
+//
 // Flow:
 //   1. Display privacy policy summary
 //   2. User checks age confirmation + accepts
@@ -66,38 +75,39 @@ export default function ConsentPage() {
 
           <div className={styles.policySection}>
             <h2 className={styles.policySectionTitle}>What Anamoria collects</h2>
-            <p className={styles.policySectionText}>
-              Voice recordings, written memories, and photos you choose to share.
-              Your name and email address for your account. Basic usage information
-              to improve the experience.
-            </p>
+            <ul className={styles.policyList}>
+              <li>Voice recordings, written memories, and photos you choose to share.</li>
+              <li>Your name and email address for your account.</li>
+              <li>Basic usage information to improve the experience.</li>
+            </ul>
           </div>
 
           <div className={styles.policySection}>
             <h2 className={styles.policySectionTitle}>How we protect your data</h2>
-            <p className={styles.policySectionText}>
-              All recordings and memories are encrypted in transit and at rest.
-              Access is restricted to you and anyone you explicitly invite as a
-              contributor. Anamoria staff cannot access your memory content.
-            </p>
+            <ul className={styles.policyList}>
+              <li>All recordings and memories are encrypted in transit and at rest.</li>
+              <li>Access is restricted to you and anyone you explicitly invite as a contributor.</li>
+              <li>Anamoria staff cannot access your memory content.</li>
+            </ul>
           </div>
 
           <div className={styles.policySection}>
             <h2 className={styles.policySectionTitle}>Your rights</h2>
-            <p className={styles.policySectionText}>
-              You can export all your data at any time. You can delete your account
-              and all associated memories permanently. You can withdraw consent and
-              we will remove your data within 30 days.
-            </p>
+            <ul className={styles.policyList}>
+              <li>You can export all your data at any time.</li>
+              <li>You can delete your account and all associated memories permanently.</li>
+              <li>You can withdraw consent and we will remove your data within 30 days.</li>
+            </ul>
           </div>
 
           <div className={styles.policySection}>
             <h2 className={styles.policySectionTitle}>Pilot program</h2>
-            <p className={styles.policySectionText}>
-              You are participating in an early pilot. Features may change. We may
-              contact you for feedback. Participation is voluntary and you may
-              stop at any time.
-            </p>
+            <ul className={styles.policyList}>
+              <li>You are participating in an early pilot.</li>
+              <li>Features may change.</li>
+              <li>We may contact you for feedback.</li>
+              <li>Participation is voluntary and you may stop at any time.</li>
+            </ul>
           </div>
 
         </div>

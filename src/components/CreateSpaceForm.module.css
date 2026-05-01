@@ -1,0 +1,191 @@
+/* components/CreateSpaceForm.module.css
+   v1.0 — May 1, 2026
+
+   Body + CTA styles for the shared CreateSpaceForm. Lifted verbatim from
+   CreateSpaceModal.module.css v1.0 — same class names, same values, so the
+   visual rendering is identical to the modal body.
+
+   Class-name parity (form vs. modal):
+     .body, .prompt, .input,
+     .photoRow, .photoDashed, .photoHelper, .fileInput,
+     .photoPreviewWrap, .photoPreviewImg, .photoChange,
+     .cta, .error, .nextBtn, .privacyNote
+
+   The modal CSS still contains the same classes today (until the modal is
+   refactored to consume CreateSpaceForm). When that refactor happens, remove
+   the duplicates from CreateSpaceModal.module.css. Until then, both files
+   declare the same classes — this is intentional and tracked.
+*/
+
+/* ─── Body ─── */
+
+.body {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.prompt {
+  font-size: 18px;
+  font-family: var(--font-serif, 'Lora', Georgia, serif);
+  font-weight: 500;
+  color: var(--color-text-primary, #2d3436);
+  line-height: 1.45;
+  text-align: center;
+  margin: 0 0 24px 0;
+}
+
+/* Name input */
+.input {
+  width: 100%;
+  padding: 18px 20px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: 1.5px solid #e0ddd8;
+  background: var(--color-bg, #faf9f7);
+  text-align: center;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-primary, #2d3436);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--color-sage-dark, #5b7a65);
+}
+
+.input::placeholder {
+  color: var(--color-text-placeholder, #b2bec3);
+}
+
+/* ─── Photo upload ─── */
+
+.photoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  justify-content: center;
+}
+
+.photoDashed {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px dashed #d0d0d0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease;
+  color: var(--color-text-subtle, #737373);
+}
+
+.photoDashed:hover {
+  border-color: var(--color-sage, #7c9885);
+}
+
+.photoHelper {
+  font-size: 14px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoPreviewWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.photoPreviewImg {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.photoChange {
+  font-size: 13px;
+  color: var(--color-sage-dark, #5b7a65);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+/* ─── CTA area ─── */
+
+.cta {
+  padding: 0 28px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-red, #b85450);
+  margin: 0;
+  text-align: center;
+}
+
+/* Next / Create space button — full-width sage */
+.nextBtn {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+  color: var(--color-text-white, #ffffff);
+  background: var(--color-sage, #7c9885);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.nextBtn:hover:not(:disabled) {
+  background: var(--color-sage-dark, #5b7a65);
+}
+
+.nextBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Privacy note */
+.privacyNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-subtle, #737373);
+  font-family: var(--font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+
+.privacyNote svg {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* ─── Reduced motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .photoDashed,
+  .nextBtn {
+    transition: none !important;
+  }
+}

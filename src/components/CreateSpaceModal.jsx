@@ -1,6 +1,14 @@
 // components/CreateSpaceModal.jsx — Anamoria SPA
 // v1.2 — Wire photo upload on space creation (April 24, 2026)
 //
+// NOTE (May 2026): The form body of this modal (prompt, name input, photo row,
+// CTA, privacy footer) was extracted to src/components/CreateSpaceForm.jsx for
+// reuse by the /spaces/new full-page route. This modal still uses its own
+// inline copy of that logic — kept verbatim to avoid regression risk during
+// the page-route work. When this modal is next touched, replace the inline
+// body+cta with <CreateSpaceForm ... /> and remove the duplicates from
+// CreateSpaceModal.module.css.
+//
 // Changes from v1.1:
 //   - Replaced TODO stub with actual photo upload flow:
 //     1. POST /spaces creates the space (returns newSpaceId)

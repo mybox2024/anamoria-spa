@@ -1,4 +1,12 @@
-/* pages/ConsentPage.module.css — Anamoria SPA */
+/* pages/ConsentPage.module.css — Anamoria SPA
+   v1.1 — May 1, 2026
+     - Added .policyList and .policyList li styles for bulleted policy sections.
+     - Container max-width now scales 640 → 780 → 880 → 960 across breakpoints
+       (matches WritePage / InvitePage ladder per FeedSidebar Settings session §3.18, §3.20).
+     - Section text spacing kept consistent with original .policySectionText for
+       backwards-visual-compat — class kept in case any downstream consumer references it.
+   v1.0 — Initial implementation.
+*/
 
 .page {
   display: flex;
@@ -13,10 +21,24 @@
 
 .content {
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+
+/* ─── Responsive container width — matches WritePage / InvitePage ladder ─── */
+
+@media (min-width: 1024px) {
+  .content { max-width: 780px; }
+}
+
+@media (min-width: 1280px) {
+  .content { max-width: 880px; }
+}
+
+@media (min-width: 1600px) {
+  .content { max-width: 960px; }
 }
 
 /* ─── Header ─── */
@@ -58,7 +80,7 @@
 }
 
 .policySection {
-  padding: 18px 20px;
+  padding: 20px 22px;
   border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -72,13 +94,46 @@
   color: var(--color-sage-dark);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 6px;
+  margin: 0 0 10px;
 }
 
+/* Retained for any consumer still rendering paragraphs in policy sections.
+   v1.1 default rendering uses .policyList instead. */
 .policySectionText {
   font-size: 14px;
   color: var(--color-text-body);
   line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── v1.1: Bulleted policy list ─── */
+
+.policyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.policyList li {
+  font-size: 14px;
+  color: var(--color-text-body);
+  line-height: 1.55;
+  padding-left: 16px;
+  position: relative;
+}
+
+.policyList li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-sage-dark);
 }
 
 /* ─── Age checkbox ─── */
@@ -160,4 +215,14 @@
   color: var(--color-text-subtle);
   text-align: center;
   line-height: 1.5;
+}
+
+/* ─── Reduced motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btnSpinner {
+    transition: none !important;
+    animation: none !important;
+  }
 }
