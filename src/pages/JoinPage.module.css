@@ -638,3 +638,68 @@
     font-size: 22px;
   }
 }
+/* ═══════════════════════════════════════
+   v1.6 additions — Invite token flow
+   Append these to JoinPage.module.css after the existing styles.
+   ═══════════════════════════════════════ */
+
+/* ─── Step 0: Invite loading screen ─── */
+
+.inviteLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 48px 0;
+}
+
+.inviteButterfly {
+  width: 64px;
+  height: auto;
+  animation: invitePulse 2s ease-in-out infinite;
+}
+
+@keyframes invitePulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.inviteLoadingText {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+/* ─── Invite error banner (Step 1 fallback) ─── */
+
+.inviteErrorBanner {
+  background: rgba(220, 53, 69, 0.06);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 8px;
+}
+
+.inviteErrorBanner p {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-red, #dc3545);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Masked email hint (Step 2, invite flow) ─── */
+
+.inviteEmailHint {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-subtle);
+  margin: -8px 0 0;
+  letter-spacing: 0.01em;
+}

@@ -1,5 +1,15 @@
 // App.jsx — Anamoria SPA
-// v1.17 — BP-1a Fix 5: Bootstrap join error recovery (April 27, 2026)
+// v1.18 — May 1, 2026 — Personal invite token support
+// Changes from v1.17:
+//   - Bootstrap join flow passes ana_inviteToken from sessionStorage to
+//     POST /pilot/join (inviteToken field). Token is claimed atomically
+//     with user creation on the server.
+//   - NEW error: EMAIL_MISMATCH — shown when Auth0 login email doesn't
+//     match the invite token's email. Non-retryable, with "Start over" link.
+//   - NEW route: /join/invite/:token → JoinPage (public, no auth)
+//   - sessionStorage cleanup includes ana_inviteToken after successful join.
+//
+// Previous changes (v1.17): BP-1a Fix 5: Bootstrap join error recovery (April 27, 2026)
 // Changes from v1.16:
 //   - 409 USER_ALREADY_EXISTS recovery: retry GET /pilot/me + /spaces,
 //     route normally instead of showing generic error screen.
@@ -223,15 +233,23 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         }
 
         try {
-          const joinData = await api.post('/pilot/join', {
+          // v1.18: Include invite token if present (personal invite flow)
+          const inviteToken = sessionStorage.getItem('ana_inviteToken');
+          const joinPayload = {
             groupId,
             email: auth0User?.email || '',
             displayName: collectedName || auth0User?.name || auth0User?.nickname || '',
-          });
+          };
+          if (inviteToken) {
+            joinPayload.inviteToken = inviteToken;
+          }
+
+          const joinData = await api.post('/pilot/join', joinPayload);
 
           sessionStorage.removeItem('ana_groupId');
           sessionStorage.removeItem('ana_groupName');
           sessionStorage.removeItem('ana_displayName');
+          sessionStorage.removeItem('ana_inviteToken');
 
           setAppState({
             bootstrapped: true,
@@ -291,6 +309,7 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
               GROUP_NOT_ACTIVE: "This space isn't open just yet. Your group leader will know when it's ready.",
               EMAIL_NOT_ALLOWED: "We couldn't find your email in this space. Your group leader can add you, or help sort it out.",
               USER_DEACTIVATED: "Your access to this space is paused. Your group leader can help you with next steps.",
+              EMAIL_MISMATCH: "The email you signed in with doesn't match this invite. Please sign in with the email address your invite was sent to.",
             };
             const message = JOIN_403_MESSAGES[joinErr.error] || null;
             setAppState(prev => ({
@@ -406,6 +425,7 @@ function AppRoutes() {
               sessionStorage.removeItem('ana_groupId');
               sessionStorage.removeItem('ana_groupName');
               sessionStorage.removeItem('ana_displayName');
+              sessionStorage.removeItem('ana_inviteToken');
               window.location.href = '/join';
             }}
           >
@@ -437,6 +457,8 @@ function AppRoutes() {
         <Routes>
           {/* ── Public ───────────────────────────────────────────── */}
           <Route path="/join" element={<JoinPage />} />
+          {/* v1.18: Personal invite token route */}
+          <Route path="/join/invite/:token" element={<JoinPage />} />
 
           {/* ── Protected ─────────────────────────────────────────── */}
           <Route
