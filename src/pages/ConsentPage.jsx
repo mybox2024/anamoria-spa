@@ -1,6 +1,19 @@
 // pages/ConsentPage.jsx — Anamoria SPA
 // Route: /consent (protected — JWT required)
 //
+// v1.2 — May 1, 2026
+//   - Capture POST /pilot/consent response and call appContext.updateConsent
+//     with createdAt + policyVersion before navigating. SettingsPage Account
+//     panel now reflects the new consent immediately in the same session,
+//     no hard refresh required. createdAt is the DB-authoritative value from
+//     the Lambda's RETURNING created_at on the INSERT (no client-side
+//     timestamp fabrication, no extra HTTP round-trip).
+//   - No changes to API payload, age confirmation, navigation target, or copy.
+//   - If updateConsent is unavailable for any reason (older App.jsx, race),
+//     navigation still proceeds — appState will pick up consent on the next
+//     /pilot/me fetch (hard refresh / next session) per the LATERAL JOIN in
+//     pilotaccessindex.mjs v1.5+. No-op fallback, not a failure path.
+//
 // v1.1 — May 1, 2026
 //   - Each policy section now renders as <h2> + <ul><li>… for scannability.
 //   - Responsive container width (640/780/880/960) — matches WritePage / InvitePage
@@ -14,7 +27,8 @@
 //   1. Display privacy policy summary
 //   2. User checks age confirmation + accepts
 //   3. POST /pilot/consent → { consentId, consentType, createdAt }
-//   4. Navigate to /spaces/new
+//   4. Update appState via context (consentDate, consentPolicyVersion)
+//   5. Navigate to /spaces/new
 //
 // API: POST /pilot/consent
 //   Request: { consentType: 'member_activation', policyVersion: '1.0', consentPurpose: 'Pilot participation' }
@@ -24,6 +38,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../api/client';
+import { useAppContext } from '../App';
 import styles from './ConsentPage.module.css';
 
 const POLICY_VERSION = '1.0';
@@ -32,6 +47,12 @@ export default function ConsentPage() {
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
   const api = createApiClient(getAccessTokenSilently);
+
+  // v1.2: Pull updateConsent off the app context so we can refresh appState
+  // immediately after the POST succeeds. Optional-chained — if running against
+  // an older App.jsx that doesn't expose updateConsent, the navigate still
+  // works and appState picks up consent on next /pilot/me fetch.
+  const { updateConsent } = useAppContext();
 
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,12 +64,24 @@ export default function ConsentPage() {
     setLoading(true);
 
     try {
-      await api.post('/pilot/consent', {
+      const response = await api.post('/pilot/consent', {
         consentType: 'member_activation',
         policyVersion: POLICY_VERSION,
         consentPurpose: 'Pilot participation',
         metadata: { ageConfirmed: true },
       });
+
+      // v1.2: Push DB-authoritative consent into appState before navigating.
+      // response.createdAt comes from RETURNING created_at on the Lambda's
+      // INSERT — same value the next GET /pilot/me LATERAL JOIN would return.
+      // policyVersion is the value we just submitted (echoed back is unchanged).
+      if (typeof updateConsent === 'function' && response?.createdAt) {
+        updateConsent({
+          consentDate: response.createdAt,
+          consentPolicyVersion: POLICY_VERSION,
+        });
+      }
+
       navigate('/spaces/new', { replace: true });
     } catch (err) {
       setError('Something went wrong. Please try again.');

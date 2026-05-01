@@ -1,5 +1,24 @@
 // App.jsx — Anamoria SPA
-// v1.18 — May 1, 2026 — Personal invite token support
+// v1.19 — May 1, 2026 — Surface consent record in appState
+// Changes from v1.18:
+//   - appState now includes consentDate and consentPolicyVersion. The Lambda's
+//     GET /pilot/me has been returning these since pilotaccessindex.mjs v1.5
+//     (LATERAL JOIN against consent_records), but the bootstrap was dropping
+//     them on the floor. SettingsPage Account panel reads them — without this
+//     fix it always shows "No consent record on file."
+//   - Three setAppState blocks updated to capture the fields:
+//       (1) Returning user — Promise.all(/pilot/me, /spaces) success
+//       (2) New user post-join — joinData has no consent yet, set both null
+//       (3) 409 retry — same as (1)
+//   - NEW: updateConsent context callback — whitelists consentDate /
+//     consentPolicyVersion. Called by ConsentPage v1.2 after successful
+//     POST /pilot/consent so the Settings panel reflects the new consent
+//     immediately, no hard refresh required. Uses createdAt from the Lambda
+//     response (DB-authoritative, no client-side fabrication, no extra HTTP).
+//   - Pattern mirrors existing updateProfile callback exactly.
+//   - Zero route changes, zero auth changes, zero Lambda changes.
+//
+// Previous changes (v1.18): Personal invite token support
 // Changes from v1.17:
 //   - Bootstrap join flow passes ana_inviteToken from sessionStorage to
 //     POST /pilot/join (inviteToken field). Token is claimed atomically
@@ -182,6 +201,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
     pilotRole: null,
     groupId: null,
     groupName: null,
+    consentDate: null,
+    consentPolicyVersion: null,
     spaces: [],
     currentSpace: null,
   });
@@ -208,6 +229,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
         pilotRole: meData.pilotRole,
         groupId: meData.groupId,
         groupName: meData.groupName,
+        consentDate: meData.consentDate || null,
+        consentPolicyVersion: meData.consentPolicyVersion || null,
         spaces,
         currentSpace,
       });
@@ -260,6 +283,12 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
             pilotRole: joinData.pilotRole,
             groupId: joinData.groupId,
             groupName: joinData.groupName,
+            // v1.19: User has not consented yet — about to navigate to /consent.
+            // ConsentPage v1.2 calls updateConsent() with DB-authoritative values
+            // immediately after POST /pilot/consent succeeds, so these fill in
+            // before the user can reach the Settings panel.
+            consentDate: null,
+            consentPolicyVersion: null,
             spaces: [],
             currentSpace: null,
           });
@@ -287,6 +316,8 @@ function useSessionBootstrap(isAuthenticated, getAccessTokenSilently, auth0User)
                 pilotRole: retryMe.pilotRole,
                 groupId: retryMe.groupId,
                 groupName: retryMe.groupName,
+                consentDate: retryMe.consentDate || null,
+                consentPolicyVersion: retryMe.consentPolicyVersion || null,
                 spaces,
                 currentSpace: spaces[0] || null,
               });
@@ -394,9 +425,32 @@ function AppRoutes() {
     setAppState(prev => ({ ...prev, spaces: newSpaces }));
   }, [setAppState]);
 
+  // v1.19: Narrow updateConsent action — whitelists consentDate and
+  // consentPolicyVersion only. Consumed by ConsentPage v1.2 after a successful
+  // POST /pilot/consent so the SettingsPage Account panel reflects the new
+  // consent record immediately, no hard refresh required.
+  //
+  // Caller passes the createdAt value from the Lambda response (DB-authoritative
+  // — comes from RETURNING created_at on the INSERT), and the policyVersion
+  // the page just submitted. Same values the next /pilot/me fetch would return.
+  //
+  // Same intentional-friction whitelist pattern as updateProfile: any future
+  // consent-related field must be explicitly added to ALLOWED here before it
+  // can flow into context.
+  const updateConsent = useCallback((updates) => {
+    const ALLOWED = ['consentDate', 'consentPolicyVersion'];
+    setAppState(prev => {
+      const filtered = Object.fromEntries(
+        Object.entries(updates).filter(([k, v]) => ALLOWED.includes(k) && v !== undefined)
+      );
+      if (Object.keys(filtered).length === 0) return prev;
+      return { ...prev, ...filtered };
+    });
+  }, [setAppState]);
+
   const contextValue = useMemo(
-    () => ({ ...appState, sessionTag, updateProfile, updateSpaces }),
-    [appState, sessionTag, updateProfile, updateSpaces]
+    () => ({ ...appState, sessionTag, updateProfile, updateSpaces, updateConsent }),
+    [appState, sessionTag, updateProfile, updateSpaces, updateConsent]
   );
 
   if (isLoading) {
