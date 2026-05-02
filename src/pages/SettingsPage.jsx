@@ -1,4 +1,15 @@
 // pages/SettingsPage.jsx — Anamoria SPA
+// v3.2 — Wrap request + request-success cases in .panel container (May 2, 2026)
+// Changes from v3.1:
+//   - case 'request' now wraps RequestPanel in <div className={styles.panel}>
+//     with <h2>Submit a Request</h2> heading. Previously rendered without
+//     wrapper, causing the form to span the full rightPanel width and
+//     mismatch the Need Help variant.
+//   - case 'request-success' now wraps RequestSuccessPanel in
+//     <div className={styles.panel}>. No heading added — the success panel
+//     has its own internal "Request received" heading.
+//   - No other changes.
+//
 // v3.1 — BUX-1: Payment history includes Lifetime (PaymentIntent) payments (May 1, 2026)
 // Changes from v3.0:
 //   - Section header renamed "Your invoices" → "Payment history"
@@ -1030,13 +1041,27 @@ export default function SettingsPage() {
           onOpenRequest={(type) => openRequestPanel(type)} />;
 
       case 'request':
-        return <RequestPanel initialType={requestType} spaceName={requestSpaceName}
-          getApi={getApi} appState={appState}
-          onSuccess={handleRequestSuccess} onCancel={handleRequestCancel} />;
+        return (
+          <div className={styles.panel}>
+            <h2 className={styles.panelTitle}>Submit a Request</h2>
+            <RequestPanel
+              initialType={requestType}
+              spaceName={requestSpaceName}
+              getApi={getApi}
+              appState={appState}
+              onSuccess={handleRequestSuccess}
+              onCancel={handleRequestCancel}
+            />
+          </div>
+        );
 
       case 'request-success':
         return requestResult
-          ? <RequestSuccessPanel result={requestResult} onBack={handleRequestSuccessBack} />
+          ? (
+            <div className={styles.panel}>
+              <RequestSuccessPanel result={requestResult} onBack={handleRequestSuccessBack} />
+            </div>
+          )
           : <AccountPanel user={user} appState={appState} getApi={getApi}
               onOpenRequest={(type) => openRequestPanel(type)} />;
 

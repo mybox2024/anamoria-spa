@@ -1,4 +1,14 @@
 /* components/settings/RequestSuccessPanel.module.css
+   v1.1 — Responsive widths + breathing room (May 2, 2026)
+   Changes from v1.0:
+     - .wrapper gap: 16px → 24px (more breathing room between icon, heading,
+       message, receipt, and back button)
+     - .message max-width: 400px → 480px base, 540px @ 1280px, 600px @ 1600px
+     - .receipt max-width: 400px → 480px base, 540px @ 1280px, 600px @ 1600px
+     - Responsive scale aligns with parent .panel container in
+       SettingsPage.module.css v2.0 (780/880/960px breakpoints)
+     - No other classes modified.
+
    v1.0 — Phase C: Request success panel (April 21, 2026)
    Tokens: variables.css
 */
@@ -8,7 +18,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 16px;
+  gap: 24px;
   padding-top: 24px;
 }
 
@@ -30,16 +40,32 @@
   margin: 0;
   line-height: 1.6;
   font-family: var(--font-sans);
-  max-width: 400px;
+  max-width: 480px;
+}
+
+@media (min-width: 1280px) {
+  .message { max-width: 540px; }
+}
+
+@media (min-width: 1600px) {
+  .message { max-width: 600px; }
 }
 
 .receipt {
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
   background: var(--color-bg-white, #ffffff);
   border: 1px solid var(--color-border-light, #edebe7);
   border-radius: 12px;
   overflow: hidden;
+}
+
+@media (min-width: 1280px) {
+  .receipt { max-width: 540px; }
+}
+
+@media (min-width: 1600px) {
+  .receipt { max-width: 600px; }
 }
 
 .receiptRow {

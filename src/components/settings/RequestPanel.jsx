@@ -1,4 +1,14 @@
 // components/settings/RequestPanel.jsx — Anamoria SPA
+// v1.2 — Remove subject pre-fill (May 2, 2026)
+//
+// Changes from v1.1:
+//   - Subject useState initializer simplified to '' (empty string).
+//     Previous: conditional `Question about ${spaceName}` when type='other'
+//     and spaceName was provided. Pre-fill removed entirely per product
+//     direction. The `spaceName` prop is retained in the signature so
+//     existing callers do not break — it is simply no longer consumed.
+//   - No other changes.
+//
 // v1.1 — UI polish: remove context box, update hint text (April 29, 2026)
 //
 // Changes from v1.0:
@@ -16,7 +26,7 @@
 //
 // Props:
 //   initialType   — pre-selected request type (from AccountPanel/NeedHelpPanel)
-//   spaceName     — space context for subject pre-fill (from NeedHelpPanel)
+//   spaceName     — space context (retained for caller compatibility; no longer consumed)
 //   getApi        — API client factory
 //   appState      — user context for display
 //   onSuccess     — callback with { requestId, requestType, requestedAt }
@@ -41,9 +51,7 @@ export default function RequestPanel({ initialType, spaceName, getApi, appState,
   const [reason, setReason] = useState('');
   const [acknowledgedIrreversible, setAcknowledgedIrreversible] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  const [subject, setSubject] = useState(
-    requestType_ === 'other' && spaceName ? `Question about ${spaceName}` : ''
-  );
+  const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);

@@ -1,4 +1,11 @@
 // components/settings/RequestSuccessPanel.jsx — Anamoria SPA
+// v1.1 — Copy update: response window 30 days → 7 days (May 2, 2026)
+//
+// Changes from v1.0:
+//   - Message text "...will get back to you within 30 days." changed to
+//     "...will get back to you within 7 days." per product direction.
+//   - No other changes.
+//
 // v1.0 — Phase C: Request submission success panel (April 21, 2026)
 //
 // Renders inside SettingsPage right panel after successful form submission.
@@ -43,7 +50,7 @@ export default function RequestSuccessPanel({ result, onBack }) {
 
       <p className={styles.message}>
         We've received your <strong>{typeLabel}</strong> request
-        and will get back to you within 30 days. A confirmation has been sent to your email.
+        and will get back to you within 7 days. A confirmation has been sent to your email.
       </p>
 
       <div className={styles.receipt}>
